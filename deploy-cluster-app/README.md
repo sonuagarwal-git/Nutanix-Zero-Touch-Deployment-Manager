@@ -258,6 +258,7 @@ deploy-cluster-app/
 ├── install-service.js      ← Run once to install Windows service
 ├── uninstall-service.js    ← Run once to remove Windows service
 ├── start.ps1               ← Automated one-shot setup (runs all steps below)
+├── cleanup.ps1             ← Tear-down script (reverse of start.ps1, for re-testing)
 ├── generate-cert.ps1       ← Generate self-signed TLS cert (no OpenSSL needed)
 ├── generate-cert-openssl.ps1  ← Convert PFX → PEM using OpenSSL
 ├── users.json              ← Local user accounts (bcrypt hashed passwords)

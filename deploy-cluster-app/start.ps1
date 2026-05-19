@@ -18,13 +18,13 @@ $ErrorActionPreference = 'Stop'
 
 $scriptDir = $PSScriptRoot   # deploy-cluster-app/
 
-function Write-Step { param([string]$msg) Write-Host "`n==> $msg" -ForegroundColor Cyan }
+function Write-Step { param([string]$msg) Write-Host "" ; Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-OK   { param([string]$msg) Write-Host "    OK  : $msg" -ForegroundColor Green }
 function Write-Warn { param([string]$msg) Write-Host "    WARN: $msg" -ForegroundColor Yellow }
 function Write-Err  { param([string]$msg) Write-Host "    ERR : $msg" -ForegroundColor Red }
 
-# ── Step 1 — Node.js ──────────────────────────────────────────────────────────
-Write-Step "Step 1 — Checking Node.js"
+# Step 1 - Node.js
+Write-Step "Step 1 -- Checking Node.js"
 
 $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
 if (-not $nodeCmd) {
@@ -44,57 +44,70 @@ if (-not $nodeCmd) {
 }
 Write-OK "Node.js $((node --version))"
 
-# ── Step 2 — npm install ──────────────────────────────────────────────────────
-Write-Step "Step 2 — Installing npm packages"
+# Step 2 - PowerShell 7
+Write-Step "Step 2 -- Checking PowerShell 7"
+$pwshCmd = Get-Command pwsh -ErrorAction SilentlyContinue
+if (-not $pwshCmd) {
+    Write-Host "    PowerShell 7 not found. Installing via winget..." -ForegroundColor Yellow
+    winget install Microsoft.PowerShell --accept-source-agreements --accept-package-agreements
+    # Reload PATH so pwsh is available in this session
+    $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' +
+                [System.Environment]::GetEnvironmentVariable('PATH', 'User')
+    Write-OK "PowerShell 7 installed (available as pwsh.exe)"
+} else {
+    Write-OK "PowerShell 7 already installed: $((pwsh --version))"
+}
+
+# Step 3 - npm install
+Write-Step "Step 3 -- Installing npm packages"
 Set-Location $scriptDir
 npm install --prefer-offline
 Write-OK "npm packages installed"
 
-# ── Step 3 — .env file ────────────────────────────────────────────────────────
-Write-Step "Step 3 — Configuring .env"
+# Step 4 - .env file
+Write-Step "Step 4 -- Configuring .env"
 $envFile = Join-Path $scriptDir '.env'
 
 if (-not (Test-Path $envFile)) {
-    Write-Host "    .env not found — creating with generated defaults..." -ForegroundColor Yellow
+    Write-Host "    .env not found - creating with generated defaults..." -ForegroundColor Yellow
 
     $bytes = New-Object byte[] 32
     [System.Security.Cryptography.RNGCryptoServiceProvider]::new().GetBytes($bytes)
     $secret = [Convert]::ToBase64String($bytes)
 
-    @"
-# Nutanix ZTI Deployment Tool - Environment Configuration
-# --- Company Branding ---
-COMPANY_NAME=Your Company Name
-# --- Security ---
-SESSION_SECRET=$secret
-# --- SMTP / Email ---
-SMTP_HOST=smtp.example.com
-SMTP_PORT=25
-SMTP_USER=noreply@company.com
-# --- Server URL ---
-SERVER_URL=https://$($env:COMPUTERNAME):3443
-"@ | Set-Content $envFile -Encoding UTF8
+    $envContent = "# Nutanix ZTI Deployment Tool - Environment Configuration`r`n"
+    $envContent += "# --- Company Branding ---`r`n"
+    $envContent += "COMPANY_NAME=Your Company Name`r`n"
+    $envContent += "# --- Security ---`r`n"
+    $envContent += "SESSION_SECRET=$secret`r`n"
+    $envContent += "# --- SMTP / Email ---`r`n"
+    $envContent += "SMTP_HOST=smtp.example.com`r`n"
+    $envContent += "SMTP_PORT=25`r`n"
+    $envContent += "SMTP_USER=noreply@company.com`r`n"
+    $envContent += "# --- Server URL ---`r`n"
+    $envContent += "SERVER_URL=https://$($env:COMPUTERNAME):3443`r`n"
+    [System.IO.File]::WriteAllText($envFile, $envContent, [System.Text.Encoding]::UTF8)
 
     Write-OK ".env created with a generated session secret"
     Write-Warn "Edit .env to set COMPANY_NAME (and other values) before going live"
 } else {
-    Write-OK ".env already exists — skipping"
+    Write-OK ".env already exists - skipping"
 }
 
-# ── Step 4 — SSL Certificate ──────────────────────────────────────────────────
-Write-Step "Step 4 — Generating SSL certificate"
+# Step 5 - SSL Certificate
+Write-Step "Step 5 -- Generating SSL certificate"
 $certKey = Join-Path $scriptDir 'certs\server.key'
 $certCrt = Join-Path $scriptDir 'certs\server.crt'
 
 if ((Test-Path $certKey) -and (Test-Path $certCrt)) {
-    Write-OK "Certificates already exist — skipping (delete certs\ to regenerate)"
+    Write-OK "Certificates already exist - skipping (delete certs\ to regenerate)"
 } else {
     & (Join-Path $scriptDir 'generate-cert.ps1')
     Write-OK "SSL certificate generated"
 }
 
-# ── Step 5 — Posh-SSH ────────────────────────────────────────────────────────
-Write-Step "Step 5 — Installing Posh-SSH PowerShell module"
+# Step 6 - Posh-SSH
+Write-Step "Step 6 -- Installing Posh-SSH PowerShell module"
 if (Get-Module -ListAvailable -Name Posh-SSH -ErrorAction SilentlyContinue) {
     Write-OK "Posh-SSH already installed"
 } else {
@@ -102,8 +115,8 @@ if (Get-Module -ListAvailable -Name Posh-SSH -ErrorAction SilentlyContinue) {
     Write-OK "Posh-SSH installed"
 }
 
-# ── Step 6 — Windows Service ──────────────────────────────────────────────────
-Write-Step "Step 6 — Installing Windows service"
+# Step 7 - Windows Service
+Write-Step "Step 7 -- Installing Windows service"
 Set-Location $scriptDir
 node install-service.js
 
@@ -114,13 +127,13 @@ try {
     Write-OK "Service status: $($svc.Status)"
 } catch {
     Write-Warn "Could not start service: $_"
-    Write-Host "    If the service was already registered from a previous failed install, run:" -ForegroundColor Yellow
+    Write-Host "    If the service was previously installed in a broken state, run:" -ForegroundColor Yellow
     Write-Host "      node uninstall-service.js" -ForegroundColor Yellow
     Write-Host "      node install-service.js" -ForegroundColor Yellow
     Write-Host "      Start-Service 'Nutanix Cluster Deployment Web'" -ForegroundColor Yellow
 }
 
-# ── Done ──────────────────────────────────────────────────────────────────────
+# Done
 Write-Host ""
 Write-Host "======================================================" -ForegroundColor Green
 Write-Host "  Setup complete!" -ForegroundColor Green
