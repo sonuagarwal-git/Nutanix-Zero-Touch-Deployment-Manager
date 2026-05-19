@@ -147,27 +147,27 @@ function buildVlanTile(n, values) {
     div.innerHTML = `
         <div class="form-group">
             <label>Subnet Name <span class="required-mark">*</span></label>
-            <input type="text" name="production_vlans.${n}.subnet_name" value="${escHtml(vals.subnet_name || '')}" placeholder="e.g. vLAN-488">
+            <input type="text" name="production_vlans.${n}.subnet_name" value="${escHtml(vals.subnet_name || '')}" placeholder="e.g. vLAN-201">
         </div>
         <div class="form-group">
             <label>VLAN ID <span class="required-mark">*</span></label>
-            <input type="number" name="production_vlans.${n}.vlan_id" value="${escHtml(String(vals.vlan_id !== undefined ? vals.vlan_id : ''))}">
+            <input type="number" name="production_vlans.${n}.vlan_id" value="${escHtml(String(vals.vlan_id !== undefined ? vals.vlan_id : ''))}" placeholder="e.g. 201">
         </div>
         <div class="form-group">
             <label>Gateway <span class="required-mark">*</span></label>
-            <input type="text" name="production_vlans.${n}.gateway" value="${escHtml(vals.gateway || '')}">
+            <input type="text" name="production_vlans.${n}.gateway" value="${escHtml(vals.gateway || '')}" placeholder="e.g. 10.0.201.1">
         </div>
         <div class="form-group">
             <label>Prefix Length <span class="required-mark">*</span></label>
-            <input type="number" name="production_vlans.${n}.prefix_length" value="${escHtml(String(vals.prefix_length !== undefined ? vals.prefix_length : ''))}">
+            <input type="number" name="production_vlans.${n}.prefix_length" value="${escHtml(String(vals.prefix_length !== undefined ? vals.prefix_length : ''))}" placeholder="e.g. 24">
         </div>
         <div class="form-group">
             <label>IP Pool Start <span class="required-mark">*</span></label>
-            <input type="text" name="production_vlans.${n}.ip_pool_start" value="${escHtml(vals.ip_pool_start || '')}">
+            <input type="text" name="production_vlans.${n}.ip_pool_start" value="${escHtml(vals.ip_pool_start || '')}" placeholder="e.g. 10.0.201.10">
         </div>
         <div class="form-group">
             <label>IP Pool End <span class="required-mark">*</span></label>
-            <input type="text" name="production_vlans.${n}.ip_pool_end" value="${escHtml(vals.ip_pool_end || '')}">
+            <input type="text" name="production_vlans.${n}.ip_pool_end" value="${escHtml(vals.ip_pool_end || '')}" placeholder="e.g. 10.0.201.50">
         </div>
     `;
     return div;
@@ -253,7 +253,7 @@ function buildNodeTile(n, values) {
             <input type="text" id="node${n}IloIp"
                    name="network.nodes.${n}.iLO_ip"
                    value="${escHtml(vals.iLO_ip || '')}"
-                   placeholder="e.g. 10.10.16.${120 + n}" required>
+                   placeholder="e.g. 10.0.1.${100 + n}" required>
         </div>
         <div class="form-group">
             <label for="node${n}IloUsername">iLO Username <span class="required-mark">*</span></label>
@@ -279,14 +279,14 @@ function buildNodeTile(n, values) {
             <input type="text" id="node${n}HypervisorIp"
                    name="network.nodes.${n}.hypervisor_ip"
                    value="${escHtml(vals.hypervisor_ip || '')}"
-                   placeholder="e.g. 10.0.113.${131 + n * 2}" required>
+                   placeholder="e.g. 10.0.100.${131 + n * 2}" required>
         </div>
         <div class="form-group">
             <label for="node${n}CvmIp">CVM IP <span class="required-mark">*</span></label>
             <input type="text" id="node${n}CvmIp"
                    name="network.nodes.${n}.cvm_ip"
                    value="${escHtml(vals.cvm_ip || '')}"
-                   placeholder="e.g. 10.0.113.${132 + n * 2}" required>
+                   placeholder="e.g. 10.0.100.${132 + n * 2}" required>
         </div>
     `;
 

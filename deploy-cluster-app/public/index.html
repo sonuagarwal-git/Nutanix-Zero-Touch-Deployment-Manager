@@ -169,11 +169,11 @@
                 <div class="form-row-grid">
                     <div class="form-group">
                         <label for="dnsServer1">DNS Server 1 <span class="required-mark">*</span></label>
-                        <input type="text" id="dnsServer1" name="dns_servers.0" placeholder="e.g. 10.0.10.80" required>
+                        <input type="text" id="dnsServer1" name="dns_servers.0" placeholder="e.g. 10.0.1.10" required>
                     </div>
                     <div class="form-group">
                         <label for="dnsServer2">DNS Server 2</label>
-                        <input type="text" id="dnsServer2" name="dns_servers.1" placeholder="e.g. 10.0.10.81">
+                        <input type="text" id="dnsServer2" name="dns_servers.1" placeholder="e.g. 10.0.1.11">
                     </div>
                     <div class="form-group">
                         <label for="dnsServer3">DNS Server 3</label>
@@ -190,7 +190,7 @@
                     </div>
                     <div class="form-group">
                         <label for="dnsAdminUsername">Username</label>
-                        <input type="text" id="dnsAdminUsername" name="dns_admin.username" placeholder="e.g. SVC-DKCDC-NTX-AUTO">
+                        <input type="text" id="dnsAdminUsername" name="dns_admin.username" placeholder="e.g. SVC-NTX-AUTO">
                     </div>
                     <div class="form-group">
                         <label for="dnsAdminPassword">Password</label>
@@ -230,7 +230,7 @@
                     </div>
                     <div class="form-group">
                         <label for="witnessName">Witness Name</label>
-                        <input type="text" id="witnessName" name="witness.name" placeholder="e.g. DKCDC-1P-NTXTEST-01-Witness">
+                        <input type="text" id="witnessName" name="witness.name" placeholder="e.g. SITE-1P-CLUSTER-01-Witness">
                     </div>
                     <div class="form-group">
                         <label for="witnessUser">Username</label>
@@ -281,27 +281,27 @@
                 <div class="form-row-grid">
                     <div class="form-group">
                         <label for="hubSubnetName">Subnet Name <span class="required-mark">*</span></label>
-                        <input type="text" id="hubSubnetName" name="hub_production.subnet_name" placeholder="e.g. vLAN-487">
+                        <input type="text" id="hubSubnetName" name="hub_production.subnet_name" placeholder="e.g. vLAN-200">
                     </div>
                     <div class="form-group">
                         <label for="hubVlanId">VLAN ID <span class="required-mark">*</span></label>
-                        <input type="number" id="hubVlanId" name="hub_production.vlan_id">
+                        <input type="number" id="hubVlanId" name="hub_production.vlan_id" placeholder="e.g. 200">
                     </div>
                     <div class="form-group">
                         <label for="hubGateway">Gateway <span class="required-mark">*</span></label>
-                        <input type="text" id="hubGateway" name="hub_production.gateway">
+                        <input type="text" id="hubGateway" name="hub_production.gateway" placeholder="e.g. 10.0.200.1">
                     </div>
                     <div class="form-group">
                         <label for="hubPrefixLength">Prefix Length <span class="required-mark">*</span></label>
-                        <input type="number" id="hubPrefixLength" name="hub_production.prefix_length">
+                        <input type="number" id="hubPrefixLength" name="hub_production.prefix_length" placeholder="e.g. 24">
                     </div>
                     <div class="form-group">
                         <label for="hubIpPoolStart">IP Pool Start <span class="required-mark">*</span></label>
-                        <input type="text" id="hubIpPoolStart" name="hub_production.ip_pool_start">
+                        <input type="text" id="hubIpPoolStart" name="hub_production.ip_pool_start" placeholder="e.g. 10.0.200.10">
                     </div>
                     <div class="form-group">
                         <label for="hubIpPoolEnd">IP Pool End <span class="required-mark">*</span></label>
-                        <input type="text" id="hubIpPoolEnd" name="hub_production.ip_pool_end">
+                        <input type="text" id="hubIpPoolEnd" name="hub_production.ip_pool_end" placeholder="e.g. 10.0.200.50">
                     </div>
                 </div>
                 </div>
