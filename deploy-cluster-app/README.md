@@ -11,11 +11,6 @@ A secure, web-based portal for deploying and managing Nutanix clusters via Zero-
 - [Architecture Overview](#architecture-overview)
 - [Project Structure](#project-structure)
 - [Prerequisites](#prerequisites)
-- [Installation](#installation)
-  - [1. Install Node.js Dependencies](#1-install-nodejs-dependencies)
-  - [2. Generate SSL Certificates](#2-generate-ssl-certificates)
-  - [3. Start the Server](#3-start-the-server)
-- [Running as a Windows Service](#running-as-a-windows-service)
 - [Configuration](#configuration)
   - [Environment Variables](#environment-variables)
   - [Deployment Parameters](#deployment-parameters)
@@ -34,6 +29,13 @@ A secure, web-based portal for deploying and managing Nutanix clusters via Zero-
 ## Quick Start — First-Time Setup
 
 New to this tool? Follow these steps in order to get the portal running on a fresh Windows server.
+
+> **Automated setup:** If you want to skip manual steps, run `start.ps1` from PowerShell as Administrator — it performs all 6 steps automatically:
+> ```powershell
+> cd <path-to>\deploy-cluster-app
+> .\start.ps1
+> ```
+> Manual steps are documented below for reference.
 
 ### Step 1 — Install Node.js
 
@@ -58,11 +60,7 @@ This downloads all required packages into `node_modules\`.
 
 ### Step 3 — Create your configuration file
 
-```powershell
-Copy-Item .env.example .env
-```
-
-Open `.env` in a text editor and set at minimum:
+Open (or create) `.env` in the application root and set at minimum:
 
 ```env
 COMPANY_NAME=Your Company Name
@@ -116,7 +114,40 @@ Log in with username `admin` (default password is set in `users.json`, or change
 
 > **Tip:** For quick one-off testing without installing the service, run `node server.js` directly in a terminal — the server stops when you close the terminal.
 
-See [Running as a Windows Service](#running-as-a-windows-service) for start/stop/restart/uninstall commands.
+#### Day-to-day service management
+
+```powershell
+# Stop the service
+Stop-Service 'Nutanix Cluster Deployment Web'
+
+# Restart (required after changes to server.js or files under public/)
+Restart-Service 'Nutanix Cluster Deployment Web'
+
+# Check status
+Get-Service 'Nutanix Cluster Deployment Web'
+```
+
+Or manage via **Services** (`services.msc`) → *Nutanix Cluster Deployment Web*.
+
+#### View service logs
+
+```powershell
+# Server output (startup messages, deployment logs)
+Get-Content '<path-to>\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.out.log' -Tail 100 -Wait
+
+# Server errors
+Get-Content '<path-to>\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.err.log' -Tail 50
+
+# WinSW wrapper (crash/restart events)
+Get-Content '<path-to>\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.wrapper.log' -Tail 30
+```
+
+#### Uninstall the service
+
+```powershell
+cd <path-to>\deploy-cluster-app
+node uninstall-service.js
+```
 
 ---
 
@@ -226,6 +257,7 @@ deploy-cluster-app/
 ├── package.json
 ├── install-service.js      ← Run once to install Windows service
 ├── uninstall-service.js    ← Run once to remove Windows service
+├── start.ps1               ← Automated one-shot setup (runs all steps below)
 ├── generate-cert.ps1       ← Generate self-signed TLS cert (no OpenSSL needed)
 ├── generate-cert-openssl.ps1  ← Convert PFX → PEM using OpenSSL
 ├── users.json              ← Local user accounts (bcrypt hashed passwords)
@@ -291,7 +323,7 @@ Drop files into `public/images/` — the server serves them automatically.
 
 ### Steps to add your branding
 
-1. Copy `.env.example` to `.env` and set `COMPANY_NAME=Your Actual Company`.
+1. Open `.env` and set `COMPANY_NAME=Your Actual Company`.
 2. Create (or navigate to) `deploy-cluster-app/public/images/`.
 3. Copy your **company logo** as `logo.png` into that folder.
 4. Copy your **background image** as `login-bg.png` into that folder.
@@ -308,8 +340,6 @@ Drop files into `public/images/` — the server serves them automatically.
 |---|---|---|
 | **Node.js** | 18+ | `node` and `npm` must be on `PATH` |
 | **PowerShell** | 7+ (`pwsh.exe`) | Used to execute the deployment pipeline |
-| **Posh-SSH** | Any | PowerShell module — auto-installed by pipeline if missing |
-| **OpenSSL** | Any (optional) | Only for `generate-cert-openssl.ps1`; `choco install openssl` |
 | **Active Directory** | — | Only required when LDAP/AD authentication is used |
 
 ### npm package dependencies
@@ -329,116 +359,9 @@ Installed automatically by `npm install`:
 
 ### PowerShell module dependencies
 
-| Module | Install command | Used by |
+| Module | How it's installed | Used by |
 |---|---|---|
-| `Posh-SSH` | `Install-Module Posh-SSH -Scope AllUsers` | CVM SSH operations (password change, bond mode, cluster commands) |
-| `NutanixZTI` | Included in `Nutanix-ZTI/Modules/` — auto-loaded by pipeline | All ZTI pipeline steps |
-
----
-
-## Installation
-
-### 1. Install Node.js Dependencies
-
-```powershell
-cd <path-to>\deploy-cluster-app
-npm install
-```
-
-### 2. Generate SSL Certificates
-
-Run **one** of the following PowerShell scripts to create `certs\server.key` and `certs\server.crt`:
-
-**Option A — PowerShell only (no OpenSSL required):**
-```powershell
-.\generate-cert.ps1
-```
-This uses `New-SelfSignedCertificate` to create a 5-year RSA-2048 certificate that includes the machine hostname, FQDN, and all local IP addresses as Subject Alternative Names (SANs). The certificate is exported to PFX and then converted to PEM format.
-
-**Option B — OpenSSL (if already installed):**
-```powershell
-# Run Option A first to create server.pfx, then:
-.\generate-cert-openssl.ps1
-```
-
-> **Note:** Both scripts target `<path-to>\deploy-cluster-app\certs\`. Adjust the path inside the scripts if the application is installed elsewhere.
-
-### 3. Start the Server
-
-```powershell
-npm start
-# or
-node server.js
-```
-
-The server will be available at **`https://localhost:3443`**.
-
-On first run, log in with the built-in **admin** account (see `users.json` — create one if the file is empty or seed it with a bcrypt-hashed password).
-
----
-
-## Running as a Windows Service
-
-The application runs as a Windows service via the WinSW wrapper in `daemon/`. It starts automatically on boot and restarts automatically on failure.
-
-### Install the service (first time only)
-
-```powershell
-cd <path-to>\deploy-cluster-app
-node install-service.js
-```
-
-### Start / Stop / Restart
-
-```powershell
-# Check status
-Get-Service 'Nutanix Cluster Deployment Web'
-
-# Start
-Start-Service 'Nutanix Cluster Deployment Web'
-
-# Stop
-Stop-Service 'Nutanix Cluster Deployment Web'
-
-# Restart (after config changes or updates)
-Restart-Service 'Nutanix Cluster Deployment Web'
-```
-
-Or via **Services** (`services.msc`) → *Nutanix Cluster Deployment Web*.
-
-### View service logs
-
-```powershell
-# Application stdout (deployment output, server messages)
-Get-Content '<path-to>\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.out.log' -Tail 100 -Wait
-
-# Application stderr (errors and exceptions)
-Get-Content '<path-to>\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.err.log' -Tail 50
-
-# WinSW wrapper log (crash/restart events)
-Get-Content '<path-to>\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.wrapper.log' -Tail 30
-```
-
-### Uninstall the service
-
-```powershell
-cd <path-to>\deploy-cluster-app
-node uninstall-service.js
-```
-
-The service runs under `LocalSystem`, uses log rotation, and allows up to 3 automatic restarts.
-
----
-
-## After Code Updates — Service Restart Required
-
-Any change to `server.js` or files under `public/` requires a service restart to take effect:
-
-```powershell
-Restart-Service 'Nutanix Cluster Deployment Web'
-```
-
-> Changes to JSON data files (`users.json`, `idp-config.json`, `smtp-config.json`) written via the web UI take effect immediately — the server reads them from disk on every request.
+| `Posh-SSH` | Auto-installed from PowerShell Gallery when first needed by `Set-AHV-BondMode.ps1` / `Change-Prism-CVM-AHV-Password.ps1` | CVM SSH operations (password change, bond mode) |
 
 ---
 
