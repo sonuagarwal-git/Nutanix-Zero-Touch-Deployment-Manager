@@ -520,6 +520,19 @@
 
     <script src="app.js"></script>
     <script>
+        // Apply company branding
+        (async function applyBranding() {
+            try {
+                const r = await fetch('/api/branding');
+                const { companyName } = await r.json();
+                if (companyName) {
+                    document.title = companyName + ' — Nutanix Cluster Deployment';
+                    const el = document.getElementById('logoFallbackNav');
+                    if (el) el.textContent = companyName.toUpperCase();
+                }
+            } catch (e) { /* use static defaults */ }
+        })();
+
         // Make every config-section collapsible via its h2 heading
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.config-section').forEach(section => {

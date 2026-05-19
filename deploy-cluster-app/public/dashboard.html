@@ -423,6 +423,19 @@
     </div>
     
     <script>
+        // Apply company branding
+        (async function applyBranding() {
+            try {
+                const r = await fetch('/api/branding');
+                const { companyName } = await r.json();
+                if (companyName) {
+                    document.title = companyName + ' — Dashboard';
+                    const el = document.getElementById('logoFallbackNav');
+                    if (el) el.textContent = companyName.toUpperCase();
+                }
+            } catch (e) { /* use static defaults */ }
+        })();
+
         // Theme toggle
         function toggleTheme() {
             const root = document.documentElement;

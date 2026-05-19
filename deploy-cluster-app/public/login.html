@@ -15,7 +15,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             height: 100vh;
             background-color: #87ceeb;
-            background-image: url('/images/login-bg.jpg');
+            background-image: url('/images/login-bg.png');
             background-size: cover;
             background-position: center center;
             background-repeat: no-repeat;
@@ -266,6 +266,19 @@
     </div>
 
     <script>
+        // Load company name from server config and apply to all fallback labels
+        (async function applyBranding() {
+            try {
+                const r = await fetch('/api/branding');
+                const { companyName } = await r.json();
+                if (companyName) {
+                    document.title = companyName + ' — Nutanix Cluster Deployment';
+                    const fallback = document.getElementById('logoFallback');
+                    if (fallback) fallback.textContent = companyName.toUpperCase();
+                }
+            } catch (e) { /* use static defaults */ }
+        })();
+
         const loginForm = document.getElementById('loginForm');
         const errorMessage = document.getElementById('errorMessage');
         const passwordInput = document.getElementById('password');

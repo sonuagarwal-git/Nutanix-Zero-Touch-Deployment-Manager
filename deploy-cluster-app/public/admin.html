@@ -550,6 +550,19 @@
     </div>
 
     <script>
+        // Apply company branding
+        (async function applyBranding() {
+            try {
+                const r = await fetch('/api/branding');
+                const { companyName } = await r.json();
+                if (companyName) {
+                    document.title = companyName + ' — User Management';
+                    const el = document.getElementById('logoFallbackNav');
+                    if (el) el.textContent = companyName.toUpperCase();
+                }
+            } catch (e) { /* use static defaults */ }
+        })();
+
         // Tab switching
         function switchTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));

@@ -706,11 +706,15 @@ app.get('/login.html', (req, res) => {
 });
 
 // Serve static files for login page only
-app.use('/styles.css',         express.static(path.join(__dirname, 'public', 'styles.css')));
-app.use('/wind-turbine-bg.jpg',express.static(path.join(__dirname, 'public', 'wind-turbine-bg.jpg')));
-app.use('/logo.png',           express.static(path.join(__dirname, 'public', 'logo.png')));
-app.use('/logo.svg',           express.static(path.join(__dirname, 'public', 'logo.svg')));
-app.use('/logo.jpg',           express.static(path.join(__dirname, 'public', 'logo.jpg')));
+app.use('/styles.css', express.static(path.join(__dirname, 'public', 'styles.css')));
+app.use('/images',     express.static(path.join(__dirname, 'public', 'images')));
+
+// Public branding endpoint — no auth required so the login page can read it
+app.get('/api/branding', (req, res) => {
+    res.json({
+        companyName: process.env.COMPANY_NAME || 'Your Company Name'
+    });
+});
 
 // Authentication routes
 app.post('/api/login', async (req, res) => {

@@ -161,35 +161,51 @@ deploy-cluster-app/
     ├── css/styles.css
     └── images/             ← ⬅ Place your custom branding images here
         ├── logo.png        ← Company logo (shown in header & login page)
-        └── login-bg.jpg    ← Login page background image
+        └── login-bg.png    ← Login page background image
 ```
 
 ---
 
 ## Branding / Custom Images
 
-The application supports custom company branding with **no code changes required** — just drop your image files into the right folder.
+The application supports custom company branding with **no code changes required**.  
+You can set the company name in the `.env` file, upload image files, or both.
 
-### Image files
+### Option A — Company name text (`.env` file)
+
+Set the `COMPANY_NAME` variable in your `.env` file:
+
+```env
+COMPANY_NAME=Acme Corporation
+```
+
+This name is served via `/api/branding` and applied automatically to:
+- The **browser tab title** on every page
+- The **nav bar** and **login panel** fallback label (shown when no `logo.png` is found)
+
+### Option B — Image files
+
+Drop files into `public/images/` — the server serves them automatically.
 
 | File | Path | Purpose | Recommended size |
 |------|------|---------|-----------------|
 | `logo.png` | `public/images/logo.png` | Company logo in the top-left nav bar and on the login page | Max 220 × 80 px, transparent PNG |
-| `login-bg.jpg` | `public/images/login-bg.jpg` | Full-screen background of the login page | 1920 × 1080 px, JPEG |
+| `login-bg.png` | `public/images/login-bg.png` | Full-screen background of the login page | 1920 × 1080 px, PNG or JPEG |
 
-### How it works
+### How the fallbacks work
 
 - If **`logo.png`** is present → displayed in the nav bar and on the login panel.  
-  If the file is missing → falls back to the text label **"YOUR COMPANY"** automatically (no error shown).
-- If **`login-bg.jpg`** is present → used as the login page background.  
-  If the file is missing → the page falls back to a solid sky-blue background.
+  If missing → falls back to the `COMPANY_NAME` text from `.env` (no error shown to users).
+- If **`login-bg.png`** is present → used as the login page background.  
+  If missing → the page falls back to a solid sky-blue background.
 
 ### Steps to add your branding
 
-1. Create (or navigate to) the `deploy-cluster-app/public/images/` folder.
-2. Copy your **company logo** as `logo.png` into that folder.
-3. Copy your **background image** as `login-bg.jpg` into that folder.
-4. Restart the server (or simply reload the page — static files are served directly).
+1. Copy `.env.example` to `.env` and set `COMPANY_NAME=Your Actual Company`.
+2. Create (or navigate to) `deploy-cluster-app/public/images/`.
+3. Copy your **company logo** as `logo.png` into that folder.
+4. Copy your **background image** as `login-bg.png` into that folder.
+5. Restart the server — branding takes effect immediately.
 
 > **Tip:** Use a PNG with transparency for the logo so it looks clean on both light and dark nav bars.
 
