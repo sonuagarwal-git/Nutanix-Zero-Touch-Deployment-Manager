@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nutanix Cluster Deployment Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+
+        <!-- ── Top Navigation Bar ── -->
+        <nav class="top-nav">
+            <div class="top-nav-left">
+                <img src="/logo.png" class="brand-logo" alt="Logo">
+                <span class="top-nav-welcome">
+                    Welcome, <strong><span id="currentUser"></span></strong>
+                </span>
+            </div>
+            <div class="top-nav-actions">
+                <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()">🌙 Dark</button>
+                <button onclick="window.location.href='/dashboard.html'" class="btn btn-secondary" style="padding:7px 14px;font-size:0.82rem;">Dashboard</button>
+                <button onclick="window.location.href='/admin.html'" id="adminBtn" class="btn btn-secondary" style="padding:7px 14px;font-size:0.82rem;display:none;">User Management</button>
+                <div class="help-dropdown">
+                    <button class="btn btn-secondary" style="padding:7px 14px;font-size:0.82rem;">❓ Help ▾</button>
+                    <div class="help-dropdown-menu">
+                        <a href="/help.html?type=app" class="help-dropdown-item">📖 About Deployment App</a>
+                        <a href="/help.html?type=workflow" class="help-dropdown-item">🔧 About Deployment Workflow</a>
+                    </div>
+                </div>
+                <button onclick="logout()" class="btn btn-secondary" style="padding:7px 14px;font-size:0.82rem;">Logout</button>
+            </div>
+        </nav>
+
+        <h1>Nutanix Cluster Deployment Manager</h1>
+
+        <!-- ── Load Existing Configuration ── -->
+        <div class="config-selector">
+            <label for="configSelect">Load Existing Configuration:</label>
+            <select id="configSelect">
+                <option value="">— Select a saved configuration —</option>
+            </select>
+            <button type="button" id="loadConfigBtn" class="btn btn-primary" style="white-space:nowrap;">Load Config</button>
+        </div>
+
+        <!-- ── Tab Bar ── -->
+        <div class="tab-bar">
+            <button type="button" class="tab-btn-main active" data-tab-target="tab-basic">Basic</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-network">Mgmt Network</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-nodes">Nodes</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-dns">DNS</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-ntp">NTP</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-witness">Witness</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-aos">AOS &amp; AHV</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-vlans">Prod Network</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-pc">Prism Central</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-eula">EULA</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-cyberark">CyberArk</button>
+        </div>
+
+        <form id="configForm">
+
+            <!-- 1. Basic Configuration -->
+            <section class="config-section tab-panel active" id="tab-basic">
+                <h2>Basic Configuration <span class="required-mark">*</span></h2>
+                <div class="form-row-grid">
+                    <div class="form-group">
+                        <label for="clusterName">Cluster Name <span class="required-mark">*</span></label>
+                        <input type="text" id="clusterName" name="clusterName" placeholder="e.g. SITE-1P-CLUSTER-01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hypervisor">Hypervisor <span class="required-mark">*</span></label>
+                        <select id="hypervisor" name="hypervisor">
+                            <option value="AHV" selected>AHV</option>
+                            <option value="ESXi">ESXi</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="storageContainer">Storage Container Name <span class="required-mark">*</span></label>
+                        <input type="text" id="storageContainer" name="storage_container_name" placeholder="e.g. Workload-Container">
+                    </div>
+                    <div class="form-group">
+                        <label for="timezone">Timezone <span class="required-mark">*</span></label>
+                        <input type="text" id="timezone" name="timezone" placeholder="e.g. Europe/London">
+                    </div>
+                    <div class="form-group">
+                        <label for="outputLevel">Output Level</label>
+                        <select id="outputLevel" name="output_level">
+                            <option value="minimal" selected>Minimal</option>
+                            <option value="normal">Normal</option>
+                            <option value="verbose">Verbose</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. Management Network -->
+            <section class="config-section tab-panel" id="tab-network">
+                <h2>Management Network <span class="required-mark">*</span></h2>
+                <div class="form-row-grid">
+                    <div class="form-group">
+                        <label for="mgmtSubnetName">Subnet Name <span class="required-mark">*</span></label>
+                        <input type="text" id="mgmtSubnetName" name="network.subnet_name" placeholder="e.g. SITE-MGMT" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="mgmtVlanId">VLAN ID <span class="required-mark">*</span></label>
+                        <input type="number" id="mgmtVlanId" name="network.vlan_id" placeholder="e.g. 100">
+                    </div>
+                    <div class="form-group">
+                        <label for="mgmtGateway">Gateway <span class="required-mark">*</span></label>
+                        <input type="text" id="mgmtGateway" name="network.gateway" placeholder="e.g. 10.0.100.1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="mgmtPrefixLength">Prefix Length <span class="required-mark">*</span></label>
+                        <input type="number" id="mgmtPrefixLength" name="network.prefix_length" placeholder="e.g. 24" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="clusterVip">Cluster VIP <span class="required-mark">*</span></label>
+                        <input type="text" id="clusterVip" name="network.cluster_vip" placeholder="e.g. 10.0.100.10" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dataServiceIp">Data Service IP <span class="required-mark">*</span></label>
+                        <input type="text" id="dataServiceIp" name="network.data_service_ip" placeholder="e.g. 10.0.100.11" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="ipPoolStart">IP Pool Start <span class="required-mark">*</span></label>
+                        <input type="text" id="ipPoolStart" name="network.ip_pool_start" placeholder="e.g. 10.0.100.10" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="ipPoolEnd">IP Pool End <span class="required-mark">*</span></label>
+                        <input type="text" id="ipPoolEnd" name="network.ip_pool_end" placeholder="e.g. 10.0.100.20" required>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Node Details -->
+            <section class="config-section tab-panel" id="tab-nodes">
+                <h2>Node Details <span class="required-mark">*</span></h2>
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+                    <label for="nodeCount" style="font-size:0.8125rem;font-weight:600;color:var(--text-label);white-space:nowrap;">Node Count:</label>
+                    <select id="nodeCount" style="width:auto;min-width:120px;">
+                        <option value="1">1 Node</option>
+                        <option value="2" selected>2 Nodes</option>
+                        <option value="3">3 Nodes</option>
+                        <option value="4">4 Nodes</option>
+                        <option value="5">5 Nodes</option>
+                        <option value="6">6 Nodes</option>
+                        <option value="7">7 Nodes</option>
+                        <option value="8">8 Nodes</option>
+                        <option value="9">9 Nodes</option>
+                        <option value="10">10 Nodes</option>
+                        <option value="11">11 Nodes</option>
+                        <option value="12">12 Nodes</option>
+                        <option value="13">13 Nodes</option>
+                        <option value="14">14 Nodes</option>
+                        <option value="15">15 Nodes</option>
+                        <option value="16">16 Nodes</option>
+                    </select>
+                    <span style="font-size:0.78rem;opacity:0.55;">Select the number of nodes and the tiles below will update automatically.</span>
+                </div>
+                <div id="nodeTilesContainer" class="config-grid nodes-grid"></div>
+            </section>
+
+            <!-- 4. DNS -->
+            <section class="config-section tab-panel" id="tab-dns">
+                <h2>DNS <span class="required-mark">*</span></h2>
+                <div class="form-row-grid">
+                    <div class="form-group">
+                        <label for="dnsServer1">DNS Server 1 <span class="required-mark">*</span></label>
+                        <input type="text" id="dnsServer1" name="dns_servers.0" placeholder="e.g. 10.0.10.80" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dnsServer2">DNS Server 2</label>
+                        <input type="text" id="dnsServer2" name="dns_servers.1" placeholder="e.g. 10.0.10.81">
+                    </div>
+                    <div class="form-group">
+                        <label for="dnsServer3">DNS Server 3</label>
+                        <input type="text" id="dnsServer3" name="dns_servers.2" value="">
+                    </div>
+                </div>
+                <div class="form-row-grid" style="margin-top:10px;">
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <p style="margin:0;font-weight:700;color:var(--accent);">&#9432; DNS Admin Account (Optional) — used by Step 16 to create DNS A records (ilo, nodes & cluster) under the service account identity. <strong>Step 16 is automatically skipped if these fields are left empty.</strong></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="dnsAdminDomain">Domain</label>
+                        <input type="text" id="dnsAdminDomain" name="dns_admin.domain" placeholder="e.g. VESTAS">
+                    </div>
+                    <div class="form-group">
+                        <label for="dnsAdminUsername">Username</label>
+                        <input type="text" id="dnsAdminUsername" name="dns_admin.username" placeholder="e.g. SVC-DKCDC-NTX-AUTO">
+                    </div>
+                    <div class="form-group">
+                        <label for="dnsAdminPassword">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="dnsAdminPassword" name="dns_admin.password" value="">
+                            <button type="button" class="password-toggle" onclick="togglePasswordField('dnsAdminPassword', this)" aria-label="Toggle password visibility"><span>👁️</span></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. NTP -->
+            <section class="config-section tab-panel" id="tab-ntp">
+                <h2>NTP <span class="required-mark">*</span></h2>
+                <div class="form-row-grid">
+                    <div class="form-group">
+                        <label for="ntpServer1">NTP Server 1 <span class="required-mark">*</span></label>
+                        <input type="text" id="ntpServer1" name="ntp_servers.0" placeholder="e.g. ntp1.example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="ntpServer2">NTP Server 2</label>
+                        <input type="text" id="ntpServer2" name="ntp_servers.1" placeholder="e.g. ntp2.example.com">
+                    </div>
+                </div>
+            </section>
+
+            <!-- 7. Witness Configuration -->
+            <section class="config-section tab-panel" id="tab-witness">
+                <h2>Witness Configuration <span class="optional-badge">Optional</span></h2>
+                <div class="form-row-grid">
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <p style="margin:0;font-weight:700;color:var(--accent);">&#9432; Fill in Witness details only for 2-node clusters. Leave blank for all other cluster sizes — the step will be auto-skipped if left empty.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="witnessIp">Witness IP</label>
+                        <input type="text" id="witnessIp" name="witness.ip" placeholder="e.g. 10.0.100.5">
+                    </div>
+                    <div class="form-group">
+                        <label for="witnessName">Witness Name</label>
+                        <input type="text" id="witnessName" name="witness.name" placeholder="e.g. DKCDC-1P-NTXTEST-01-Witness">
+                    </div>
+                    <div class="form-group">
+                        <label for="witnessUser">Username</label>
+                        <input type="text" id="witnessUser" name="witness.username" placeholder="e.g. admin">
+                    </div>
+                    <div class="form-group">
+                        <label for="witnessPassword">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="witnessPassword" name="witness.password">
+                            <button type="button" class="password-toggle" onclick="togglePasswordField('witnessPassword', this)" aria-label="Toggle password visibility"><span>👁️</span></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 8. AOS & AHV Selection -->
+            <section class="config-section tab-panel" id="tab-aos">
+                <h2>AOS &amp; AHV Selection <span class="required-mark">*</span></h2>
+                <div class="form-row-grid">
+                    <div class="form-group">
+                        <label for="aosVersion">AOS Version <span class="required-mark">*</span></label>
+                        <input type="text" id="aosVersion" name="aos_version" placeholder="e.g. 7.3.1" required>
+                    </div>
+                    <div class="form-group" style="grid-column:span 2;">
+                        <label for="aosPackageUrl">AOS Package URL <span class="required-mark">*</span></label>
+                        <input type="text" id="aosPackageUrl" name="aos_package_url" placeholder="https://your-server/path/nutanix-package.tar.gz" required>
+                    </div>
+                    <div class="form-group" style="grid-column:span 2;">
+                        <label for="hypervisorIsoUrl">Hypervisor ISO URL <span class="required-mark">*</span></label>
+                        <input type="text" id="hypervisorIsoUrl" name="hypervisor_iso_url" placeholder="https://your-server/path/AHV-DVD.iso" required>
+                    </div>
+                    <div class="form-group" style="grid-column:span 2;">
+                        <label for="phoenixIsoUrl">Phoenix ISO URL <span class="required-mark">*</span></label>
+                        <input type="text" id="phoenixIsoUrl" name="phoenix_iso_url" placeholder="https://your-server/path/phoenix.iso" required>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 9. Production Network (Source Cluster) -->
+            <section class="config-section tab-panel" id="tab-vlans">
+                <h2>Production Network <span class="required-mark">*</span> <span style="font-weight:400;opacity:0.55;text-transform:none;letter-spacing:0;">(Source Cluster)</span>
+                </h2>
+                <div id="vlanRowsContainer"></div>
+
+                <!-- 10. Hub Production Network (Target Cluster) -->
+                <div class="config-section" style="margin-top:24px;">
+                <h2>Hub Production Network <span class="required-mark">*</span> <span style="font-weight:400;opacity:0.55;text-transform:none;letter-spacing:0;">(Target Cluster)</span></h2>
+                <div class="form-row-grid">
+                    <div class="form-group">
+                        <label for="hubSubnetName">Subnet Name <span class="required-mark">*</span></label>
+                        <input type="text" id="hubSubnetName" name="hub_production.subnet_name" placeholder="e.g. vLAN-487">
+                    </div>
+                    <div class="form-group">
+                        <label for="hubVlanId">VLAN ID <span class="required-mark">*</span></label>
+                        <input type="number" id="hubVlanId" name="hub_production.vlan_id">
+                    </div>
+                    <div class="form-group">
+                        <label for="hubGateway">Gateway <span class="required-mark">*</span></label>
+                        <input type="text" id="hubGateway" name="hub_production.gateway">
+                    </div>
+                    <div class="form-group">
+                        <label for="hubPrefixLength">Prefix Length <span class="required-mark">*</span></label>
+                        <input type="number" id="hubPrefixLength" name="hub_production.prefix_length">
+                    </div>
+                    <div class="form-group">
+                        <label for="hubIpPoolStart">IP Pool Start <span class="required-mark">*</span></label>
+                        <input type="text" id="hubIpPoolStart" name="hub_production.ip_pool_start">
+                    </div>
+                    <div class="form-group">
+                        <label for="hubIpPoolEnd">IP Pool End <span class="required-mark">*</span></label>
+                        <input type="text" id="hubIpPoolEnd" name="hub_production.ip_pool_end">
+                    </div>
+                </div>
+                </div>
+            </section>
+
+            <!-- 11. Prism Central -->
+            <section class="config-section tab-panel" id="tab-pc">
+                <h2>Prism Central <span class="required-mark">*</span></h2>
+                <div class="form-row-grid">
+                    <div class="form-group">
+                        <label for="pcIp">Prism Central IP <span class="required-mark">*</span></label>
+                        <input type="text" id="pcIp" name="prism_central.ip" placeholder="e.g. 10.0.100.220">
+                    </div>
+                    <div class="form-group">
+                        <label for="pcUrl">Prism Central URL <span class="required-mark">*</span></label>
+                        <input type="text" id="pcUrl" name="prism_central.url" placeholder="https://&lt;ip&gt;:9440">
+                    </div>
+                    <div class="form-group">
+                        <label for="pcUsername">Username <span class="required-mark">*</span></label>
+                        <input type="text" id="pcUsername" name="prism_central.username" placeholder="e.g. admin">
+                    </div>
+                    <div class="form-group">
+                        <label for="pcPassword">Password <span class="required-mark">*</span></label>
+                        <div class="password-wrapper">
+                            <input type="password" id="pcPassword" name="prism_central.password" value="">
+                            <button type="button" class="password-toggle" onclick="togglePasswordField('pcPassword', this)" aria-label="Toggle password visibility"><span>👁️</span></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 12. EULA Details -->
+            <section class="config-section tab-panel" id="tab-eula">
+                <h2>EULA Details <span class="required-mark">*</span></h2>
+                <div class="form-row-grid">
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <p style="margin:0;font-weight:700;color:var(--accent);">&#9432; Required for Step 5 (Accept EULA). These details are submitted to Prism Element when accepting the End User License Agreement.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="eulaUsername">Full Name <span class="required-mark">*</span></label>
+                        <input type="text" id="eulaUsername" name="eula.username" placeholder="e.g. Core-Service" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eulaJobTitle">Job Title <span class="required-mark">*</span></label>
+                        <input type="text" id="eulaJobTitle" name="eula.job_title" placeholder="e.g. Infrastructure Team" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eulaCompanyName">Company Name <span class="required-mark">*</span></label>
+                        <input type="text" id="eulaCompanyName" name="eula.company_name" placeholder="e.g. Vestas Wind System A/S" required>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 13. CyberArk Details -->
+            <section class="config-section tab-panel" id="tab-cyberark">
+                <h2>CyberArk Details <span class="optional-badge">Optional</span></h2>
+                <div class="form-row-grid">
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <p style="margin:0;font-weight:700;color:var(--accent);">&#9432; Fill in details to save the password in CyberArk — the step will be auto-skipped if left empty.</p>
+                    </div>
+                    <div class="form-group" style="grid-column:span 2;">
+                        <label for="cyberarkUsername">Username</label>
+                        <input type="text" id="cyberarkUsername" name="cyberark.username" placeholder="e.g. svc-account@company.com.XX">
+                    </div>
+                    <div class="form-group">
+                        <label for="cyberarkPassword">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="cyberarkPassword" name="cyberark.password" value="">
+                            <button type="button" class="password-toggle" onclick="togglePasswordField('cyberarkPassword', this)" aria-label="Toggle password visibility"><span>👁️</span></button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="cyberarkSecurityAnswer">Security Answer</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="cyberarkSecurityAnswer" name="cyberark.security_answer" value="">
+                            <button type="button" class="password-toggle" onclick="togglePasswordField('cyberarkSecurityAnswer', this)" aria-label="Toggle password visibility"><span>👁️</span></button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="cyberarkTenantId">Tenant ID</label>
+                        <input type="text" id="cyberarkTenantId" name="cyberark.tenant_id" placeholder="e.g. abc1234">
+                    </div>
+                    <div class="form-group">
+                        <label for="cyberarkBaseUrl">Base URL</label>
+                        <input type="text" id="cyberarkBaseUrl" name="cyberark.base_url" placeholder="https://&lt;tenant&gt;.id.cyberark.cloud">
+                    </div>
+                    <div class="form-group">
+                        <label for="cyberarkVaultFolder">Vault Folder</label>
+                        <input type="text" id="cyberarkVaultFolder" name="cyberark.vault_folder" placeholder="e.g. Nutanix_Remote_Sites">
+                    </div>
+                </div>
+            </section>
+
+
+            <div class="button-group">
+                <p class="required-legend"><span class="required-mark">*</span> Required &mdash; all fields marked with * must be filled before starting a deployment or dry run.</p>
+                <div id="validationBanner" style="display:none;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.5);border-radius:6px;padding:10px 14px;margin-bottom:10px;">
+                    <span style="color:#ef4444;font-weight:600;font-size:0.85rem;">&#9888; </span><span class="vb-count" style="color:#ef4444;font-size:0.85rem;"></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08);">
+                    <label style="font-size:0.85rem;opacity:0.75;white-space:nowrap;">Start at step:</label>
+                    <select id="startAtStepSelect" style="min-width:220px;padding:5px 8px;">
+                        <option value="1">Step 1 — Phoenix Boot</option>
+                        <option value="2">Step 2 — Phoenix Boot Check</option>
+                        <option value="3">Step 3 — Node Discovery Check</option>
+                        <option value="4">Step 4 — Image &amp; Deploy Cluster</option>
+                        <option value="5">Step 5 — Accept EULA</option>
+                        <option value="6">Step 6 — Register to Witness VM</option>
+                        <option value="7">Step 7 — Register to Prism Central</option>
+                        <option value="8">Step 8 — Create Production VLANs</option>
+                        <option value="9">Step 9 — Create Storage Container</option>
+                        <option value="10">Step 10 — Create Backup Policies</option>
+                        <option value="11">Step 11 — Create Protection Policy</option>
+                        <option value="12">Step 12 — Create Recovery Plan</option>
+                        <option value="13">Step 13 — Set AHV Bond Mode</option>
+                        <option value="14">Step 14 — Change Passwords &amp; Export CSV</option>
+                        <option value="15">Step 15 — Import Secrets to CyberArk</option>
+                        <option value="16">Step 16 — Add DNS Records</option>
+                    </select>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08);">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;white-space:nowrap;" title="Bypass pre-flight checks. Use only if IPs are stale entries from a previous run and you are certain they are not in use by another device.">
+                        <input type="checkbox" id="skipPreCheckCb" style="width:14px;height:14px;accent-color:#f59e0b;cursor:pointer;">
+                        <span style="color:#f59e0b;">⚠ Skip Pre-Check</span>
+                    </label>
+                    <label style="font-size:0.85rem;opacity:0.75;white-space:nowrap;">Skip steps:</label>
+                    <div class="skip-dd" id="skipDd">
+                        <button type="button" class="skip-dd-btn" onclick="toggleSkipDd('skipDd')">
+                            <span class="skip-dd-label" id="skipDdLabel">None selected</span>
+                            <span class="skip-dd-arrow">▾</span>
+                        </button>
+                        <div class="skip-dd-panel" id="skipDdPanel">
+                            <div class="skip-dd-head">
+                                <span>Select steps to skip during execution</span>
+                                <button type="button" onclick="clearSkipDd('skip-step-cb','skipDdLabel')">Clear all</button>
+                            </div>
+                            <label><input type="checkbox" class="skip-step-cb" value="1">  1 — Phoenix Boot</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="2">  2 — Phoenix Boot Check</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="3">  3 — Node Discovery Check</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="4">  4 — Image &amp; Deploy Cluster</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="5">  5 — Accept EULA</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="6">  6 — Register Witness VM</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="7">  7 — Register to Prism Central</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="8">  8 — Create Production VLANs</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="9">  9 — Create Storage Container</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="10">10 — Create Backup Policies</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="11">11 — Create Protection Policy</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="12">12 — Create Recovery Plan</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="13">13 — Set AHV Bond Mode</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="14">14 — Change Passwords &amp; Export CSV</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="15">15 — Import Secrets to CyberArk</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="16">16 — Add DNS Records</label>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" id="startDeploymentBtn" class="btn btn-deploy">🚀 Start Deployment</button>
+                <button type="button" id="dryRunBtn"          class="btn btn-warning">🔍 Dry Run</button>
+                <button type="button" id="abortBtn"           class="btn btn-danger"  style="display:none;">⛔ Abort Deployment</button>
+                <button type="button" id="saveConfigBtn"      class="btn btn-primary">💾 Save Configuration</button>
+                <button type="submit"                         class="btn btn-secondary">👁 Preview Configuration</button>
+                <button type="button" id="resetBtn"           class="btn btn-secondary">↺ Reset to Defaults</button>
+                <button type="button" id="loadBtn"            class="btn btn-secondary">📂 Load from File</button>
+            </div>
+
+        </form>
+
+        <!-- ── Deployment Progress ── -->
+        <div id="deploymentSection" class="deployment-section" style="display:none;">
+            <h2>Deployment Progress</h2>
+            <div class="deployment-info">
+                <span><strong>Configuration:</strong> <span id="deployConfigName"></span></span>
+                <span><strong>Status:</strong> <span id="deployOverallStatus">Initializing...</span></span>
+            </div>
+            <div id="deploymentSteps" class="deployment-steps"></div>
+            <div class="deployment-log">
+                <h3>Deployment Log</h3>
+                <pre id="deploymentLog"></pre>
+            </div>
+        </div>
+
+        <!-- ── Terminal ── -->
+        <div class="deployment-section" style="margin-top:20px;">
+            <h2>🖥 Terminal — Nutanix-ZTI</h2>
+
+            <!-- Command runner -->
+            <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:16px;">
+                <h3 style="margin:0 0 10px 0;font-size:1rem;">&#xfeff;🐚 Run PowerShell Command</h3>
+                <div id="terminalOutput"></div>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="terminalInput"
+                           style="flex:1;font-family:'Consolas','Courier New',monospace;font-size:0.85rem;"
+                           placeholder="e.g.  .\Start-Pipeline.ps1 -ConfigFile .\Configs\xxx.json -StartAtStep 6">
+                    <button type="button" class="btn btn-primary"  onclick="runTerminalCommand()">Run</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('terminalOutput').innerHTML=''">Clear</button>
+                </div>
+                <p style="margin:6px 0 0 0;font-size:0.75rem;opacity:0.55;">Working directory: E:\SOAAA\ZTIPS\Nutanix-ZTI</p>
+            </div>
+        </div>
+
+        <!-- ── Config Preview ── -->
+        <div id="output" class="output-section" style="display:none;">
+            <h2>Generated Configuration</h2>
+            <div class="output-tabs">
+                <button class="tab-btn" data-tab="yaml">YAML</button>
+                <button class="tab-btn active" data-tab="json">JSON</button>
+                <button class="tab-btn" data-tab="env">ENV</button>
+            </div>
+            <pre id="configOutput"></pre>
+            <div class="button-group" style="border-top:none;padding-top:14px;margin-top:14px;">
+                <button id="copyBtn"     class="btn btn-primary">📋 Copy to Clipboard</button>
+                <button id="downloadBtn" class="btn btn-secondary">⬇ Download</button>
+            </div>
+        </div>
+
+    </div><!-- /.container -->
+
+    <script src="app.js"></script>
+    <script>
+        // Make every config-section collapsible via its h2 heading
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.config-section').forEach(section => {
+                const h2 = section.querySelector(':scope > h2');
+                if (!h2) return;
+
+                // Inject toggle arrow
+                const arrow = document.createElement('span');
+                arrow.className = 'section-toggle';
+                arrow.textContent = '▼';
+                h2.appendChild(arrow);
+
+                h2.addEventListener('click', () => {
+                    section.classList.toggle('collapsed');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

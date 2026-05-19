@@ -1,0 +1,187 @@
+{
+  "deployments": [
+    {
+      "cluster_name": "DKCDC-1P-NTXTEST-01",
+      "aos_version": "7.3.1",
+      "total_duration_minutes": 49,
+      "deployment_date": "2026-04-16T17:12:54.2471984+02:00",
+      "success": true,
+      "phases": {
+        "total": 49
+      },
+      "node_count": 2
+    },
+    {
+      "cluster_name": "DKCDC-1P-NTXTEST-01",
+      "total_duration_minutes": 53,
+      "deployment_date": "2026-04-17T16:47:16.8233526+02:00",
+      "success": true,
+      "phases": {
+        "total": 53
+      },
+      "node_count": 2,
+      "aos_version": "7.3.1"
+    },
+    {
+      "node_count": 2,
+      "phases": {
+        "total": 53
+      },
+      "success": true,
+      "total_duration_minutes": 53,
+      "cluster_name": "DKCDC-1P-NTXTEST-05",
+      "deployment_date": "2026-04-20T13:46:32.8669288+02:00",
+      "aos_version": "7.3.1"
+    },
+    {
+      "aos_version": "7.3.1",
+      "total_duration_minutes": 55,
+      "success": true,
+      "phases": {
+        "total": 55
+      },
+      "deployment_date": "2026-04-21T11:18:12.5706237+02:00",
+      "cluster_name": "DKCDC-1P-NTXTEST-06",
+      "node_count": 2
+    },
+    {
+      "cluster_name": "DKCDC-1P-NTXTEST-07",
+      "node_count": 2,
+      "total_duration_minutes": 57,
+      "phases": {
+        "total": 57
+      },
+      "aos_version": "7.3.1",
+      "deployment_date": "2026-04-21T13:35:44.006745+02:00",
+      "success": true
+    },
+    {
+      "success": true,
+      "total_duration_minutes": 55,
+      "aos_version": "7.3.1",
+      "phases": {
+        "total": 55
+      },
+      "deployment_date": "2026-04-21T17:47:28.9443431+02:00",
+      "cluster_name": "DKCDC-1P-NTXTEST-08",
+      "node_count": 2
+    },
+    {
+      "cluster_name": "DKCDC-1P-NTXTEST-09",
+      "aos_version": "7.3.1",
+      "phases": {
+        "total": 55
+      },
+      "node_count": 2,
+      "success": true,
+      "total_duration_minutes": 55,
+      "deployment_date": "2026-04-23T14:43:34.5158135+02:00"
+    },
+    {
+      "cluster_name": "DKCDC-1P-NTXTEST-09",
+      "deployment_date": "2026-04-23T19:14:46.1905378+02:00",
+      "phases": {
+        "total": 57
+      },
+      "total_duration_minutes": 57,
+      "success": true,
+      "node_count": 2,
+      "aos_version": "7.3.1"
+    },
+    {
+      "success": true,
+      "aos_version": "7.3.1",
+      "cluster_name": "DKCDC-1P-NTXTEST-03",
+      "total_duration_minutes": 54,
+      "phases": {
+        "total": 54
+      },
+      "deployment_date": "2026-04-24T15:24:29.0059479+02:00",
+      "node_count": 2
+    },
+    {
+      "cluster_name": "DKCDC-1P-NTXTEST-06",
+      "phases": {
+        "total": 54
+      },
+      "aos_version": "7.3.1",
+      "deployment_date": "2026-04-27T12:30:41.219698+02:00",
+      "total_duration_minutes": 54,
+      "node_count": 2,
+      "success": true
+    },
+    {
+      "total_duration_minutes": 55,
+      "success": true,
+      "cluster_name": "DKCDC-1P-NTXTEST-03",
+      "deployment_date": "2026-04-27T15:09:28.5425047+02:00",
+      "phases": {
+        "total": 55
+      },
+      "aos_version": "7.3.1",
+      "node_count": 2
+    },
+    {
+      "aos_version": "7.3.1",
+      "cluster_name": "DKCDC-1P-NTXTEST-07",
+      "deployment_date": "2026-04-28T16:12:47.0945672+02:00",
+      "success": true,
+      "node_count": 2,
+      "total_duration_minutes": 52,
+      "phases": {
+        "total": 52
+      }
+    },
+    {
+      "aos_version": "7.3.1",
+      "total_duration_minutes": 52,
+      "node_count": 2,
+      "deployment_date": "2026-04-29T15:38:20.5360957+02:00",
+      "cluster_name": "DKCDC-1P-NTXTEST-03",
+      "success": true,
+      "phases": {
+        "total": 52
+      }
+    },
+    {
+      "cluster_name": "DKCDC-1P-NTXTEST-06",
+      "total_duration_minutes": 47,
+      "success": true,
+      "deployment_date": "2026-04-30T11:06:39.9586663+02:00",
+      "phases": {
+        "total": 47
+      },
+      "node_count": 2,
+      "aos_version": "7.3.1"
+    },
+    {
+      "cluster_name": "DKCDC-1P-NTXTEST-03",
+      "total_duration_minutes": 52,
+      "node_count": 2,
+      "deployment_date": "2026-04-30T16:41:23.6562818+02:00",
+      "aos_version": "7.3.1",
+      "success": true,
+      "phases": {
+        "total": 52
+      }
+    },
+    {
+      "phases": {
+        "total": 46
+      },
+      "aos_version": "7.3.1",
+      "success": true,
+      "total_duration_minutes": 46,
+      "deployment_date": "2026-05-08T14:00:09.7639228+02:00",
+      "cluster_name": "DKCDC-1P-NTXTEST-06",
+      "node_count": 2
+    }
+  ],
+  "statistics": {
+    "average_duration_minutes": 52.9,
+    "slowest_deployment_minutes": 57.0,
+    "fastest_deployment_minutes": 46.0,
+    "successful_deployments": 16,
+    "total_deployments": 16
+  }
+}

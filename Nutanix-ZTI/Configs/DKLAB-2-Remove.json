@@ -1,0 +1,16 @@
+{
+  "clusterName": "DKCDC-1P-NTXTEST-01",
+  "prism_central": {
+    "url": "https://10.0.113.220:9440",
+    "username": "admin",
+    "password": "Vestas@123"
+  },
+  "cluster_vip": "10.0.113.109",
+  "cvm_ips": [
+    "10.0.113.112",
+    "10.0.113.114"
+  ],
+  "cvm_username": "nutanix",
+  "cvm_password": "bqG4MFz6p=z^m%i3"
+}
+

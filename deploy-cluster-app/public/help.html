@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help — Nutanix Cluster Deployment</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <style>
+        .help-content {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 8px 48px;
+        }
+        .markdown-body h1 {
+            font-size: 1.7rem;
+            color: var(--text-heading);
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .markdown-body h2 {
+            font-size: 1.25rem;
+            color: var(--text-heading);
+            margin: 28px 0 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .markdown-body h3 {
+            font-size: 1.05rem;
+            color: var(--text-heading);
+            margin: 20px 0 8px;
+        }
+        .markdown-body p {
+            color: var(--text-primary);
+            line-height: 1.7;
+            margin: 8px 0;
+        }
+        .markdown-body code {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.84rem;
+            font-family: 'Consolas', 'Cascadia Code', monospace;
+            color: var(--accent);
+        }
+        .markdown-body pre {
+            background: var(--bg-terminal, #0a0c14);
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+        .markdown-body pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            color: var(--log-terminal-text, #a5f3fc);
+            font-size: 0.83rem;
+        }
+        .markdown-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 14px 0;
+            font-size: 0.88rem;
+        }
+        .markdown-body table th {
+            background: var(--bg-section);
+            border: 1px solid var(--border-color);
+            padding: 8px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-heading);
+        }
+        .markdown-body table td {
+            border: 1px solid var(--border-color);
+            padding: 8px 14px;
+            color: var(--text-primary);
+        }
+        .markdown-body blockquote {
+            border-left: 3px solid var(--accent);
+            padding: 8px 16px;
+            margin: 12px 0;
+            background: var(--accent-dim);
+            border-radius: 0 6px 6px 0;
+            color: var(--text-secondary);
+        }
+        .markdown-body ul, .markdown-body ol {
+            padding-left: 24px;
+            color: var(--text-primary);
+        }
+        .markdown-body li { margin: 4px 0; }
+        .markdown-body a { color: var(--accent); }
+        .markdown-body hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 24px 0;
+        }
+        .loading-msg {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+        .error-msg {
+            background: var(--status-error-bg);
+            color: var(--status-error-fg);
+            border: 1px solid var(--status-error-br);
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        /* Mermaid diagram container */
+        .mermaid {
+            background: var(--bg-section);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px 12px;
+            margin: 16px 0;
+            text-align: center;
+            overflow-x: auto;
+        }
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <nav class="top-nav">
+        <div class="top-nav-left">
+            <img src="/logo.png" class="brand-logo" alt="Logo">
+            <span id="pageTitle" class="top-nav-welcome" style="font-size:1rem;font-weight:600;color:var(--text-primary);">Help</span>
+        </div>
+        <div class="top-nav-actions">
+            <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()">🌙 Dark</button>
+            <button onclick="history.back()" class="btn btn-secondary" style="padding:7px 14px;font-size:0.82rem;">← Back</button>
+        </div>
+    </nav>
+
+    <div class="help-content">
+        <div id="content" class="markdown-body">
+            <div class="loading-msg">Loading documentation…</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ── Theme ── */
+    function toggleTheme() {
+        const root = document.documentElement;
+        const btn  = document.getElementById('themeToggleBtn');
+        if (root.dataset.theme === 'light') {
+            delete root.dataset.theme;
+            if (btn) btn.textContent = '🌙 Dark';
+        } else {
+            root.dataset.theme = 'light';
+            if (btn) btn.textContent = '☀ Light';
+        }
+        /* Re-initialize mermaid with the new theme and re-render */
+        const dark = root.dataset.theme !== 'light';
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: dark ? 'dark' : 'default',
+            securityLevel: 'loose',
+            flowchart: { useMaxWidth: true, htmlLabels: true }
+        });
+        /* Reset any already-rendered SVGs back to source text so mermaid.run can re-process */
+        document.querySelectorAll('.mermaid[data-processed="true"]').forEach(el => {
+            el.removeAttribute('data-processed');
+            el.innerHTML = el.getAttribute('data-src') || el.textContent;
+        });
+        mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
+    }
+
+    /* ── Auth check ── */
+    async function init() {
+        try {
+            const res = await fetch('/api/current-user');
+            if (!res.ok) { window.location.href = '/login.html'; return; }
+        } catch (_) {
+            window.location.href = '/login.html';
+            return;
+        }
+
+        /* ── Determine which README to load ── */
+        const params  = new URLSearchParams(window.location.search);
+        const type    = params.get('type') || 'app';
+        const titles  = {
+            app:      '📖 About Nutanix Cluster Deployment App',
+            workflow: '🔧 About Deployment Workflow'
+        };
+
+        const title = titles[type] || 'Help';
+        document.title = title + ' — Nutanix';
+        document.getElementById('pageTitle').textContent = title;
+
+        /* ── Init Mermaid (theme matches app default: dark) ── */
+        const isDark = document.documentElement.dataset.theme !== 'light';
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: isDark ? 'dark' : 'default',
+            securityLevel: 'loose',
+            flowchart: { useMaxWidth: true, htmlLabels: true }
+        });
+
+        /* ── Fetch and render ── */
+        try {
+            const r = await fetch('/api/readme/' + encodeURIComponent(type));
+            if (!r.ok) throw new Error('HTTP ' + r.status + ' — README not found');
+            const md = await r.text();
+            marked.setOptions({ breaks: false, gfm: true });
+            document.getElementById('content').innerHTML = marked.parse(md);
+
+            /* Convert <pre><code class="language-mermaid"> → <div class="mermaid"> */
+            document.querySelectorAll('pre code.language-mermaid').forEach(codeEl => {
+                const div = document.createElement('div');
+                div.className = 'mermaid';
+                div.textContent = codeEl.textContent;
+                div.setAttribute('data-src', codeEl.textContent);
+                codeEl.parentElement.replaceWith(div);
+            });
+
+            await mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
+        } catch (err) {
+            document.getElementById('content').innerHTML =
+                '<div class="error-msg">⚠ Failed to load documentation: ' +
+                escapeHtml(err.message) + '</div>';
+        }
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    init();
+</script>
+</body>
+</html>

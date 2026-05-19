@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Nutanix Cluster Deployment</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: var(--bg-section);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.25s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--text-heading);
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-card.total .stat-value { color: #4a9eff; }
+        .stat-card.dry-run .stat-value { color: #ffa94a; }
+        .stat-card.production .stat-value { color: #9b59b6; }
+        .stat-card.success .stat-value { color: #4caf50; }
+        .stat-card.failed .stat-value { color: #f44336; }
+        
+        .data-table {
+            background: var(--bg-section);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        
+        .data-table h2 {
+            background: var(--bg-container);
+            padding: 15px 20px;
+            margin: 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 1.1rem;
+            color: var(--text-heading);
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: scroll;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead {
+            background: var(--bg-container);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        
+        th {
+            padding: 12px 15px;
+            text-align: left;
+            color: var(--text-heading);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+        
+        tbody tr {
+            transition: background 0.2s;
+        }
+        
+        tbody tr:hover {
+            background: rgba(74, 158, 255, 0.1);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid #4caf50;
+        }
+        
+        .status-failed {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+        
+        .status-dryrun {
+            background: rgba(255, 169, 74, 0.2);
+            color: #ffa94a;
+            border: 1px solid #ffa94a;
+        }
+        
+        .status-production {
+            background: rgba(155, 89, 182, 0.2);
+            color: #9b59b6;
+            border: 1px solid #9b59b6;
+        }
+        
+        .action-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            background: rgba(74, 158, 255, 0.2);
+            color: #4a9eff;
+            border: 1px solid rgba(74, 158, 255, 0.5);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        .refresh-btn {
+            float: right;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            background: #4a9eff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            background: #3a8eef;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        
+        /* Chart styles */
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-card {
+            background: var(--bg-section);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 25px;
+            transition: background 0.25s;
+        }
+        
+        .chart-title {
+            font-size: 1.1rem;
+            color: var(--text-heading);
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .bar-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .bar-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+        
+        .bar-container {
+            width: 100%;
+            height: 30px;
+            background: var(--bg-container);
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .bar-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        .bar-fill.success {
+            background: linear-gradient(90deg, #4caf50 0%, #66bb6a 100%);
+        }
+        
+        .bar-fill.failed {
+            background: linear-gradient(90deg, #f44336 0%, #ef5350 100%);
+        }
+        
+        .bar-fill.dryrun {
+            background: linear-gradient(90deg, #ffa94a 0%, #ffb74d 100%);
+        }
+        
+        .bar-fill.production {
+            background: linear-gradient(90deg, #9b59b6 0%, #ba68c8 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="top-nav">
+            <div class="top-nav-left">
+                <img src="/logo.png" class="brand-logo" alt="Logo">
+                <span class="top-nav-welcome">
+                    Welcome, <strong><span id="currentUser"></span></strong>
+                </span>
+            </div>
+            <div class="top-nav-actions">
+                <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()">🌙 Dark</button>
+                <button onclick="window.location.href='/index.html'" class="btn btn-secondary" style="padding:7px 14px;font-size:0.82rem;">Deployment</button>
+                <button onclick="window.location.href='/admin.html'" id="adminBtn" class="btn btn-secondary" style="padding:7px 14px;font-size:0.82rem;display:none;">User Management</button>
+                <div class="help-dropdown">
+                    <button class="btn btn-secondary" style="padding:7px 14px;font-size:0.82rem;">❓ Help ▾</button>
+                    <div class="help-dropdown-menu">
+                        <a href="/help.html?type=app" class="help-dropdown-item">📖 About Deployment App</a>
+                        <a href="/help.html?type=workflow" class="help-dropdown-item">🔧 About Deployment Workflow</a>
+                    </div>
+                </div>
+                <button onclick="logout()" class="btn btn-secondary" style="padding:7px 14px;font-size:0.82rem;">Logout</button>
+            </div>
+        </nav>
+        
+        <h1>📊 Deployment Dashboard</h1>
+        
+        <!-- Statistics Cards -->
+        <div class="dashboard-grid" id="statisticsGrid">
+            <div class="stat-card total">
+                <div class="stat-label">Total Deployments</div>
+                <div class="stat-value" id="statTotal">0</div>
+            </div>
+            <div class="stat-card dry-run">
+                <div class="stat-label">Dry Runs</div>
+                <div class="stat-value" id="statDryRun">0</div>
+            </div>
+            <div class="stat-card production">
+                <div class="stat-label">Production</div>
+                <div class="stat-value" id="statProduction">0</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-label">Successful</div>
+                <div class="stat-value" id="statSuccessful">0</div>
+            </div>
+            <div class="stat-card failed">
+                <div class="stat-label">Failed</div>
+                <div class="stat-value" id="statFailed">0</div>
+            </div>
+        </div>
+        
+        <!-- Visual Charts -->
+        <div class="charts-container">
+            <div class="chart-card">
+                <div class="chart-title">📈 Dry Run Deployments</div>
+                <div class="bar-chart">
+                    <div class="bar-item">
+                        <div class="bar-label">
+                            <span>✅ Successful</span>
+                            <span id="dryRunSuccessCount">0</span>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-fill success" id="dryRunSuccessBar" style="width: 0%;">
+                                <span id="dryRunSuccessPercent"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-label">
+                            <span>❌ Failed</span>
+                            <span id="dryRunFailedCount">0</span>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-fill failed" id="dryRunFailedBar" style="width: 0%;">
+                                <span id="dryRunFailedPercent"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chart-card">
+                <div class="chart-title">🚀 Production Deployments</div>
+                <div class="bar-chart">
+                    <div class="bar-item">
+                        <div class="bar-label">
+                            <span>✅ Successful</span>
+                            <span id="prodSuccessCount">0</span>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-fill success" id="prodSuccessBar" style="width: 0%;">
+                                <span id="prodSuccessPercent"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-label">
+                            <span>❌ Failed</span>
+                            <span id="prodFailedCount">0</span>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-fill failed" id="prodFailedBar" style="width: 0%;">
+                                <span id="prodFailedPercent"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Deployments -->
+        <div class="data-table">
+            <h2>
+                Recent Deployments
+                <button class="refresh-btn" onclick="loadDashboard()">🔄 Refresh</button>
+            </h2>
+            <div class="table-container">
+                <table id="deploymentsTable">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Cluster Name</th>
+                            <th>Config File</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Duration</th>
+                            <th>User</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deploymentsBody">
+                        <tr>
+                            <td colspan="7" class="loading">Loading deployments...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Audit Logs -->
+        <div class="data-table">
+            <h2>User Activity Audit Log</h2>
+            <div class="table-container">
+                <table id="auditLogsTable">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditLogsBody">
+                        <tr>
+                            <td colspan="4" class="loading">Loading audit logs...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Theme toggle
+        function toggleTheme() {
+            const root = document.documentElement;
+            const btn  = document.getElementById('themeToggleBtn');
+            if (root.dataset.theme === 'light') {
+                delete root.dataset.theme;
+                if (btn) btn.textContent = '\uD83C\uDF19 Dark';
+            } else {
+                root.dataset.theme = 'light';
+                if (btn) btn.textContent = '\u2600 Light';
+            }
+        }
+
+        // Check authentication and load dashboard
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/current-user');
+                if (!response.ok) {
+                    window.location.href = '/login.html';
+                    return false;
+                }
+                
+                const data = await response.json();
+                document.getElementById('currentUser').textContent = data.username;
+                
+                // Show admin button if user is admin
+                if (data.role === 'admin') {
+                    document.getElementById('adminBtn').style.display = 'block';
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = '/login.html';
+                return false;
+            }
+        }
+        
+        async function loadDashboard() {
+            try {
+                // Load statistics
+                const statsResponse = await fetch('/api/dashboard/statistics');
+                if (statsResponse.ok) {
+                    const stats = await statsResponse.json();
+                    document.getElementById('statTotal').textContent = stats.total || 0;
+                    document.getElementById('statDryRun').textContent = stats.dryRun || 0;
+                    document.getElementById('statProduction').textContent = stats.production || 0;
+                    document.getElementById('statSuccessful').textContent = stats.successful || 0;
+                    document.getElementById('statFailed').textContent = stats.failed || 0;
+                }
+                
+                // Load deployments
+                const deploymentsResponse = await fetch('/api/dashboard/deployments?limit=50');
+                if (deploymentsResponse.ok) {
+                    const data = await deploymentsResponse.json();
+                    displayDeployments(data.deployments);
+                    updateCharts(data.deployments);
+                }
+                
+                // Load audit logs
+                const logsResponse = await fetch('/api/dashboard/audit-logs?limit=100');
+                if (logsResponse.ok) {
+                    const data = await logsResponse.json();
+                    displayAuditLogs(data.logs);
+                }
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+        
+        function displayDeployments(deployments) {
+            const tbody = document.getElementById('deploymentsBody');
+            
+            if (!deployments || deployments.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="no-data">No deployments yet</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = deployments.map(dep => {
+                const date = new Date(dep.timestamp);
+                const dateStr = date.toLocaleString();
+                const typeClass = dep.isDryRun ? 'status-dryrun' : 'status-production';
+                const typeLabel = dep.isDryRun ? 'Dry Run' : 'Production';
+                const statusClass = dep.success ? 'status-success' : 'status-failed';
+                const statusLabel = dep.success ? 'Success' : 'Failed';
+                const duration = formatDuration(dep.duration);
+                
+                return `
+                    <tr>
+                        <td>${dateStr}</td>
+                        <td>${dep.clusterName || 'N/A'}</td>
+                        <td>${dep.filename || 'N/A'}</td>
+                        <td><span class="status-badge ${typeClass}">${typeLabel}</span></td>
+                        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                        <td>${duration}</td>
+                        <td>${dep.username || 'Unknown'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function displayAuditLogs(logs) {
+            const tbody = document.getElementById('auditLogsBody');
+            
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="no-data">No audit logs yet</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = logs.map(log => {
+                const date = new Date(log.timestamp);
+                const dateStr = date.toLocaleString();
+                const details = formatLogDetails(log.details);
+                
+                return `
+                    <tr>
+                        <td>${dateStr}</td>
+                        <td>${log.username || 'Unknown'}</td>
+                        <td><span class="action-badge">${formatAction(log.action)}</span></td>
+                        <td>${details}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function updateCharts(deployments) {
+            if (!deployments || deployments.length === 0) {
+                return;
+            }
+            
+            // Calculate statistics for dry runs
+            let dryRunSuccess = 0;
+            let dryRunFailed = 0;
+            let prodSuccess = 0;
+            let prodFailed = 0;
+            
+            deployments.forEach(dep => {
+                if (dep.isDryRun) {
+                    if (dep.success) {
+                        dryRunSuccess++;
+                    } else {
+                        dryRunFailed++;
+                    }
+                } else {
+                    if (dep.success) {
+                        prodSuccess++;
+                    } else {
+                        prodFailed++;
+                    }
+                }
+            });
+            
+            const totalDryRun = dryRunSuccess + dryRunFailed;
+            const totalProd = prodSuccess + prodFailed;
+            
+            // Update dry run chart
+            if (totalDryRun > 0) {
+                const dryRunSuccessPercent = Math.round((dryRunSuccess / totalDryRun) * 100);
+                const dryRunFailedPercent = Math.round((dryRunFailed / totalDryRun) * 100);
+                
+                document.getElementById('dryRunSuccessCount').textContent = dryRunSuccess;
+                document.getElementById('dryRunFailedCount').textContent = dryRunFailed;
+                document.getElementById('dryRunSuccessBar').style.width = dryRunSuccessPercent + '%';
+                document.getElementById('dryRunFailedBar').style.width = dryRunFailedPercent + '%';
+                document.getElementById('dryRunSuccessPercent').textContent = dryRunSuccessPercent > 5 ? dryRunSuccessPercent + '%' : '';
+                document.getElementById('dryRunFailedPercent').textContent = dryRunFailedPercent > 5 ? dryRunFailedPercent + '%' : '';
+            }
+            
+            // Update production chart
+            if (totalProd > 0) {
+                const prodSuccessPercent = Math.round((prodSuccess / totalProd) * 100);
+                const prodFailedPercent = Math.round((prodFailed / totalProd) * 100);
+                
+                document.getElementById('prodSuccessCount').textContent = prodSuccess;
+                document.getElementById('prodFailedCount').textContent = prodFailed;
+                document.getElementById('prodSuccessBar').style.width = prodSuccessPercent + '%';
+                document.getElementById('prodFailedBar').style.width = prodFailedPercent + '%';
+                document.getElementById('prodSuccessPercent').textContent = prodSuccessPercent > 5 ? prodSuccessPercent + '%' : '';
+                document.getElementById('prodFailedPercent').textContent = prodFailedPercent > 5 ? prodFailedPercent + '%' : '';
+            }
+        }
+        
+        function formatDuration(seconds) {
+            if (!seconds) return 'N/A';
+            
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes}m ${secs}s`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${secs}s`;
+            } else {
+                return `${secs}s`;
+            }
+        }
+        
+        function formatAction(action) {
+            return action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        
+        function formatLogDetails(details) {
+            if (!details) return 'N/A';
+            
+            if (typeof details === 'string') return details;
+            
+            // Format object details nicely
+            const parts = [];
+            if (details.filename) parts.push(`Config: ${details.filename}`);
+            if (details.clusterName) parts.push(`Cluster: ${details.clusterName}`);
+            if (details.isDryRun !== undefined) parts.push(details.isDryRun ? 'Type: Dry Run' : 'Type: Production');
+            if (details.success !== undefined) parts.push(details.success ? 'Result: Success' : 'Result: Failed');
+            if (details.duration) parts.push(`Duration: ${formatDuration(details.duration)}`);
+            
+            return parts.length > 0 ? parts.join(' | ') : JSON.stringify(details);
+        }
+        
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/login.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        }
+        
+        // Initialize dashboard
+        (async () => {
+            const authenticated = await checkAuth();
+            if (authenticated) {
+                await loadDashboard();
+                
+                // Auto-refresh every 30 seconds
+                setInterval(loadDashboard, 30000);
+            }
+        })();
+    </script>
+</body>
+</html>
