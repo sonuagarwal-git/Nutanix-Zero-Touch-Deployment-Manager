@@ -641,9 +641,9 @@ async function sendWelcomeEmail(user) {
     }
 }
 
-// Path to configs directory and deployment script (Nutanix-ZTI folder)
-const configsPath = path.join('E:\\', 'SOAAA', 'ZTIPS', 'Nutanix-ZTI', 'Configs');
-const deployScriptPath = path.join('E:\\', 'SOAAA', 'ZTIPS', 'Nutanix-ZTI', 'Start-Pipeline.ps1');
+// Path to configs directory and deployment script (Nutanix-ZTI folder, sibling of this app)
+const configsPath = path.join(__dirname, '..', 'Nutanix-ZTI', 'Configs');
+const deployScriptPath = path.join(__dirname, '..', 'Nutanix-ZTI', 'Start-Pipeline.ps1');
 
 // Store active deployment process
 let activeDeployment = null;
@@ -1730,7 +1730,7 @@ app.post('/api/terminal/run', requireAuth, (req, res) => {
         '-ExecutionPolicy', 'Bypass',
         '-Command', initCmd + command
     ], {
-        cwd: path.dirname(deployScriptPath),  // E:\SOAAA\ZTIPS\Nutanix-ZTI
+        cwd: path.dirname(deployScriptPath),
         env: Object.assign({}, process.env, {
             TERM: 'xterm-256color',
             DOTNET_SYSTEM_CONSOLE_ALLOW_ANSI_COLOR_REDIRECTION: '1'
