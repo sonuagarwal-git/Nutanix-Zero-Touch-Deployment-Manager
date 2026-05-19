@@ -110,7 +110,14 @@ Get-Service  'Nutanix Cluster Deployment Web'
 `Status` should show `Running`.
 
 Open **`https://localhost:3443`** in your browser. Accept the browser warning for the self-signed certificate.
-Log in with username `admin` (default password is set in `users.json`, or change it via the Admin panel after first login).
+Log in with the default admin credentials:
+
+| Field | Value |
+|---|---|
+| Username | `admin` |
+| Password | `Changeme` |
+
+> **Important:** Change the admin password via **Admin → User Management** after first login.
 
 > **Tip:** For quick one-off testing without installing the service, run `node server.js` directly in a terminal — the server stops when you close the terminal.
 

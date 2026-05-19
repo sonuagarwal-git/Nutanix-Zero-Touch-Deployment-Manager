@@ -64,6 +64,10 @@ Set-Location $scriptDir
 npm install --prefer-offline
 Write-OK "npm packages installed"
 
+# Reset admin password to default (Changeme) using bcryptjs
+$adminPwdJs = "const b=require('./node_modules/bcryptjs');const fs=require('fs');const d=JSON.parse(fs.readFileSync('users.json'));const a=d.users.find(function(u){return u.username==='admin';});if(a){a.password=b.hashSync('Changeme',10);fs.writeFileSync('users.json',JSON.stringify(d,null,2));console.log('Admin password reset to: Changeme');}else{console.log('WARN: admin user not found');}";
+node -e $adminPwdJs
+
 # Step 4 - .env file
 Write-Step "Step 4 -- Configuring .env"
 $envFile = Join-Path $scriptDir '.env'
@@ -138,6 +142,7 @@ Write-Host ""
 Write-Host "======================================================" -ForegroundColor Green
 Write-Host "  Setup complete!" -ForegroundColor Green
 Write-Host "  Portal URL : https://$($env:COMPUTERNAME):3443" -ForegroundColor Green
-Write-Host "  Login      : admin  (set password in users.json)" -ForegroundColor Green
+Write-Host "  Username   : admin" -ForegroundColor Green
+Write-Host "  Password   : Changeme  (change after first login!)" -ForegroundColor Green
 Write-Host "  Branding   : edit .env to change COMPANY_NAME" -ForegroundColor Green
 Write-Host "======================================================" -ForegroundColor Green
