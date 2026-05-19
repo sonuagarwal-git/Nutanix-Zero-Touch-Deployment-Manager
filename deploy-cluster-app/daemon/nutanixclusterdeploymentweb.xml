@@ -5,9 +5,9 @@
 	<executable>C:\Program Files\nodejs\node.exe</executable>
 	<argument>--harmony</argument>
 	<argument>--max_old_space_size=4096</argument>
-	<argument>E:\SOAAA\ZTIPS\deploy-cluster-app\node_modules\node-windows\lib\wrapper.js</argument>
+	<argument>G:\NZTD\deploy-cluster-app\node_modules\node-windows\lib\wrapper.js</argument>
 	<argument>--file</argument>
-	<argument>E:\SOAAA\ZTIPS\deploy-cluster-app\server.js</argument>
+	<argument>G:\NZTD\deploy-cluster-app\server.js</argument>
 	<argument>--scriptoptions=</argument>
 	<argument>--log</argument>
 	<argument>Nutanix Cluster Deployment Web wrapper</argument>
@@ -24,9 +24,9 @@
 	<logmode>rotate</logmode>
 	<stoptimeout>30sec</stoptimeout>
 	<serviceaccount>
-		<domain>DKCDCSTORJUMP01</domain>
+		<domain>DKCDCCSGITRUN01</domain>
 		<user>LocalSystem</user>
 		<password></password>
 	</serviceaccount>
-	<workingdirectory>E:\SOAAA\ZTIPS\deploy-cluster-app</workingdirectory>
+	<workingdirectory>G:\NZTD\deploy-cluster-app</workingdirectory>
 </service>

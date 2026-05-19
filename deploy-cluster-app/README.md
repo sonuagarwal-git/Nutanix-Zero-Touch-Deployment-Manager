@@ -69,10 +69,10 @@ COMPANY_NAME=Your Company Name
 SESSION_SECRET=<paste a long random string here>
 ```
 
-Generate a secure session secret (run in PowerShell):
+Generate a secure session secret (works on PowerShell 5.1 and 7+):
 
 ```powershell
-[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+$b = New-Object byte[] 32; [System.Security.Cryptography.RNGCryptoServiceProvider]::new().GetBytes($b); [Convert]::ToBase64String($b)
 ```
 
 ### Step 4 — Add your company branding *(optional)*
@@ -94,24 +94,29 @@ If no logo file is provided, the `COMPANY_NAME` text from `.env` is shown instea
 
 This creates `certs\server.key` and `certs\server.crt` using built-in Windows tools — no OpenSSL required.
 
-### Step 6 — Start the server
+### Step 6 — Install and start as a Windows Service
 
-```powershell
-node server.js
-```
-
-Open **`https://localhost:3443`** in your browser. Accept the browser warning for the self-signed certificate.
-Log in with username `admin` (default password is set in `users.json`, or change it via the Admin panel after first login).
-
-### Step 7 — *(Optional)* Install as a Windows Service
-
-To have the portal start automatically on boot and restart on failure:
+This registers the portal as a Windows service so it starts automatically on boot and restarts on failure.
 
 ```powershell
 node install-service.js
 ```
 
-See [Running as a Windows Service](#running-as-a-windows-service) for management commands.
+Then start the service (installing alone does not start it):
+
+```powershell
+Start-Service 'Nutanix Cluster Deployment Web'
+Get-Service  'Nutanix Cluster Deployment Web'
+```
+
+`Status` should show `Running`.
+
+Open **`https://localhost:3443`** in your browser. Accept the browser warning for the self-signed certificate.
+Log in with username `admin` (default password is set in `users.json`, or change it via the Admin panel after first login).
+
+> **Tip:** For quick one-off testing without installing the service, run `node server.js` directly in a terminal — the server stops when you close the terminal.
+
+See [Running as a Windows Service](#running-as-a-windows-service) for start/stop/restart/uninstall commands.
 
 ---
 

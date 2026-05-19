@@ -1,8 +1,9 @@
+var path = require('path');
 var Service = require('node-windows').Service;
 
 var svc = new Service({
   name: 'Nutanix Cluster Deployment Web',
-  script: 'E:\\SOAAA\\ZTIPS\\deploy-cluster-app\\server.js'
+  script: path.join(__dirname, 'server.js')
 });
 
 svc.on('uninstall', function(){

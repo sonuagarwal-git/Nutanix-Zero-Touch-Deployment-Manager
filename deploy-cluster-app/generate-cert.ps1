@@ -62,35 +62,91 @@ Write-Host "Certificate exported to: $pfxPath" -ForegroundColor Green
 $pemKeyPath = Join-Path $certsDir "server.key"
 $pemCertPath = Join-Path $certsDir "server.crt"
 
-# Use OpenSSL to convert (if available) or use certutil
-try {
-    openssl pkcs12 -in $pfxPath -nocerts -out $pemKeyPath -nodes -passin pass:CertP@ssw0rd!
-    openssl pkcs12 -in $pfxPath -clcerts -nokeys -out $pemCertPath -passin pass:CertP@ssw0rd!
-    Write-Host "PEM files created successfully" -ForegroundColor Green
+# Find OpenSSL — check PATH first, then common Git install locations
+$opensslExe = $null
+$opensslCandidates = @(
+    'openssl',
+    'C:\Program Files\Git\usr\bin\openssl.exe',
+    'C:\Program Files (x86)\Git\usr\bin\openssl.exe',
+    'C:\tools\openssl\openssl.exe'
+)
+foreach ($candidate in $opensslCandidates) {
+    try {
+        if ($candidate -eq 'openssl') {
+            $null = Get-Command openssl -ErrorAction Stop
+            $opensslExe = 'openssl'
+        } elseif (Test-Path $candidate) {
+            $opensslExe = $candidate
+        }
+        if ($opensslExe) { break }
+    } catch {}
 }
-catch {
-    Write-Host "OpenSSL not found. Installing using alternative method..." -ForegroundColor Yellow
-    
-    # Alternative: Export using .NET
-    $certBytes = $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
-    [System.IO.File]::WriteAllBytes($pemCertPath, $certBytes)
-    
-    # For the key, we need to use a more complex approach
-    $rsaKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
-    $keyBytes = $rsaKey.ExportRSAPrivateKey()
-    
-    # Convert to PEM format
-    $keyPem = "-----BEGIN PRIVATE KEY-----`n"
-    $keyPem += [Convert]::ToBase64String($keyBytes, [System.Base64FormattingOptions]::InsertLineBreaks)
-    $keyPem += "`n-----END PRIVATE KEY-----"
-    [System.IO.File]::WriteAllText($pemKeyPath, $keyPem)
-    
-    $certPem = "-----BEGIN CERTIFICATE-----`n"
-    $certPem += [Convert]::ToBase64String($certBytes, [System.Base64FormattingOptions]::InsertLineBreaks)
-    $certPem += "`n-----END CERTIFICATE-----"
-    [System.IO.File]::WriteAllText($pemCertPath, $certPem)
-    
-    Write-Host "PEM files created using .NET" -ForegroundColor Green
+
+if ($opensslExe) {
+    Write-Host "Using OpenSSL: $opensslExe" -ForegroundColor Cyan
+    & $opensslExe pkcs12 -in $pfxPath -nocerts -out $pemKeyPath -nodes -passin "pass:CertP@ssw0rd!" 2>$null
+    & $opensslExe pkcs12 -in $pfxPath -clcerts -nokeys -out $pemCertPath -passin "pass:CertP@ssw0rd!" 2>$null
+    Write-Host "PEM files created using OpenSSL" -ForegroundColor Green
+} else {
+    # .NET fallback — compatible with .NET Framework 4.x (PowerShell 5.1) and .NET 6+
+    Write-Host "OpenSSL not found. Using .NET fallback method..." -ForegroundColor Yellow
+
+    # Export certificate (public part) as PEM
+    $certBytes = $cert.RawData
+    $certPem  = "-----BEGIN CERTIFICATE-----`r`n"
+    $certPem += [Convert]::ToBase64String($certBytes, [Base64FormattingOptions]::InsertLineBreaks)
+    $certPem += "`r`n-----END CERTIFICATE-----`r`n"
+    [IO.File]::WriteAllText($pemCertPath, $certPem)
+
+    # Export private key using RSA parameters — works on all .NET versions
+    $rsa = $cert.PrivateKey -as [System.Security.Cryptography.RSACryptoServiceProvider]
+    if (-not $rsa) {
+        # On PS 7 / .NET 6+ the key may be RSACng — extract via RSACng.ExportParameters
+        $rsaCng = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
+        $params  = $rsaCng.ExportParameters($true)
+    } else {
+        $params = $rsa.ExportParameters($true)
+    }
+
+    # Build PKCS#1 RSA private key DER (works without OpenSSL)
+    function Encode-DerInteger([byte[]]$bytes) {
+        # Prepend 0x00 if high bit set (unsigned)
+        if ($bytes[0] -band 0x80) { $bytes = ,0x00 + $bytes }
+        $len = Encode-DerLength $bytes.Length
+        return ,0x02 + $len + $bytes
+    }
+    function Encode-DerLength([int]$len) {
+        if ($len -lt 128) { return ,[byte]$len }
+        $encoded = @()
+        $tmp = $len
+        while ($tmp -gt 0) { $encoded = ,([byte]($tmp -band 0xFF)) + $encoded; $tmp = $tmp -shr 8 }
+        return ,(0x80 -bor $encoded.Count) + $encoded
+    }
+    function Strip-Leading-Zeros([byte[]]$b) {
+        $i = 0; while ($i -lt $b.Length - 1 -and $b[$i] -eq 0) { $i++ }
+        return $b[$i..($b.Length-1)]
+    }
+
+    $ver  = Encode-DerInteger @(0)
+    $n    = Encode-DerInteger (Strip-Leading-Zeros $params.Modulus)
+    $e    = Encode-DerInteger (Strip-Leading-Zeros $params.Exponent)
+    $d    = Encode-DerInteger (Strip-Leading-Zeros $params.D)
+    $p    = Encode-DerInteger (Strip-Leading-Zeros $params.P)
+    $q    = Encode-DerInteger (Strip-Leading-Zeros $params.Q)
+    $dp   = Encode-DerInteger (Strip-Leading-Zeros $params.DP)
+    $dq   = Encode-DerInteger (Strip-Leading-Zeros $params.DQ)
+    $qinv = Encode-DerInteger (Strip-Leading-Zeros $params.InverseQ)
+
+    $inner = $ver + $n + $e + $d + $p + $q + $dp + $dq + $qinv
+    $seq   = ,0x30 + (Encode-DerLength $inner.Length) + $inner
+    $keyBytes = [byte[]]$seq
+
+    $keyPem  = "-----BEGIN RSA PRIVATE KEY-----`r`n"
+    $keyPem += [Convert]::ToBase64String($keyBytes, [Base64FormattingOptions]::InsertLineBreaks)
+    $keyPem += "`r`n-----END RSA PRIVATE KEY-----`r`n"
+    [IO.File]::WriteAllText($pemKeyPath, $keyPem)
+
+    Write-Host "PEM files created using .NET (no OpenSSL needed)" -ForegroundColor Green
 }
 
 Write-Host ""

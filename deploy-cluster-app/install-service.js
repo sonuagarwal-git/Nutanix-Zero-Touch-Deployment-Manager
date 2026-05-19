@@ -1,9 +1,10 @@
+var path = require('path');
 var Service = require('node-windows').Service;
 
 var svc = new Service({
   name: 'Nutanix Cluster Deployment Web',
   description: 'Web interface for Nutanix cluster deployment with HTTPS support',
-  script: 'E:\\SOAAA\\ZTIPS\\deploy-cluster-app\\server.js',
+  script: path.join(__dirname, 'server.js'),
   nodeOptions: [
     '--harmony',
     '--max_old_space_size=4096'
