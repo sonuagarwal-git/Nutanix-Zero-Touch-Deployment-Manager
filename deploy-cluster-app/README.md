@@ -158,10 +158,43 @@ deploy-cluster-app/
     ├── admin.html          ← User management & settings (admin only)
     ├── app.js              ← Frontend JavaScript
     ├── js/app.js
-    └── css/styles.css
+    ├── css/styles.css
+    └── images/             ← ⬅ Place your custom branding images here
+        ├── logo.png        ← Company logo (shown in header & login page)
+        └── login-bg.jpg    ← Login page background image
 ```
 
 ---
+
+## Branding / Custom Images
+
+The application supports custom company branding with **no code changes required** — just drop your image files into the right folder.
+
+### Image files
+
+| File | Path | Purpose | Recommended size |
+|------|------|---------|-----------------|
+| `logo.png` | `public/images/logo.png` | Company logo in the top-left nav bar and on the login page | Max 220 × 80 px, transparent PNG |
+| `login-bg.jpg` | `public/images/login-bg.jpg` | Full-screen background of the login page | 1920 × 1080 px, JPEG |
+
+### How it works
+
+- If **`logo.png`** is present → displayed in the nav bar and on the login panel.  
+  If the file is missing → falls back to the text label **"YOUR COMPANY"** automatically (no error shown).
+- If **`login-bg.jpg`** is present → used as the login page background.  
+  If the file is missing → the page falls back to a solid sky-blue background.
+
+### Steps to add your branding
+
+1. Create (or navigate to) the `deploy-cluster-app/public/images/` folder.
+2. Copy your **company logo** as `logo.png` into that folder.
+3. Copy your **background image** as `login-bg.jpg` into that folder.
+4. Restart the server (or simply reload the page — static files are served directly).
+
+> **Tip:** Use a PNG with transparency for the logo so it looks clean on both light and dark nav bars.
+
+---
+
 
 ## Prerequisites
 

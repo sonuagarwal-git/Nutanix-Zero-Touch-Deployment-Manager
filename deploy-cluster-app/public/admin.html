@@ -258,7 +258,9 @@
     <div class="container" style="display: none;" id="mainContent">
         <nav class="top-nav" style="margin-bottom:20px;">
             <div class="top-nav-left">
-                <img src="/logo.png" class="brand-logo" alt="Logo">
+                <img src="/images/logo.png" class="brand-logo" alt="Company Logo"
+                     onerror="this.style.display='none';document.getElementById('logoFallbackNav').style.display='inline-block'">
+                <span id="logoFallbackNav" style="display:none;font-weight:700;font-size:1rem;color:#024da1;letter-spacing:1px;">YOUR COMPANY</span>
                 <h1 style="font-size:1.4rem;margin:0;padding:0;border:none;">User Management</h1>
             </div>
             <div class="top-nav-actions">

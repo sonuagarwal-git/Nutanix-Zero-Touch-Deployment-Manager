@@ -12,7 +12,9 @@
         <!-- ── Top Navigation Bar ── -->
         <nav class="top-nav">
             <div class="top-nav-left">
-                <img src="/logo.png" class="brand-logo" alt="Logo">
+                <img src="/images/logo.png" class="brand-logo" alt="Company Logo"
+                     onerror="this.style.display='none';document.getElementById('logoFallbackNav').style.display='inline-block'">
+                <span id="logoFallbackNav" style="display:none;font-weight:700;font-size:1rem;color:#024da1;letter-spacing:1px;">YOUR COMPANY</span>
                 <span class="top-nav-welcome">
                     Welcome, <strong><span id="currentUser"></span></strong>
                 </span>
