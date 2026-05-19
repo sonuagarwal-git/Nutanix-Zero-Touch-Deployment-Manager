@@ -8,7 +8,8 @@
 .DESCRIPTION
     Reverses everything start.ps1 did so you can run a clean end-to-end test again.
     Stops and uninstalls the service, removes packages, uninstalls Node.js and
-    Posh-SSH, and deletes generated files (.env, certs\, node_modules\).
+    Posh-SSH, deletes generated files (.env, certs\, node_modules\), and resets
+    all deployment history and log files to an empty state.
 #>
 
 $ErrorActionPreference = 'Continue'
@@ -109,9 +110,26 @@ if (Test-Path $certsDir) {
     Write-Skip "certs\ not found"
 }
 
+# Step 8 - Reset deployment data and log files
+Write-Step "Step 8 -- Resetting deployment data and logs"
+$dataFiles = @(
+    @{ Path = Join-Path $scriptDir 'deployments.json';    Empty = '{ "deployments": [] }' }
+    @{ Path = Join-Path $scriptDir 'audit-logs.json';     Empty = '{ "logs": [] }' }
+    @{ Path = Join-Path $scriptDir 'last-deployment.json'; Empty = '{}' }
+    @{ Path = Join-Path (Split-Path $scriptDir -Parent) 'Nutanix-ZTI\historical-timings.json'; Empty = '{ "deployments": [] }' }
+)
+foreach ($f in $dataFiles) {
+    if (Test-Path $f.Path) {
+        [System.IO.File]::WriteAllText($f.Path, $f.Empty, [System.Text.Encoding]::UTF8)
+        Write-OK "Reset: $(Split-Path $f.Path -Leaf)"
+    } else {
+        Write-Skip "Not found: $($f.Path)"
+    }
+}
+
 # Done
 Write-Host ""
 Write-Host "======================================================" -ForegroundColor Magenta
-Write-Host "  Cleanup complete!" -ForegroundColor Magenta
+Write-Host "  Delete complete!" -ForegroundColor Magenta
 Write-Host "  Run .\start.ps1 to set up from scratch again." -ForegroundColor Magenta
 Write-Host "======================================================" -ForegroundColor Magenta

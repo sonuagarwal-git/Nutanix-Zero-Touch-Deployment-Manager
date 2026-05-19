@@ -30,12 +30,12 @@ A secure, web-based portal for deploying and managing Nutanix clusters via Zero-
 
 New to this tool? Follow these steps in order to get the portal running on a fresh Windows server.
 
-> **Automated setup:** If you want to skip manual steps, run `start.ps1` from PowerShell as Administrator — it performs all 6 steps automatically:
+> **Automated setup:** If you want to skip manual steps, run `start.ps1` from PowerShell as Administrator — it installs Node.js, PowerShell 7, npm packages, the SSL certificate, Posh-SSH, and the Windows service all in one go:
 > ```powershell
 > cd <path-to>\deploy-cluster-app
 > .\start.ps1
 > ```
-> Manual steps are documented below for reference.
+> Manual steps are documented below for reference. Skip any step that is already done.
 
 ### Step 1 — Install Node.js
 
@@ -49,7 +49,19 @@ Close and reopen PowerShell after installation so `node` and `npm` are on your P
 
 > **Verify:** `node --version` should print `v18.x.x` or later.
 
-### Step 2 — Install application dependencies
+### Step 2 — Install PowerShell 7
+
+The deployment pipeline scripts require `pwsh.exe` (PowerShell 7):
+
+```powershell
+winget install Microsoft.PowerShell
+```
+
+Close and reopen PowerShell after installation.
+
+> **Verify:** `pwsh --version` should print `PowerShell 7.x.x`.
+
+### Step 3 — Install application dependencies
 
 ```powershell
 cd <path-to>\deploy-cluster-app
@@ -58,7 +70,7 @@ npm install
 
 This downloads all required packages into `node_modules\`.
 
-### Step 3 — Create your configuration file
+### Step 4 — Create your configuration file
 
 Open (or create) `.env` in the application root and set at minimum:
 
@@ -73,7 +85,7 @@ Generate a secure session secret (works on PowerShell 5.1 and 7+):
 $b = New-Object byte[] 32; [System.Security.Cryptography.RNGCryptoServiceProvider]::new().GetBytes($b); [Convert]::ToBase64String($b)
 ```
 
-### Step 4 — Add your company branding *(optional)*
+### Step 5 — Add your company branding *(optional)*
 
 Create the folder `public\images\` and place your files there:
 
@@ -84,7 +96,7 @@ Create the folder `public\images\` and place your files there:
 
 If no logo file is provided, the `COMPANY_NAME` text from `.env` is shown instead. No server restart needed after changing `COMPANY_NAME`.
 
-### Step 5 — Generate an SSL certificate
+### Step 6 — Generate an SSL certificate
 
 ```powershell
 .\generate-cert.ps1
@@ -92,7 +104,17 @@ If no logo file is provided, the `COMPANY_NAME` text from `.env` is shown instea
 
 This creates `certs\server.key` and `certs\server.crt` using built-in Windows tools — no OpenSSL required.
 
-### Step 6 — Install and start as a Windows Service
+### Step 7 — Install Posh-SSH
+
+The deployment pipeline requires the `Posh-SSH` PowerShell module for SSH operations against CVMs and AHV hosts. Install it once into your PowerShell 7 session:
+
+```powershell
+pwsh -Command "Install-Module Posh-SSH -Scope CurrentUser -Force"
+```
+
+> **Note:** If you used `start.ps1`, this was already done automatically. Individual pipeline scripts (`Set-AHV-BondMode.ps1`, `Change-Prism-CVM-AHV-Password.ps1`) also auto-install Posh-SSH the first time they run, so this step is a belt-and-braces fallback.
+
+### Step 8 — Install and start as a Windows Service
 
 This registers the portal as a Windows service so it starts automatically on boot and restarts on failure.
 
@@ -155,6 +177,32 @@ Get-Content '<path-to>\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.wra
 cd <path-to>\deploy-cluster-app
 node uninstall-service.js
 ```
+
+---
+
+### Teardown / Re-testing (`delete.ps1`)
+
+`delete.ps1` is the full reverse of `start.ps1`. Run it as Administrator to wipe the installation back to a clean slate so you can run `start.ps1` again. It will remove all dependencies and packages install, as part of deletion process:
+
+```powershell
+cd <path-to>\deploy-cluster-app
+.\delete.ps1
+```
+
+What it removes (in order):
+
+| Step | Action |
+|------|--------|
+| 1 | Stops and uninstalls the Windows service; deletes the WinSW launcher binary |
+| 2 | Deletes `node_modules\` |
+| 3 | Uninstalls the `Posh-SSH` PowerShell module |
+| 4 | Uninstalls Node.js via winget |
+| 5 | Uninstalls PowerShell 7 via winget |
+| 6 | Deletes `.env` |
+| 7 | Deletes `certs\` |
+| 8 | Resets `deployments.json`, `audit-logs.json`, `last-deployment.json`, and `Nutanix-ZTI/historical-timings.json` to empty |
+
+> **Warning:** `delete.ps1` is intended for test/lab environments only. It does **not** delete `users.json` or any `Nutanix-ZTI/Configs/` data.
 
 ---
 
@@ -265,7 +313,7 @@ deploy-cluster-app/
 ├── install-service.js      ← Run once to install Windows service
 ├── uninstall-service.js    ← Run once to remove Windows service
 ├── start.ps1               ← Automated one-shot setup (runs all steps below)
-├── cleanup.ps1             ← Tear-down script (reverse of start.ps1, for re-testing)
+├── delete.ps1              ← Tear-down script (reverse of start.ps1, for re-testing)
 ├── generate-cert.ps1       ← Generate self-signed TLS cert (no OpenSSL needed)
 ├── generate-cert-openssl.ps1  ← Convert PFX → PEM using OpenSSL
 ├── users.json              ← Local user accounts (bcrypt hashed passwords)
@@ -369,7 +417,7 @@ Installed automatically by `npm install`:
 
 | Module | How it's installed | Used by |
 |---|---|---|
-| `Posh-SSH` | Auto-installed from PowerShell Gallery when first needed by `Set-AHV-BondMode.ps1` / `Change-Prism-CVM-AHV-Password.ps1` | CVM SSH operations (password change, bond mode) |
+| `Posh-SSH` | Installed automatically by `start.ps1` (Step 7) **or** on first use by `Set-AHV-BondMode.ps1` / `Change-Prism-CVM-AHV-Password.ps1`. Can also be installed manually — see Quick Start Step 7. | CVM SSH operations (password change, bond mode) |
 
 ---
 
