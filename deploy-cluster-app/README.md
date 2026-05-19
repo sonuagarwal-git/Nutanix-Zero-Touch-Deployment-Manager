@@ -6,6 +6,7 @@ A secure, web-based portal for deploying and managing Nutanix clusters via Zero-
 
 ## Table of Contents
 
+- [Quick Start — First-Time Setup](#quick-start--first-time-setup)
 - [Features](#features)
 - [Architecture Overview](#architecture-overview)
 - [Project Structure](#project-structure)
@@ -27,6 +28,90 @@ A secure, web-based portal for deploying and managing Nutanix clusters via Zero-
 - [API Reference](#api-reference)
 - [Security Notes](#security-notes)
 - [License](#license)
+
+---
+
+## Quick Start — First-Time Setup
+
+New to this tool? Follow these steps in order to get the portal running on a fresh Windows server.
+
+### Step 1 — Install Node.js
+
+Open **PowerShell as Administrator** and run:
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+Close and reopen PowerShell after installation so `node` and `npm` are on your PATH.
+
+> **Verify:** `node --version` should print `v18.x.x` or later.
+
+### Step 2 — Install application dependencies
+
+```powershell
+cd <path-to>\deploy-cluster-app
+npm install
+```
+
+This downloads all required packages into `node_modules\`.
+
+### Step 3 — Create your configuration file
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Open `.env` in a text editor and set at minimum:
+
+```env
+COMPANY_NAME=Your Company Name
+SESSION_SECRET=<paste a long random string here>
+```
+
+Generate a secure session secret (run in PowerShell):
+
+```powershell
+[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+### Step 4 — Add your company branding *(optional)*
+
+Create the folder `public\images\` and place your files there:
+
+| File | Purpose | Recommended size |
+|------|---------|------------------|
+| `public\images\logo.png` | Company logo in the nav bar | Max 220 × 80 px, transparent PNG |
+| `public\images\login-bg.png` | Full-screen login page background | 1920 × 1080 px |
+
+If no logo file is provided, the `COMPANY_NAME` text from `.env` is shown instead. No server restart needed after changing `COMPANY_NAME`.
+
+### Step 5 — Generate an SSL certificate
+
+```powershell
+.\generate-cert.ps1
+```
+
+This creates `certs\server.key` and `certs\server.crt` using built-in Windows tools — no OpenSSL required.
+
+### Step 6 — Start the server
+
+```powershell
+node server.js
+```
+
+Open **`https://localhost:3443`** in your browser. Accept the browser warning for the self-signed certificate.
+Log in with username `admin` (default password is set in `users.json`, or change it via the Admin panel after first login).
+
+### Step 7 — *(Optional)* Install as a Windows Service
+
+To have the portal start automatically on boot and restart on failure:
+
+```powershell
+node install-service.js
+```
+
+See [Running as a Windows Service](#running-as-a-windows-service) for management commands.
 
 ---
 
@@ -56,7 +141,7 @@ A secure, web-based portal for deploying and managing Nutanix clusters via Zero-
 flowchart TD
     Browser(["👤 Engineer\nhttps://jumpserver:3443"])
 
-    subgraph JumpServer["Jump Server — DKCDCSTORJUMP01"]
+    subgraph JumpServer["Jump Server (your server)"]
         Service["Windows Service\nnutanixclusterdeploymentweb\n(WinSW wrapper)"]
         Node["Node.js — server.js\nExpress + HTTPS — port 3443"]
         WS["WebSocket /ws\nReal-time log streaming"]

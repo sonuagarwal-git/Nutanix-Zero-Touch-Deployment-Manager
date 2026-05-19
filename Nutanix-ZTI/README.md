@@ -50,13 +50,13 @@ The diagram below shows where each component runs, how the jump server orchestra
 
 ```mermaid
 graph TB
-    subgraph JUMP["🖥️ Jump Server — DKCDCSTORJUMP01"]
+    subgraph JUMP["🖥️ Jump Server (your server)"]
         WEB["Cluster Deployment Manager\n(Node.js web app — port 3443)"]
         PS["Start-Pipeline.ps1\n(PowerShell 7 — 16 steps)"]
         WEB -- "spawns & streams output" --> PS
     end
 
-    subgraph AZURE["☁️ Azure Blob Storage — vstimageprd01/images"]
+    subgraph AZURE["☁️ Azure Blob Storage — your-fileserver/images"]
         IMGS["Phoenix ISO\nAOS Package (.tar.gz)\nAHV DVD ISO"]
     end
 
@@ -191,17 +191,14 @@ Required for 2-node clusters (Metro Availability). The Witness VM must be:
 
 ### 6. Software Image Files
 
-All Phoenix, AOS, and AHV image files must be uploaded to the **Azure Blob Storage** container before deploying:
+All Phoenix, AOS, and AHV image files must be hosted on an HTTP/HTTPS server reachable from the jump server and from the Foundation Central VM. This can be any web-accessible file server — Azure Blob Storage, an internal HTTP server, or any CDN.
 
-> 🗄️ **Azure Blob Storage (images container):**  
-> [vstimageprd01 / images](https://portal.azure.com/#view/Microsoft_Azure_Storage/ContainerMenuBlade/~/overview/storageAccountId/%2Fsubscriptions%2F5f93bb56-fb93-4fcd-8dc2-916320d0ba75%2FresourceGroups%2FImagemover%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fvstimageprd01/path/images/etag/%220x8DE8E4E88DABB68%22/defaultId//publicAccessVal/Blob)
-
-The direct blob URL for each file must be used in the config. Example URLs:
+The direct download URL for each file must be used in the config. Example URLs:
 
 ```
-Phoenix ISO : https://your-storage.blob.core.windows.net/images/phoenix-5.9.1-x86_64.iso
-AOS Package : https://your-storage.blob.core.windows.net/images/nutanix_installer_package-release-ganges-7.3.1.6-stable-9e8a682578e7f8cd0558ead559f3d92408f35302-x86_64.tar.gz
-AHV ISO     : https://your-storage.blob.core.windows.net/images/AHV-DVD-x86_64-10.3.1.5-20.iso
+Phoenix ISO : https://your-fileserver/images/phoenix-5.9.1-x86_64.iso
+AOS Package : https://your-fileserver/images/nutanix_installer_package-release-7.3.1.tar.gz
+AHV ISO     : https://your-fileserver/images/AHV-DVD-x86_64-10.3.1.5-20.iso
 ```
 
 | File | Config Key | Notes |
@@ -260,7 +257,7 @@ Nutanix Phoenix ISO images are **site- and region-specific** when using Foundati
 1. On the **HUB site's Foundation Central**, go to **Settings → API Keys** and create (or locate) the API key for the region.
 2. Use the official guide to create the Phoenix image using the HUB cluster CVM:  
    📖 [Generating ISO URL — Foundation Central v1.10](https://portal.nutanix.com/page/documents/details?targetId=Foundation-Central-v1_10:v1-generating-iso-url-t.html)
-3. Upload the generated ISO to Azure Blob Storage (`vstimageprd01/images`) and note the blob URL.
+3. Upload the generated ISO to Azure Blob Storage (`your-fileserver/images`) and note the blob URL.
 4. Use that URL as `phoenix_iso_url` in the config for all sites in that region.
 
 > 📌 **Each region requires its own custom Phoenix ISO.** A Phoenix image generated for one region's HUB will not work for a different region's sites.
@@ -288,7 +285,7 @@ Step 16 (`Add-DNS-Record.ps1`) creates DNS A records for all node hostnames (AHV
   ```json
   "dns_admin": {
     "domain":   "CORP",
-    "username": "SVC-DKCDC-NTX-AUTO",
+    "username": "SVC-NTX-AUTO",
     "password": "ServiceAccountPassword"
   }
   ```
@@ -300,9 +297,9 @@ Step 16 (`Add-DNS-Record.ps1`) creates DNS A records for all node hostnames (AHV
 ## Quick Start
 
 ### Step 1: Create a configuration file
-Copy an existing config as a starting point:
+Copy the template as a starting point:
 ```powershell
-Copy-Item .\Configs\DKCDC-1P-NTXTEST-01.json .\Configs\MY-CLUSTER-01.json
+Copy-Item .\Configs\EMEA-Template.json .\Configs\MY-CLUSTER-01.json
 ```
 Edit `MY-CLUSTER-01.json` with the new cluster's details. See [Configuration File](#configuration-file) for all fields.
 
@@ -503,15 +500,7 @@ All config files live in `Configs/`. The same JSON file is passed to every pipel
 
 ### Saved config files
 
-| File | Cluster | Purpose |
-|---|---|---|
-| `DKCDC-1P-NTXTEST-01.json` | NTXTEST-01 (1-node) | Full deployment |
-| `DKCDC-1P-NTXTEST-05.json` | NTXTEST-05 | Full deployment |
-| `DKLAB-1-Create.json` | DKLAB-1 | Lab cluster creation |
-| `DKLAB-1-ImageOnly.json` | DKLAB-1 | Steps 1–4 only (re-image) |
-| `DKLAB-1-Remove.json` | DKLAB-1 | Cluster removal |
-| `DKLAB-2-Create.json` | DKLAB-2 | Lab cluster creation |
-| `DKLAB-3-Create.json` | DKLAB-3 | Lab cluster creation |
+The `Configs/` folder contains an `EMEA-Template.json` with all fields pre-filled with placeholder values. Copy it as the starting point for each new cluster deployment. See [Configuration File](#configuration-file) for field descriptions.
 
 ---
 
@@ -606,13 +595,13 @@ Mounts the Phoenix ISO via iLO Redfish and reboots nodes.
 
 ```powershell
 # All nodes in config
-.\Phonix-Boot.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Phonix-Boot.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 
 # Single node by iLO IP
-.\Phonix-Boot.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json -IloHost "10.10.16.122"
+.\Phonix-Boot.ps1 -ConfigFile .\Configs\MY-CLUSTER.json -IloHost "10.10.16.122"
 
 # Override ISO URL and increase post-state timeout
-.\Phonix-Boot.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json `
+.\Phonix-Boot.ps1 -ConfigFile .\Configs\MY-CLUSTER.json `
     -IsoUrl "https://your-storage.blob.core.windows.net/images/my-phoenix.iso" `
     -PostStateTimeoutMinutes 60
 ```
@@ -630,7 +619,7 @@ Mounts the Phoenix ISO via iLO Redfish and reboots nodes.
 Polls iLO until all nodes report Phoenix OS running.
 
 ```powershell
-.\Phoonix-Boot-Check.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Phoonix-Boot-Check.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 ```
 
 ---
@@ -640,10 +629,10 @@ Waits until all nodes are visible and available in Foundation Central, then ejec
 
 ```powershell
 # Default: poll every 60s for up to 60 minutes
-.\Node-Discovery-Check.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Node-Discovery-Check.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 
 # Custom timeout and poll interval
-.\Node-Discovery-Check.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json `
+.\Node-Discovery-Check.ps1 -ConfigFile .\Configs\MY-CLUSTER.json `
     -TimeoutMinutes 90 -PollIntervalSeconds 30
 ```
 
@@ -659,7 +648,7 @@ Waits until all nodes are visible and available in Foundation Central, then ejec
 Triggers Foundation Central to image all nodes and create the cluster.
 
 ```powershell
-.\Image-And-Deploy-Cluster.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Image-And-Deploy-Cluster.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 ```
 
 ---
@@ -667,7 +656,7 @@ Triggers Foundation Central to image all nodes and create the cluster.
 ### Step 5 — Accept EULA (`Accept-EULA.ps1`)
 
 ```powershell
-.\Accept-EULA.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Accept-EULA.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 ```
 
 ---
@@ -675,7 +664,7 @@ Triggers Foundation Central to image all nodes and create the cluster.
 ### Step 6 — Register to Witness (`Register-NewCluster-To-Witness.ps1`)
 
 ```powershell
-.\Register-NewCluster-To-Witness.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Register-NewCluster-To-Witness.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 ```
 
 ---
@@ -683,7 +672,7 @@ Triggers Foundation Central to image all nodes and create the cluster.
 ### Step 7 — Register to Prism Central (`Register-NewCluster-To-PC.ps1`)
 
 ```powershell
-.\Register-NewCluster-To-PC.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Register-NewCluster-To-PC.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 ```
 
 ---
@@ -692,7 +681,7 @@ Triggers Foundation Central to image all nodes and create the cluster.
 Creates production VLANs in Prism Central from the `production_vlans` array in the config.
 
 ```powershell
-.\Create-vLAN.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Create-vLAN.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 ```
 
 ---
@@ -700,7 +689,7 @@ Creates production VLANs in Prism Central from the `production_vlans` array in t
 ### Step 9 — Create Storage Container (`Create-Storage-Container.ps1`)
 
 ```powershell
-.\Create-Storage-Container.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Create-Storage-Container.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 ```
 
 ---
@@ -708,7 +697,7 @@ Creates production VLANs in Prism Central from the `production_vlans` array in t
 ### Step 10 — Backup Policies (`Create-Backup-Policies-With-Categories.ps1`)
 
 ```powershell
-.\Create-Backup-Policies-With-Categories.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Create-Backup-Policies-With-Categories.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 ```
 
 ---
@@ -716,7 +705,7 @@ Creates production VLANs in Prism Central from the `production_vlans` array in t
 ### Step 11 — Protection Policy (`Create-Protection-Policy-With-Category.ps1`)
 
 ```powershell
-.\Create-Protection-Policy-With-Category.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Create-Protection-Policy-With-Category.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 ```
 
 ---
@@ -724,7 +713,7 @@ Creates production VLANs in Prism Central from the `production_vlans` array in t
 ### Step 12 — Recovery Plan (`Create-Recovery-Plan-With-Category.ps1`)
 
 ```powershell
-.\Create-Recovery-Plan-With-Category.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Create-Recovery-Plan-With-Category.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 ```
 
 ---
@@ -734,13 +723,13 @@ Checks and changes OVS bond mode on all AHV hosts from LACP balance-tcp to activ
 
 ```powershell
 # Standard — reads cluster VIP from config
-.\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 
 # Override cluster VIP directly
-.\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json -ClusterVIP "10.0.113.121"
+.\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\MY-CLUSTER.json -ClusterVIP "10.0.113.121"
 
 # Force change regardless of current state, shorter wait between nodes
-.\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json -ForceChange -WaitSeconds 30
+.\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\MY-CLUSTER.json -ForceChange -WaitSeconds 30
 ```
 
 | Parameter | Default | Description |
@@ -758,10 +747,10 @@ Generates new passwords, changes them on PE/CVM/AHV, and exports a CSV in Secure
 
 ```powershell
 # Uses cluster VIP from config
-.\Change-Prism-CVM-AHV-Password.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Change-Prism-CVM-AHV-Password.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 
 # Custom password length
-.\Change-Prism-CVM-AHV-Password.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json -PasswordLength 24
+.\Change-Prism-CVM-AHV-Password.ps1 -ConfigFile .\Configs\MY-CLUSTER.json -PasswordLength 24
 ```
 
 | Parameter | Default | Description |
@@ -778,7 +767,7 @@ Generates new passwords, changes them on PE/CVM/AHV, and exports a CSV in Secure
 Imports the password CSV from Step 14 into CyberArk using the tenant configured in the config.
 
 ```powershell
-.\Import-Secrets-to-CyberArk.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Import-Secrets-to-CyberArk.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 ```
 
 ---
@@ -788,17 +777,17 @@ Creates DNS A records for all node hostnames (AHV + iLO) and the cluster VIP. Re
 
 ```powershell
 # Credentials from config dns_admin section
-.\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
+.\Add-DNS-Record.ps1 -ConfigFile .\Configs\MY-CLUSTER.json
 
 # Supply a credential object
 $cred = Get-Credential "CORP\SVC-NTX-AUTO"
-.\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json -Credential $cred
+.\Add-DNS-Record.ps1 -ConfigFile .\Configs\MY-CLUSTER.json -Credential $cred
 
 # Prompt for password by username
-.\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json -Username "CORP\SVC-NTX-AUTO"
+.\Add-DNS-Record.ps1 -ConfigFile .\Configs\MY-CLUSTER.json -Username "CORP\SVC-NTX-AUTO"
 
 # Override DNS zone names
-.\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json `
+.\Add-DNS-Record.ps1 -ConfigFile .\Configs\MY-CLUSTER.json `
     -NetZone "corp.local" -IloZone "ilo.corp.local"
 ```
 
@@ -815,7 +804,7 @@ $cred = Get-Credential "CORP\SVC-NTX-AUTO"
 ```json
 "dns_admin": {
   "domain":   "CORP",
-  "username": "SVC-DKCDC-NTX-AUTO",
+  "username": "SVC-NTX-AUTO",
   "password": "ServiceAccountPassword"
 }
 ```
@@ -1103,9 +1092,8 @@ Each cluster deployment is driven by a JSON configuration file in `Configs/`.
 
 | File | Cluster | Purpose |
 |---|---|---|
-| `DKCDC-1P-NTXTEST-01.json` | NTXTEST-01 | Full 1-node deployment |
-| `DKCDC-1P-NTXTEST-05.json` | NTXTEST-05 | Full n-node deployment |
-| `DKLAB-1-Create.json` | DKLAB-1 | Lab cluster creation |
+| `MY-CLUSTER.json` | NTXTEST-01 | Full 1-node deployment |
+| `| `DKLAB-1-Create.json` | DKLAB-1 | Lab cluster creation |
 | `DKLAB-1-ImageOnly.json` | DKLAB-1 | Re-image only (steps 1–4) |
 | `DKLAB-1-Remove.json` | DKLAB-1 | Cluster removal |
 
