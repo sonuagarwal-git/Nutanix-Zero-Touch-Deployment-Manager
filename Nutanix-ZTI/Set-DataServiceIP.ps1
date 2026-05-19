@@ -44,7 +44,7 @@
     .\Set-DataServiceIP.ps1 `
         -PrismCentralUrl https://10.0.113.220:9440 `
         -Username admin `
-        -Password 'Vestas@123' `
+        -Password 'CHANGE_ME' `
         -ClusterName DKCDC-1P-NTXTEST-03 `
         -DataServiceIP 10.0.113.130
 

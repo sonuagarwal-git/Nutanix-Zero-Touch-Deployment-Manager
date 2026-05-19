@@ -1,7 +1,7 @@
 # Regenerate certificates with proper format using OpenSSL
 
-$certsDir = "E:\SOAAA\ZTIPS\deploy-cluster-app\certs"
-cd $certsDir
+$certsDir = Join-Path $PSScriptRoot "certs"
+Set-Location $certsDir
 
 # Check if OpenSSL is available
 $opensslPath = Get-Command openssl -ErrorAction SilentlyContinue
@@ -16,10 +16,10 @@ if (-not $opensslPath) {
 Write-Host "Converting PFX to PEM format using OpenSSL..." -ForegroundColor Cyan
 
 # Convert PFX to PEM private key (unencrypted)
-openssl pkcs12 -in server.pfx -nocerts -out server.key -nodes -password pass:NutanixDeploy2026!
+openssl pkcs12 -in server.pfx -nocerts -out server.key -nodes -password pass:CertP@ssw0rd!
 
 # Convert PFX to PEM certificate
-openssl pkcs12 -in server.pfx -clcerts -nokeys -out server.crt -password pass:NutanixDeploy2026!
+openssl pkcs12 -in server.pfx -clcerts -nokeys -out server.crt -password pass:CertP@ssw0rd!
 
 Write-Host ""
 Write-Host "✓ Certificates converted successfully!" -ForegroundColor Green

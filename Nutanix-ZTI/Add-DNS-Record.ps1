@@ -1,13 +1,13 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Creates DNS A records for Nutanix cluster nodes and VIP from a ZTI config file.
 .DESCRIPTION
     Reads a ZTI cluster config JSON and creates three sets of DNS A records per DNS server:
 
-      1. Node hypervisor records : <hostname>  -> hypervisor_ip   in vestas.net
-      2. Node iLO records        : <hostname>i -> iLO_ip          in vestas.ilo
-      3. Cluster VIP record      : <clusterName> -> cluster_vip   in vestas.net
+      1. Node hypervisor records : <hostname>  -> hypervisor_ip   in <domain>.net
+      2. Node iLO records        : <hostname>i -> iLO_ip          in <domain>.ilo
+      3. Cluster VIP record      : <clusterName> -> cluster_vip   in <domain>.net
 
     DNS admin credentials are read from the config file's optional 'dns_admin' section
     (fields: username, password). When present, DNS cmdlets run via Invoke-Command on the
@@ -22,9 +22,9 @@
 .PARAMETER DnsServers
     One or more DNS server IP addresses. Defaults to dns_servers from the config.
 .PARAMETER NetZone
-    Forward DNS zone for hypervisor and cluster VIP records. Default: 'vestas.net'.
+    Forward DNS zone for hypervisor and cluster VIP records. Default: 'company.net'.
 .PARAMETER IloZone
-    Forward DNS zone for iLO records. Default: 'vestas.ilo'.
+    Forward DNS zone for iLO records. Default: 'company.ilo'.
 .PARAMETER Credential
     PSCredential for the DNS service account (overrides dns_admin in config).
 .PARAMETER Username
@@ -32,10 +32,10 @@
 .EXAMPLE
     .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json
 .EXAMPLE
-    $cred = Get-Credential "VESTAS\SVC-DKCDC-NTX-AUTO"
+    $cred = Get-Credential "CORP\SVC-NTX-AUTO"
     .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json -Credential $cred
 .EXAMPLE
-    .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json -Username "VESTAS\SVC-DKCDC-NTX-AUTO"
+    .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json -Username "CORP\SVC-NTX-AUTO"
 #>
 
 [CmdletBinding()]
@@ -45,9 +45,9 @@ param(
 
     [string[]]$DnsServers = @(),
 
-    [string]$NetZone = 'vestas.net',
+    [string]$NetZone = 'company.net',
 
-    [string]$IloZone = 'vestas.ilo',
+    [string]$IloZone = 'company.ilo',
 
     [System.Management.Automation.PSCredential]
     [System.Management.Automation.Credential()]

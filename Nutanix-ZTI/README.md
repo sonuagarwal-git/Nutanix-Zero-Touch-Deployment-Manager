@@ -46,7 +46,7 @@ The Nutanix ZTI pipeline (`Start-Pipeline.ps1`) automates the full end-to-end li
 
 ## Architecture
 
-The diagram below shows where each component runs, how the jump server orchestrates the deployment, how Foundation Central at the HUB site connects to the remote site, and how all image files are pulled from Vestas Azure Blob Storage.
+The diagram below shows where each component runs, how the jump server orchestrates the deployment, how Foundation Central at the HUB site connects to the remote site, and how all image files are pulled from Azure Blob Storage.
 
 ```mermaid
 graph TB
@@ -191,7 +191,7 @@ Required for 2-node clusters (Metro Availability). The Witness VM must be:
 
 ### 6. Software Image Files
 
-All Phoenix, AOS, and AHV image files must be uploaded to the **Vestas Azure Blob Storage** container before deploying:
+All Phoenix, AOS, and AHV image files must be uploaded to the **Azure Blob Storage** container before deploying:
 
 > 🗄️ **Azure Blob Storage (images container):**  
 > [vstimageprd01 / images](https://portal.azure.com/#view/Microsoft_Azure_Storage/ContainerMenuBlade/~/overview/storageAccountId/%2Fsubscriptions%2F5f93bb56-fb93-4fcd-8dc2-916320d0ba75%2FresourceGroups%2FImagemover%2Fproviders%2FMicrosoft.Storage%2FstorageAccounts%2Fvstimageprd01/path/images/etag/%220x8DE8E4E88DABB68%22/defaultId//publicAccessVal/Blob)
@@ -199,9 +199,9 @@ All Phoenix, AOS, and AHV image files must be uploaded to the **Vestas Azure Blo
 The direct blob URL for each file must be used in the config. Example URLs:
 
 ```
-Phoenix ISO : https://vstimageprd01.blob.core.windows.net/images/phoenix-5.9.1-x86_64.iso
-AOS Package : https://vstimageprd01.blob.core.windows.net/images/nutanix_installer_package-release-ganges-7.3.1.6-stable-9e8a682578e7f8cd0558ead559f3d92408f35302-x86_64.tar.gz
-AHV ISO     : https://vstimageprd01.blob.core.windows.net/images/AHV-DVD-x86_64-10.3.1.5-20.iso
+Phoenix ISO : https://your-storage.blob.core.windows.net/images/phoenix-5.9.1-x86_64.iso
+AOS Package : https://your-storage.blob.core.windows.net/images/nutanix_installer_package-release-ganges-7.3.1.6-stable-9e8a682578e7f8cd0558ead559f3d92408f35302-x86_64.tar.gz
+AHV ISO     : https://your-storage.blob.core.windows.net/images/AHV-DVD-x86_64-10.3.1.5-20.iso
 ```
 
 | File | Config Key | Notes |
@@ -273,10 +273,10 @@ Step 16 (`Add-DNS-Record.ps1`) creates DNS A records for all node hostnames (AHV
 
 **Requirements:**
 
-- A **domain service account** (e.g. `VESTAS\SVC-DKCDC-NTX-AUTO`) must exist in Active Directory.
+- A **domain service account** (e.g. `CORP\SVC-NTX-AUTO`) must exist in Active Directory.
 - The account must have **Create/Delete DNS records** permission on the following zones:
-  - `vestas.net` — for AHV host A records and cluster VIP
-  - `vestas.ilo` — for iLO A records
+  - `company.net` — for AHV host A records and cluster VIP
+  - `company.ilo` — for iLO A records
 - **`dnscmd.exe`** must be available on the jump server. It is part of Windows DNS RSAT tools:  
   ```powershell
   # Install DNS RSAT (run as admin)
@@ -287,7 +287,7 @@ Step 16 (`Add-DNS-Record.ps1`) creates DNS A records for all node hostnames (AHV
 - The service account **username and password** must be set in the config under `dns_admin`:  
   ```json
   "dns_admin": {
-    "domain":   "VESTAS",
+    "domain":   "CORP",
     "username": "SVC-DKCDC-NTX-AUTO",
     "password": "ServiceAccountPassword"
   }
@@ -497,7 +497,7 @@ All config files live in `Configs/`. The same JSON file is passed to every pipel
 | `prism_central.ip/url/username/password` | ✅ | PC connection details (Steps 7–15) |
 | `foundation_central.url/username/password` | ✅ | FC connection details (Steps 3–4) |
 | `cyberark.*` | Step 15 | CyberArk tenant details for Step 15 |
-| `dns_admin.domain` | No | Active Directory domain for DNS credentials, e.g. `VESTAS` |
+| `dns_admin.domain` | No | Active Directory domain for DNS credentials, e.g. `CORP` |
 | `dns_admin.username` | No | Service account username for DNS RPC operations |
 | `dns_admin.password` | No | Service account password — Step 16 delegates DNS changes via this account |
 
@@ -544,7 +544,7 @@ flowchart TD
         S13["13 · AHV Bond Mode\nSSH to all AHV hosts"]
         S14["14 · Change Passwords\nPE/CVM/AHV SSH → CSV export"]
         S15["15 · Import to CyberArk\nREST API"]
-        S16["16 · Add DNS Records\nA records for nodes + VIP\n(vestas.net / vestas.ilo)"]
+        S16["16 · Add DNS Records\nA records for nodes + VIP\n(company.net / company.ilo)"]
         S1-->S2-->S3-->S4-->S5-->S6-->S7-->S8-->S9-->S10-->S11-->S12-->S13-->S14-->S15-->S16
     end
 
@@ -613,7 +613,7 @@ Mounts the Phoenix ISO via iLO Redfish and reboots nodes.
 
 # Override ISO URL and increase post-state timeout
 .\Phonix-Boot.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json `
-    -IsoUrl "https://vstimageprd01.blob.core.windows.net/images/my-phoenix.iso" `
+    -IsoUrl "https://your-storage.blob.core.windows.net/images/my-phoenix.iso" `
     -PostStateTimeoutMinutes 60
 ```
 
@@ -791,11 +791,11 @@ Creates DNS A records for all node hostnames (AHV + iLO) and the cluster VIP. Re
 .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json
 
 # Supply a credential object
-$cred = Get-Credential "VESTAS\SVC-DKCDC-NTX-AUTO"
+$cred = Get-Credential "CORP\SVC-NTX-AUTO"
 .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json -Credential $cred
 
 # Prompt for password by username
-.\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json -Username "VESTAS\SVC-DKCDC-NTX-AUTO"
+.\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json -Username "CORP\SVC-NTX-AUTO"
 
 # Override DNS zone names
 .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json `
@@ -806,24 +806,24 @@ $cred = Get-Credential "VESTAS\SVC-DKCDC-NTX-AUTO"
 |---|---|---|
 | `-ConfigFile` | **required** | Path to cluster JSON config |
 | `-DnsServers` | from config `dns_servers` | Override target DNS server IPs |
-| `-NetZone` | `vestas.net` | Forward zone for AHV + VIP records |
-| `-IloZone` | `vestas.ilo` | Forward zone for iLO records |
+| `-NetZone` | `company.net` | Forward zone for AHV + VIP records |
+| `-IloZone` | `company.ilo` | Forward zone for iLO records |
 | `-Credential` | from config `dns_admin` | PSCredential for DNS service account |
 | `-Username` | — | Convenience — prompts for password interactively |
 
 **Required config section for Step 16:**
 ```json
 "dns_admin": {
-  "domain":   "VESTAS",
+  "domain":   "CORP",
   "username": "SVC-DKCDC-NTX-AUTO",
   "password": "ServiceAccountPassword"
 }
 ```
 
 Records created per node:
-- `<hostname>` → `hypervisor_ip` in `vestas.net`
-- `<hostname>i` → `iLO_ip` in `vestas.ilo`
-- `<clusterName>` → `cluster_vip` in `vestas.net`
+- `<hostname>` → `hypervisor_ip` in `company.net`
+- `<hostname>i` → `iLO_ip` in `company.ilo`
+- `<clusterName>` → `cluster_vip` in `company.net`
 
 ---
 
@@ -1016,7 +1016,7 @@ Triggered from the [Nutanix Cluster Deployment Manager](../deploy-cluster-app/RE
 ## Quick Start
 
 ```powershell
-cd E:\SOAAA\ZTIPS\Nutanix-ZTI
+cd <path-to>\Nutanix-ZTI
 
 # Full deployment
 .\Start-Pipeline.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json
@@ -1141,7 +1141,7 @@ Each step script can also be run standalone. All accept `-ConfigFile` as primary
 .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json
 
 # Step 16 — Add DNS records with explicit credential
-$cred = Get-Credential "VESTAS\SVC-DKCDC-NTX-AUTO"
+$cred = Get-Credential "CORP\SVC-NTX-AUTO"
 .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json -Credential $cred
 ```
 

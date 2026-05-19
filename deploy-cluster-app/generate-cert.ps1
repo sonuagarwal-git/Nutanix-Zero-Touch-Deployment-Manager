@@ -1,5 +1,5 @@
 # Create certs directory
-$certsDir = "E:\SOAAA\ZTIPS\deploy-cluster-app\certs"
+$certsDir = Join-Path $PSScriptRoot "certs"
 if (-not (Test-Path $certsDir)) {
     New-Item -ItemType Directory -Path $certsDir | Out-Null
 }
@@ -7,7 +7,9 @@ if (-not (Test-Path $certsDir)) {
 # Get hostname and build FQDN
 $hostname = $env:COMPUTERNAME
 $hostnameLower = $hostname.ToLower()
-$fqdn = "$hostname.vestas.net"
+# Use the machine's DNS domain if available, otherwise just use the hostname
+$dnsDomain = if ($env:USERDNSDOMAIN) { $env:USERDNSDOMAIN.ToLower() } else { 'local' }
+$fqdn = "$hostname.$dnsDomain"
 $fqdnLower = $fqdn.ToLower()
 
 # Get all network IP addresses
@@ -51,7 +53,7 @@ $certThumbprint = $cert.Thumbprint
 Write-Host "Certificate created with thumbprint: $certThumbprint" -ForegroundColor Green
 
 # Export certificate to PFX (with private key)
-$pfxPassword = ConvertTo-SecureString -String "NutanixDeploy2026!" -Force -AsPlainText
+$pfxPassword = ConvertTo-SecureString -String "CertP@ssw0rd!" -Force -AsPlainText
 $pfxPath = Join-Path $certsDir "server.pfx"
 Export-PfxCertificate -Cert "Cert:\CurrentUser\My\$certThumbprint" -FilePath $pfxPath -Password $pfxPassword
 Write-Host "Certificate exported to: $pfxPath" -ForegroundColor Green
@@ -62,8 +64,8 @@ $pemCertPath = Join-Path $certsDir "server.crt"
 
 # Use OpenSSL to convert (if available) or use certutil
 try {
-    openssl pkcs12 -in $pfxPath -nocerts -out $pemKeyPath -nodes -passin pass:NutanixDeploy2026!
-    openssl pkcs12 -in $pfxPath -clcerts -nokeys -out $pemCertPath -passin pass:NutanixDeploy2026!
+    openssl pkcs12 -in $pfxPath -nocerts -out $pemKeyPath -nodes -passin pass:CertP@ssw0rd!
+    openssl pkcs12 -in $pfxPath -clcerts -nokeys -out $pemCertPath -passin pass:CertP@ssw0rd!
     Write-Host "PEM files created successfully" -ForegroundColor Green
 }
 catch {

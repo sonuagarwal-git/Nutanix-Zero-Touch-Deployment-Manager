@@ -90,7 +90,7 @@ flowchart TD
     PS --> PC
 ```
 
-> The pipeline script `Start-Pipeline.ps1` and `Configs/` directory live in `E:\SOAAA\ZTIPS\Nutanix-ZTI\` alongside this app.
+> The pipeline script `Start-Pipeline.ps1` and `Configs/` directory live in `<path-to>\Nutanix-ZTI\` alongside this app.
 
 ---
 
@@ -202,7 +202,7 @@ Installed automatically by `npm install`:
 ### 1. Install Node.js Dependencies
 
 ```powershell
-cd E:\SOAAA\ZTIPS\deploy-cluster-app
+cd <path-to>\deploy-cluster-app
 npm install
 ```
 
@@ -222,7 +222,7 @@ This uses `New-SelfSignedCertificate` to create a 5-year RSA-2048 certificate th
 .\generate-cert-openssl.ps1
 ```
 
-> **Note:** Both scripts target `E:\SOAAA\ZTIPS\deploy-cluster-app\certs\`. Adjust the path inside the scripts if the application is installed elsewhere.
+> **Note:** Both scripts target `<path-to>\deploy-cluster-app\certs\`. Adjust the path inside the scripts if the application is installed elsewhere.
 
 ### 3. Start the Server
 
@@ -245,7 +245,7 @@ The application runs as a Windows service via the WinSW wrapper in `daemon/`. It
 ### Install the service (first time only)
 
 ```powershell
-cd E:\SOAAA\ZTIPS\deploy-cluster-app
+cd <path-to>\deploy-cluster-app
 node install-service.js
 ```
 
@@ -271,19 +271,19 @@ Or via **Services** (`services.msc`) → *Nutanix Cluster Deployment Web*.
 
 ```powershell
 # Application stdout (deployment output, server messages)
-Get-Content 'E:\SOAAA\ZTIPS\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.out.log' -Tail 100 -Wait
+Get-Content '<path-to>\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.out.log' -Tail 100 -Wait
 
 # Application stderr (errors and exceptions)
-Get-Content 'E:\SOAAA\ZTIPS\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.err.log' -Tail 50
+Get-Content '<path-to>\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.err.log' -Tail 50
 
 # WinSW wrapper log (crash/restart events)
-Get-Content 'E:\SOAAA\ZTIPS\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.wrapper.log' -Tail 30
+Get-Content '<path-to>\deploy-cluster-app\daemon\nutanixclusterdeploymentweb.wrapper.log' -Tail 30
 ```
 
 ### Uninstall the service
 
 ```powershell
-cd E:\SOAAA\ZTIPS\deploy-cluster-app
+cd <path-to>\deploy-cluster-app
 node uninstall-service.js
 ```
 
@@ -314,14 +314,14 @@ Create a `.env` file in the application root to override defaults:
 | `PORT` | `3443` | HTTPS port |
 | `SMTP_HOST` | `localhost` | Fallback SMTP host |
 | `SMTP_PORT` | `25` | Fallback SMTP port |
-| `SMTP_USER` | `noreply@vestas.com` | Fallback sender address |
+| `SMTP_USER` | `noreply@company.com` | Fallback sender address |
 | `SERVER_URL` | `https://localhost:3443` | Portal URL included in welcome emails |
 
 > All SMTP and AD settings can also be managed entirely through the web UI.
 
 ### Deployment Parameters
 
-Cluster configurations are stored as JSON files in `E:\SOAAA\ZTIPS\Nutanix-ZTI\Configs\`. Each configuration file captures:
+Cluster configurations are stored as JSON files in `<path-to>\Nutanix-ZTI\Configs\`. Each configuration file captures:
 
 | Section | Key Fields |
 |---|---|
@@ -356,7 +356,7 @@ Configured via **Admin → User Management → Identity Provider** tab:
 | **Use SSL** | Automatically enabled for port 636 |
 | **Bind DN** | Service account DN for directory searches |
 | **Bind Password** | Service account password |
-| **Base DN** | Search root (e.g., `DC=vestas,DC=net`) |
+| **Base DN** | Search root (e.g., `DC=company,DC=net`) |
 | **User Search Filter** | Default: `(sAMAccountName={{username}})` |
 | **Display Name Attribute** | Default: `displayName` |
 | **Email Attribute** | Default: `mail` |
@@ -368,7 +368,7 @@ Configured via **Admin → User Management → Identity Provider** tab:
 3. Imported user logs in using their Active Directory credentials.
 4. AD users' passwords are **never stored locally** — authentication always goes back to AD.
 
-> Domain prefixes (`vestas\username` or `vestas/username`) are automatically stripped at login.
+> Domain prefixes (`domain\username` or `domain/username`) are automatically stripped at login.
 
 ---
 
@@ -380,12 +380,12 @@ Configured via **Admin → User Management → SMTP Settings** tab:
 |---|---|
 | **SMTP Server** | Hostname or IP of your mail relay |
 | **SMTP Port** | `25` (plain), `587` (STARTTLS) |
-| **Sender Email** | `From:` address (e.g., `noreply@vestas.com`) |
+| **Sender Email** | `From:` address (e.g., `noreply@company.com`) |
 | **Portal URL** | Included as a link in welcome emails |
 
 No username/password authentication is used — intended for internal SMTP relays.
 
-When an AD user is imported, a **welcome email** is automatically sent to `username@vestas.com` containing:
+When an AD user is imported, a **welcome email** is automatically sent to `user's stored email address` containing:
 - Portal access link
 - Username and assigned role
 - Reminder to use Active Directory credentials

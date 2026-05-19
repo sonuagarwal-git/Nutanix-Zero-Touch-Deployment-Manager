@@ -33,7 +33,7 @@
     Status values: OK, FAILED*, SKIPPED*
 
 .PARAMETER To
-    Recipient address. Defaults to soaaa@vestas.com.
+    Recipient address. Defaults to admin@company.com.
 
 .PARAMETER SmtpConfigFile
     Path to smtp-config.json. Defaults to the sibling deploy-cluster-app folder.
@@ -76,7 +76,7 @@ param(
     [object[]]$StepResults = @(),
 
     # Recipient — set by Start-Pipeline.ps1 from the web session user.
-    # Falls back to <current-windows-username>@vestas.com if not provided (standalone use).
+    # Falls back to the current Windows username (without domain) if not provided.
     [Parameter()]
     [string]$To = '',
 
@@ -85,7 +85,7 @@ param(
     [Parameter()]
     [string]$TriggeredBy = '',
 
-    # Optional extra CC addresses (comma-separated). soaaa@vestas.com is always CC'd.
+    # Optional extra CC addresses (comma-separated).
     [Parameter()]
     [string]$Cc = '',
 
@@ -127,24 +127,22 @@ try {
 
 $smtpHost = $smtp.host
 $smtpPort = if ($smtp.port) { [int]$smtp.port } else { 25 }
-$fromAddr = if ($smtp.from) { $smtp.from } else { 'Nutanix-ZTI-Tool@vestas.com' }
+$fromAddr = if ($smtp.from) { $smtp.from } else { 'noreply@company.com' }
 
 # Auto-derive To address from the current Windows username if not explicitly provided
 if (-not $To) {
     $winUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
     # Strip domain prefix (DOMAIN\username or username)
     $shortUser = if ($winUser -match '\\') { $winUser.Split('\')[-1] } else { $winUser }
-    $To = "$shortUser@vestas.com"
+    $To = $shortUser
 }
 
 # Derive display name for the email body
 if (-not $TriggeredBy) { $TriggeredBy = $To }
 
-# Build the fixed + optional CC list.
-# soaaa@vestas.com is always included in CC regardless of who the To is.
-$fixedCc  = @('soaaa@vestas.com')
+# Build the CC list from optional parameter only.
 $extraCc  = if ($Cc) { $Cc -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ } } else { @() }
-$allCc    = ($fixedCc + $extraCc) | Select-Object -Unique
+$allCc    = $extraCc | Select-Object -Unique
 
 if (-not $smtpHost) {
     Write-Error "SMTP config is missing 'host' field."

@@ -36,7 +36,7 @@ function loadSmtpConfig() {
         enabled: false,
         host: process.env.SMTP_HOST || 'localhost',
         port: parseInt(process.env.SMTP_PORT) || 25,
-        from: process.env.SMTP_USER || 'noreply@vestas.com',
+        from: process.env.SMTP_USER || 'noreply@company.com',
         serverUrl: process.env.SERVER_URL || `https://localhost:${PORT}`
     };
 }
@@ -106,7 +106,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Session middleware
 app.use(session({
-    secret: 'NutanixDeploy2026SecretKey!@#',
+    secret: process.env.SESSION_SECRET || 'change-this-secret-before-production',
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -336,7 +336,7 @@ function searchADUsers(searchTerm) {
                 return reject(new Error('Failed to bind to AD server: ' + err.message));
             }
 
-            // Strip domain prefix (e.g. "vestas\sornr" -> "sornr")
+            // Strip domain prefix (e.g. "DOMAIN\username" -> "username")
             let cleanTerm = searchTerm;
             if (cleanTerm.includes('\\')) {
                 cleanTerm = cleanTerm.split('\\').pop();
@@ -501,8 +501,8 @@ async function sendWelcomeEmail(user) {
     try {
         const smtpConfig = loadSmtpConfig();
         
-        // Construct user email from username (always @vestas.com)
-        const userEmail = user.email || `${user.username.toLowerCase()}@vestas.com`;
+        // Construct user email from username
+        const userEmail = user.email || user.username.toLowerCase();
         
         // Get the server URL from config
         const serverUrl = smtpConfig.serverUrl || `https://localhost:${PORT}`;
@@ -568,7 +568,7 @@ async function sendWelcomeEmail(user) {
                                                             </tr>
                                                             <tr>
                                                                 <td style="color: #666666; font-size: 14px;"><strong>Authentication:</strong></td>
-                                                                <td style="color: #333333; font-size: 14px;">Active Directory (Use your Vestas credentials)</td>
+                                                                <td style="color: #333333; font-size: 14px;">Active Directory (Use your domain credentials)</td>
                                                             </tr>
                                                         </table>
                                                     </td>
@@ -619,7 +619,7 @@ async function sendWelcomeEmail(user) {
                                             
                                             <p style="color: #999999; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
                                                 This is an automated message. Please do not reply to this email.<br>
-                                                © ${new Date().getFullYear()} Vestas. All rights reserved.
+                                                © ${new Date().getFullYear()} Nutanix ZTI Deployment Tool. All rights reserved.
                                             </p>
                                         </td>
                                     </tr>
@@ -721,7 +721,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(400).json({ error: 'Username and password are required' });
         }
         
-        // Strip domain prefix (e.g. "vestas\soaaa" or "vestas/soaaa" -> "soaaa")
+        // Strip domain prefix (e.g. "DOMAIN\username" or "DOMAIN/username" -> "username")
         let cleanUsername = username;
         if (cleanUsername.includes('\\')) {
             cleanUsername = cleanUsername.split('\\').pop();
@@ -1117,7 +1117,7 @@ app.post('/api/idp/import-user', requireAuth, requireAdmin, async (req, res) => 
             role: role || loadIdpConfig().defaultRole || 'user',
             source: 'ad',
             displayName: displayName || username,
-            email: email || `${username.toLowerCase()}@vestas.com`,
+            email: email || username.toLowerCase(),
             createdAt: new Date().toISOString()
         };
         
@@ -1171,7 +1171,7 @@ app.post('/api/smtp/config', requireAuth, requireAdmin, (req, res) => {
             enabled: enabled || false,
             host: host || 'localhost',
             port: parseInt(port) || 25,
-            from: from || 'noreply@vestas.com',
+            from: from || 'noreply@company.com',
             serverUrl: serverUrl || `https://localhost:${PORT}`
         };
         
@@ -1442,7 +1442,7 @@ app.post('/api/deploy', requireAuth, (req, res) => {
         }
 
         // Pass the logged-in user's email so the result email goes to the right person
-        const triggeredByEmail = `${req.session.user.username}@vestas.com`;
+        const triggeredByEmail = req.session.user.email || req.session.user.username;
         psArgs.push('-TriggeredBy');
         psArgs.push(triggeredByEmail);
         console.log(`Triggered by: ${triggeredByEmail}`);

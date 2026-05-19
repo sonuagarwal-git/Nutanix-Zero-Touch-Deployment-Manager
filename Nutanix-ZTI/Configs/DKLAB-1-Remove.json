@@ -3,7 +3,7 @@
   "prism_central": {
     "url": "https://10.0.113.220:9440",
     "username": "admin",
-    "password": "Vestas@123"
+    "password": "CHANGE_ME"
   },
   "cluster_vip": "10.0.113.122",
   "cvm_ips": [

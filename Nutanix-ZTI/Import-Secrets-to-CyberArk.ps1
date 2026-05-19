@@ -48,7 +48,7 @@
     # Interactive mode (will prompt for password and security answer)
     .\Import-SecretsAutomated.ps1 `
         -CSVFilePath ".\DKCDC-1P-NTXTEST-01_Password.csv" `
-        -Username "core-service-securevault-monitoring@vestas.com.65"
+        -Username "cyberark-service-account@company.com"
 
 .EXAMPLE
     # Fully automated mode (for scheduled tasks)
@@ -56,7 +56,7 @@
     $secAnswer = ConvertTo-SecureString "YourAnswer" -AsPlainText -Force
     .\Import-SecretsAutomated.ps1 `
         -CSVFilePath ".\secrets.csv" `
-        -Username "svc@vestas.com" `
+        -Username "svc@company.com" `
         -Password $secPass `
         -SecurityAnswer $secAnswer
 
@@ -95,7 +95,7 @@ param(
 
     [Parameter(Mandatory = $false, HelpMessage = "CyberArk service account username")]
     [ValidateNotNullOrEmpty()]
-    [string]$Username = "core-service-securevault-monitoring@vestas.com.65",
+    [string]$Username = "",
 
     [Parameter(Mandatory = $false, HelpMessage = "Service account password (prompts if not provided)")]
     [SecureString]$Password,

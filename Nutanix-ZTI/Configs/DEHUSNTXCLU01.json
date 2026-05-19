@@ -52,9 +52,9 @@
     "10.0.15.120"
   ],
   "dns_admin": {
-    "domain": "VESTAS",
-    "username": "SVC-DKCDC-NTX-AUTO",
-    "password": "t$2JYs?7y+5H_Eb9Gj3%8Q/g{6"
+    "domain": "CORP",
+    "username": "SVC-NTX-AUTO",
+    "password": "CHANGE_ME"
   },
   "ntp_servers": [
     "10.0.3.230",
@@ -93,17 +93,17 @@
     "ip": "10.0.66.25",
     "url": "https://10.0.66.25:9440",
     "username": "admin",
-    "password": "Vestas@123"
+    "password": "CHANGE_ME"
   },
   "eula": {
     "username": "Core-Service",
     "job_title": "Infrastructure Team",
-    "company_name": "Vestas Wind System A/S"
+    "company_name": "Your Company Name"
   },
   "cyberark": {
-    "username": "core-service-securevault-monitoring@vestas.com.65",
-    "password": "Vestas@123456",
-    "security_answer": "core-service-securevault-monitoring",
+    "username": "cyberark-service-account@company.com",
+    "password": "CHANGE_ME",
+    "security_answer": "CHANGE_ME",
     "tenant_id": "aap4624",
     "base_url": "https://aap4624.id.cyberark.cloud",
     "vault_folder": "Nutanix_Remote_Site"
