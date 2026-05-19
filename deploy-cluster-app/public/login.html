@@ -13,12 +13,10 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            height: 100vh;
-            background-color: #87ceeb;
-            background-image: url('/images/login-bg.png');
-            background-size: cover;
-            background-position: center center;
-            background-repeat: no-repeat;
+            min-height: 100vh;
+            width: 100%;
+            background-color: #4a7fa5;
+            margin: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -26,16 +24,22 @@
             position: relative;
         }
 
+        /* Full-screen background layer — works perfectly regardless of image resolution */
+        .bg-layer {
+            position: fixed;
+            inset: 0;              /* top:0; right:0; bottom:0; left:0 */
+            width: 100vw;
+            height: 100vh;
+            background-image: url('/images/login-bg.png');
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-color: #4a7fa5; /* fallback if image missing */
+            z-index: 0;
+        }
+
         body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            pointer-events: none;
-            z-index: 1;
+            display: none; /* bg-layer div handles the background */
         }
 
         .login-wrapper {
@@ -47,7 +51,7 @@
             border-radius: 4px;
             overflow: hidden;
             position: relative;
-            z-index: 10;
+            z-index: 10;  /* sits above bg-layer (z-index: 0) */
         }
 
         .left-panel {
@@ -94,12 +98,14 @@
             padding: 30px;
         }
 
-        .logo {
-            max-height: 80px;
-            width: auto;
-            max-width: 220px;
-            object-fit: contain;
-            margin-bottom: 24px;
+        .company-name {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #024da1;
+            letter-spacing: 2px;
+            margin-bottom: 22px;
+            text-align: center;
+            text-transform: uppercase;
         }
 
         .login-box {
@@ -199,13 +205,7 @@
         }
 
         .logo-fallback {
-            display: none;
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #024da1;
-            letter-spacing: 2px;
-            margin-bottom: 24px;
-            text-align: center;
+            display: none; /* login page uses .company-name instead */
         }
 
         .footer-text {
@@ -222,6 +222,9 @@
     </style>
 </head>
 <body>
+    <!-- Full-screen background: fixed-position div fills 100vw/100vh regardless of image resolution -->
+    <div class="bg-layer"></div>
+
     <div class="login-wrapper">
         <div class="left-panel">
             <div class="brand-text">
@@ -230,9 +233,7 @@
         </div>
         
         <div class="right-panel">
-            <img src="/images/logo.png" class="logo" alt="Company Logo"
-                 onerror="this.style.display='none';document.getElementById('logoFallback').style.display='block'">
-            <div id="logoFallback" class="logo-fallback">YOUR COMPANY</div>
+            <div id="companyName" class="company-name">YOUR COMPANY</div>
             
             <div class="login-box">
                 <h2 class="login-title">Log in with your Local Account or AD Account</h2>
@@ -272,9 +273,9 @@
                 const r = await fetch('/api/branding');
                 const { companyName } = await r.json();
                 if (companyName) {
-                    document.title = companyName + ' — Nutanix Cluster Deployment';
-                    const fallback = document.getElementById('logoFallback');
-                    if (fallback) fallback.textContent = companyName.toUpperCase();
+                    document.title = companyName + ' — Login';
+                    const nameEl = document.getElementById('companyName');
+                    if (nameEl) nameEl.textContent = companyName.toUpperCase();
                 }
             } catch (e) { /* use static defaults */ }
         })();

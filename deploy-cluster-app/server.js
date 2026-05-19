@@ -451,7 +451,10 @@ function loadAuditLogs() {
     try {
         if (fs.existsSync(auditLogsFilePath)) {
             const data = fs.readFileSync(auditLogsFilePath, 'utf8');
-            return JSON.parse(data);
+            const parsed = JSON.parse(data);
+            // Support both {logs:[]} object format and legacy [] array format
+            if (Array.isArray(parsed)) return { logs: parsed };
+            if (parsed && Array.isArray(parsed.logs)) return parsed;
         }
     } catch (error) {
         console.error('Error loading audit logs:', error);
@@ -709,11 +712,17 @@ app.get('/login.html', (req, res) => {
 app.use('/styles.css', express.static(path.join(__dirname, 'public', 'styles.css')));
 app.use('/images',     express.static(path.join(__dirname, 'public', 'images')));
 
-// Public branding endpoint — no auth required so the login page can read it
+// Public branding endpoint — reads .env on every request so changes take effect without restart
 app.get('/api/branding', (req, res) => {
-    res.json({
-        companyName: process.env.COMPANY_NAME || 'Your Company Name'
-    });
+    let companyName = process.env.COMPANY_NAME || 'Your Company Name';
+    try {
+        const envFile = path.join(__dirname, '.env');
+        if (fs.existsSync(envFile)) {
+            const parsed = require('dotenv').parse(fs.readFileSync(envFile));
+            if (parsed.COMPANY_NAME) companyName = parsed.COMPANY_NAME;
+        }
+    } catch (_) { /* fall back to process.env value */ }
+    res.json({ companyName });
 });
 
 // Authentication routes
