@@ -92,7 +92,9 @@ Generate a secure session secret with PowerShell:
 $b = New-Object byte[] 32; [System.Security.Cryptography.RNGCryptoServiceProvider]::new().GetBytes($b); [Convert]::ToBase64String($b)
 ```
 
-All other fields (`PORT`, `SMTP_*`, `NODE_ENV`) are documented with comments inside `.env.example`. SMTP settings can also be configured entirely through the web UI at **Admin → SMTP Settings**.
+All other fields (`PORT`, `SMTP_*`, `NODE_ENV`) are documented with comments inside `.env.example`.
+
+> **SMTP note:** `SMTP_HOST`, `SMTP_PORT`, and `SMTP_USER` in `.env` are the SMTP settings used by pipeline result emails (`Send-PipelineEmail.ps1`). Welcome emails sent by the web app use the SMTP settings configured in **Admin → SMTP Settings** (stored in `smtp-config.json`). Both can point to the same relay — just configure them consistently.
 
 > **Automated setup:** `start.ps1` creates `.env` automatically with a freshly generated session secret and the server hostname pre-filled. The `.env.example` file is still useful as a reference for all available fields.
 
@@ -333,7 +335,7 @@ deploy-cluster-app/
 ├── deployments.json        ← Deployment history (auto-created)
 ├── audit-logs.json         ← Audit trail (auto-created)
 ├── idp-config.json         ← AD/LDAP configuration
-├── smtp-config.json        ← SMTP/email configuration
+├── smtp-config.json        ← SMTP settings for web app welcome emails (Admin → SMTP Settings)
 ├── last-deployment.json    ← Last deployment state
 ├── certs/
 │   ├── server.key          ← TLS private key (generated)
@@ -443,12 +445,12 @@ Create a `.env` file in the application root to override defaults:
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `3443` | HTTPS port |
-| `SMTP_HOST` | `localhost` | Fallback SMTP host |
-| `SMTP_PORT` | `25` | Fallback SMTP port |
-| `SMTP_USER` | `noreply@company.com` | Fallback sender address |
+| `SMTP_HOST` | *(blank)* | SMTP relay hostname — used by pipeline result emails. Leave blank to skip pipeline emails. |
+| `SMTP_PORT` | `25` | SMTP port (`25` = plain relay, `587` = STARTTLS) |
+| `SMTP_USER` | `noreply@company.com` | Sender `From:` address |
 | `SERVER_URL` | `https://localhost:3443` | Portal URL included in welcome emails |
 
-> All SMTP and AD settings can also be managed entirely through the web UI.
+> **Web app welcome emails** use the SMTP settings configured separately via **Admin → SMTP Settings** in the UI (stored in `smtp-config.json`). AD settings are also managed via the UI.
 
 ### Deployment Parameters
 
@@ -465,6 +467,7 @@ Cluster configurations are stored as JSON files in `<path-to>\Nutanix-ZTI\Config
 | **Witness** | Witness IP, username, password (optional) |
 | **AOS** | AOS version, AOS package URL, hypervisor ISO URL |
 | **CyberArk** | Tenant URL, tenant ID, service account, password, vault folder — Step 15 auto-skipped if absent |
+| **Notify** | `notify.to` (recipient email) and `notify.cc` (comma-separated CC list) — a pipeline result email is sent when deployment finishes. Leave both empty to skip email notifications. |
 
 Configurations can be saved, loaded, and previewed in YAML, JSON, or ENV format directly from the browser.
 
@@ -505,23 +508,43 @@ Configured via **Admin → User Management → Identity Provider** tab:
 
 ## SMTP / Email Notifications
 
-Configured via **Admin → User Management → SMTP Settings** tab:
+There are two distinct email paths — each with its own SMTP configuration:
+
+### 1. Pipeline result emails (`Send-PipelineEmail.ps1`)
+
+A pipeline result email is sent at the end of every deployment (success or failure). SMTP settings are read from `.env`:
+
+| `.env` variable | Description |
+|---|---|
+| `SMTP_HOST` | Relay hostname — leave blank to disable pipeline emails |
+| `SMTP_PORT` | Port (`25` plain, `587` STARTTLS) |
+| `SMTP_USER` | Sender `From:` address |
+
+The **recipient** is set per cluster in the cluster config JSON, not in `.env`. Use the **Notify** tab in the deployment form:
+
+| Config field | Description |
+|---|---|
+| `notify.to` | Primary recipient email address |
+| `notify.cc` | Comma-separated CC list (optional) |
+
+Leave both `notify.to` and `notify.cc` empty in a cluster config to skip email for that deployment. Set `SMTP_HOST` to blank in `.env` to disable pipeline emails globally.
+
+### 2. Welcome emails (web app / `server.js`)
+
+When an AD/LDAP user is imported, a welcome email is sent containing their portal access link, username, and role.
+
+SMTP for welcome emails is configured via **Admin → SMTP Settings** in the web UI (stored in `smtp-config.json`):
 
 | Field | Description |
 |---|---|
 | **SMTP Server** | Hostname or IP of your mail relay |
 | **SMTP Port** | `25` (plain), `587` (STARTTLS) |
-| **Sender Email** | `From:` address (e.g., `noreply@company.com`) |
-| **Portal URL** | Included as a link in welcome emails |
+| **Sender Email** | `From:` address |
+| **Portal URL** | Included as a link in the email body |
 
-No username/password authentication is used — intended for internal SMTP relays.
+Use the **Test SMTP Connection** button in the UI to verify before going live.
 
-When an AD user is imported, a **welcome email** is automatically sent to `user's stored email address` containing:
-- Portal access link
-- Username and assigned role
-- Reminder to use Active Directory credentials
-
-Use the **Test SMTP Connection** section to send a test message before going live.
+No username/password authentication is used — both paths are designed for internal unauthenticated SMTP relays.
 
 ---
 

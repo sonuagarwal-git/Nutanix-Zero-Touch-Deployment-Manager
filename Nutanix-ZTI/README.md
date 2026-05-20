@@ -359,6 +359,8 @@ Prints each step with its arguments — nothing is executed.
 | `-SkipSteps` | `string` | No | `''` | Comma-separated step numbers to skip, e.g. `"7,9"` |
 | `-WhatIf` | `switch` | No | `$false` | Preview the full pipeline plan (step names + arguments) without executing |
 | `-SkipPreCheck` | `switch` | No | `$false` | Bypass pre-flight connectivity gate — use when IPs are known-good stale entries |
+| `-TriggeredBy` | `string` | No | `''` | Recipient email for the pipeline result notification. If empty, email is skipped. Normally set automatically from the cluster config `notify.to` field by the web app. |
+| `-Cc` | `string` | No | `''` | CC recipient(s) for the pipeline result email, comma-separated. Normally set from `notify.cc`. |
 
 ---
 
@@ -371,7 +373,8 @@ All config files live in `Configs/`. The same JSON file is passed to every pipel
 ```json
 {
   "_comment": "Nutanix ZTI Deployment Configuration",
-  "_output_level_options": "minimal | normal | verbose",
+  "_note": "IPMI netmask and gateway are auto-detected from Foundation Central. You can override by specifying them here.",
+  "_output_level_options": "minimal (only headers), normal (headers + important messages), verbose (all details)",
   "clusterName": "SITE-1P-CLUSTER-01",
   "hypervisor": "AHV",
   "storage_container_name": "Workload-Container",
@@ -379,83 +382,104 @@ All config files live in `Configs/`. The same JSON file is passed to every pipel
   "output_level": "normal",
 
   "network": {
-    "ip_prefix": "10.0.113",
-    "subnet_mask": "255.255.255.0",
-    "gateway_last_octet": "1",
     "subnet_name": "SITE-MGMT-VLAN",
-    "cluster_vip": "10.0.113.110",
-    "ip_pool_start": "10.0.113.120",
-    "ip_pool_end": "10.0.113.150",
+    "vlan_id": 100,
+    "gateway": "10.10.10.1",
+    "prefix_length": 24,
+    "cluster_vip": "10.10.10.50",
+    "data_service_ip": "10.10.10.51",
+    "ip_pool_start": "10.10.10.52",
+    "ip_pool_end": "10.10.10.80",
     "nodes": [
       {
         "hostname": "SITE1NODE01",
         "serial": "XXXXXXXXXX",
         "model": "HPE DL385 G11",
-        "iLO_ip": "10.10.16.120",
+        "iLO_ip": "10.10.0.21",
         "iLO_username": "administrator",
-        "iLO_password": "iLOPassword1",
-        "hypervisor_ip": "10.0.113.111",
-        "cvm_ip": "10.0.113.112"
+        "iLO_password": "CHANGE_ME",
+        "hypervisor_ip": "10.10.10.11",
+        "cvm_ip": "10.10.10.12"
       },
       {
         "hostname": "SITE1NODE02",
         "serial": "YYYYYYYYYY",
         "model": "HPE DL385 G11",
-        "iLO_ip": "10.10.16.121",
+        "iLO_ip": "10.10.0.22",
         "iLO_username": "administrator",
-        "iLO_password": "iLOPassword2",
-        "hypervisor_ip": "10.0.113.113",
-        "cvm_ip": "10.0.113.114"
+        "iLO_password": "CHANGE_ME",
+        "hypervisor_ip": "10.10.10.13",
+        "cvm_ip": "10.10.10.14"
       }
     ],
     "hostnames": ["SITE1NODE01", "SITE1NODE02"]
   },
 
-  "dns_servers": ["10.0.10.80", "10.0.10.81"],
-  "ntp_servers": ["10.0.3.230", "10.0.3.250"],
+  "dns_servers": ["10.10.1.10", "10.10.1.11"],
+  "dns_admin": {
+    "domain": "CORP",
+    "username": "SVC-NTX-AUTO",
+    "password": "CHANGE_ME"
+  },
+  "ntp_servers": ["10.10.1.20", "10.10.1.21"],
 
   "witness": {
-    "ip": "10.0.113.7",
+    "ip": "10.10.10.5",
     "name": "SITE-1P-CLUSTER-01-Witness",
     "username": "admin",
-    "password": "SecurePassword"
+    "password": "CHANGE_ME"
   },
 
   "aos_version": "7.3.1",
-  "aos_package_url": "https://fileserver/nutanix_installer_package-release-7.3.1.tar.gz",
-  "hypervisor_iso_url": "https://fileserver/AHV-DVD-x86_64-10.3.1.5.iso",
-  "phoenix_iso_url": "https://fileserver/phoenix-5.9.1-x86_64.iso",
+  "aos_package_url": "https://your-fileserver/images/nutanix_installer_package-release-7.3.1.tar.gz",
+  "hypervisor_iso_url": "https://your-fileserver/images/AHV-DVD-x86_64-10.3.1.5-20.iso",
+  "phoenix_iso_url": "https://your-fileserver/images/phoenix-5.10.1-x86_64.iso",
 
   "production_vlans": [
     {
-      "subnet_name": "Prod-vLAN-488",
-      "vlan_id": 488,
-      "gateway": "10.0.56.97",
-      "prefix_length": 28,
-      "ip_pool_start": "10.0.56.98",
-      "ip_pool_end": "10.0.56.111"
+      "subnet_name": "Prod-vLAN-200",
+      "vlan_id": 200,
+      "gateway": "10.20.10.1",
+      "prefix_length": 24,
+      "ip_pool_start": "10.20.10.10",
+      "ip_pool_end": "10.20.10.50"
     }
   ],
 
-  "prism_central": {
-    "ip": "10.0.113.220",
-    "url": "https://10.0.113.220:9440",
-    "username": "admin",
-    "password": "PCAdminPassword"
+  "hub_production": {
+    "subnet_name": "vLAN-201",
+    "vlan_id": 201,
+    "gateway": "10.20.20.1",
+    "prefix_length": 24,
+    "ip_pool_start": "10.20.20.10",
+    "ip_pool_end": "10.20.20.50"
   },
 
-  "foundation_central": {
-    "url": "https://10.0.113.220:9440",
+  "prism_central": {
+    "ip": "10.10.10.200",
+    "url": "https://10.10.10.200:9440",
     "username": "admin",
-    "password": "FCAdminPassword"
+    "password": "CHANGE_ME"
+  },
+
+  "eula": {
+    "username": "Core-Service",
+    "job_title": "Infrastructure Team",
+    "company_name": "Your Company Name"
   },
 
   "cyberark": {
-    "username": "service-account@domain.com.tenant",
-    "password": "CyberArkPassword",
-    "security_answer": "security-answer",
+    "username": "service-account@company.com",
+    "password": "CHANGE_ME",
+    "security_answer": "CHANGE_ME",
     "tenant_id": "tenant123",
-    "base_url": "https://tenant123.id.cyberark.cloud"
+    "base_url": "https://tenant123.id.cyberark.cloud",
+    "vault_folder": "Nutanix"
+  },
+
+  "notify": {
+    "to": "engineer@company.com",
+    "cc": "manager@company.com, team@company.com"
   }
 }
 ```
@@ -469,11 +493,12 @@ All config files live in `Configs/`. The same JSON file is passed to every pipel
 | `storage_container_name` | ✅ | Created in Step 9 |
 | `timezone` | ✅ | e.g. `Europe/Copenhagen` |
 | `output_level` | No | `minimal` / `normal` / `verbose` (default: `normal`) |
-| `network.ip_prefix` | ✅ | First 3 octets, e.g. `10.0.113` |
-| `network.subnet_mask` | ✅ | e.g. `255.255.255.0` |
-| `network.gateway_last_octet` | ✅ | Last octet of the gateway IP |
 | `network.subnet_name` | ✅ | Management VLAN name in PC |
+| `network.vlan_id` | ✅ | Management VLAN tag ID |
+| `network.gateway` | ✅ | Management VLAN gateway IP |
+| `network.prefix_length` | ✅ | Subnet prefix length, e.g. `24` |
 | `network.cluster_vip` | ✅ | Prism Element virtual IP — must be free |
+| `network.data_service_ip` | ✅ | Data services IP (iSCSI/NFS) — must be free |
 | `network.ip_pool_start/end` | ✅ | VM IP pool range assigned to the management subnet |
 | `network.nodes[].hostname` | ✅ | AHV hostname for this node |
 | `network.nodes[].serial` | ✅ | Node serial number — used to match nodes discovered by FC |
@@ -483,24 +508,34 @@ All config files live in `Configs/`. The same JSON file is passed to every pipel
 | `network.nodes[].hypervisor_ip` | ✅ | Static IP assigned to AHV host after imaging |
 | `network.nodes[].cvm_ip` | ✅ | Static IP assigned to CVM after imaging |
 | `dns_servers` | ✅ | Array — up to 3 DNS server IPs |
+| `dns_admin.domain` | No | Active Directory domain for DNS credentials, e.g. `CORP` |
+| `dns_admin.username` | No | Service account username for DNS RPC operations |
+| `dns_admin.password` | No | Service account password — Step 16 delegates DNS changes via this account |
 | `ntp_servers` | ✅ | Array — up to 2 NTP server IPs or hostnames |
 | `witness.ip` | ✅ | Witness VM IP |
+| `witness.name` | ✅ | Witness VM display name |
 | `witness.username/password` | ✅ | Witness admin credentials |
 | `aos_version` | ✅ | AOS version string, e.g. `7.3.1` |
 | `aos_package_url` | ✅ | Direct download URL to AOS tar.gz |
 | `hypervisor_iso_url` | ✅ | Direct download URL to AHV DVD ISO |
 | `phoenix_iso_url` | ✅ | Direct download URL to Phoenix ISO (Steps 1–2) |
-| `production_vlans[]` | No | VLANs created in PC in Step 8 |
+| `production_vlans[]` | No | VLANs created in PC in Step 8 (remote site production VLANs) |
+| `hub_production` | No | Hub site production VLAN — created in PC and assigned to the new cluster |
 | `prism_central.ip/url/username/password` | ✅ | PC connection details (Steps 7–15) |
-| `foundation_central.url/username/password` | ✅ | FC connection details (Steps 3–4) |
-| `cyberark.*` | Step 15 | CyberArk tenant details for Step 15 |
-| `dns_admin.domain` | No | Active Directory domain for DNS credentials, e.g. `CORP` |
-| `dns_admin.username` | No | Service account username for DNS RPC operations |
-| `dns_admin.password` | No | Service account password — Step 16 delegates DNS changes via this account |
+| `eula.username` | ✅ | Full name submitted when accepting the EULA in Step 5 |
+| `eula.job_title` | ✅ | Job title submitted with the EULA |
+| `eula.company_name` | ✅ | Company name submitted with the EULA |
+| `cyberark.*` | Step 15 | CyberArk tenant details — Step 15 auto-skipped if absent |
+| `notify.to` | No | Recipient email for the pipeline result notification email. Leave empty to skip. |
+| `notify.cc` | No | Comma-separated CC list for the pipeline result email (optional). |
 
 ### Saved config files
 
-The `Configs/` folder contains an `EMEA-Template.json` with all fields pre-filled with placeholder values. Copy it as the starting point for each new cluster deployment. See [Configuration File](#configuration-file) for field descriptions.
+The `Configs/` folder contains `example_template.json` with all fields pre-filled with placeholder values. Copy it as the starting point for each new cluster deployment. See [Configuration File](#configuration-file) for field descriptions.
+
+```powershell
+Copy-Item .\Configs\example_template.json .\Configs\MY-CLUSTER-01.json
+```
 
 ---
 

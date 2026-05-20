@@ -1,0 +1,111 @@
+{
+  "_comment": "Nutanix ZTI Deployment Configuration",
+  "_note": "IPMI netmask and gateway are auto-detected from Foundation Central. You can override by specifying them here.",
+  "_output_level_options": "minimal (only headers), normal (headers + important messages), verbose (all details)",
+  "clusterName": "SITE-1P-CLUSTER-01",
+  "hypervisor": "AHV",
+  "storage_container_name": "Workload-Container",
+  "timezone": "Europe/Copenhagen",
+  "output_level": "normal",
+
+  "network": {
+    "subnet_name": "SITE-MGMT-VLAN",
+    "vlan_id": 100,
+    "gateway": "10.10.10.1",
+    "prefix_length": 24,
+    "cluster_vip": "10.10.10.50",
+    "data_service_ip": "10.10.10.51",
+    "ip_pool_start": "10.10.10.52",
+    "ip_pool_end": "10.10.10.80",
+    "nodes": [
+      {
+        "hostname": "SITE1NODE01",
+        "serial": "XXXXXXXXXX",
+        "model": "HPE DL385 G11",
+        "iLO_ip": "10.10.0.21",
+        "iLO_username": "administrator",
+        "iLO_password": "CHANGE_ME",
+        "hypervisor_ip": "10.10.10.11",
+        "cvm_ip": "10.10.10.12"
+      },
+      {
+        "hostname": "SITE1NODE02",
+        "serial": "YYYYYYYYYY",
+        "model": "HPE DL385 G11",
+        "iLO_ip": "10.10.0.22",
+        "iLO_username": "administrator",
+        "iLO_password": "CHANGE_ME",
+        "hypervisor_ip": "10.10.10.13",
+        "cvm_ip": "10.10.10.14"
+      }
+    ],
+    "hostnames": ["SITE1NODE01", "SITE1NODE02"]
+  },
+
+  "dns_servers": ["10.10.1.10", "10.10.1.11"],
+  "dns_admin": {
+    "domain": "CORP",
+    "username": "SVC-NTX-AUTO",
+    "password": "CHANGE_ME"
+  },
+  "ntp_servers": ["10.10.1.20", "10.10.1.21"],
+
+  "witness": {
+    "ip": "10.10.10.5",
+    "name": "SITE-1P-CLUSTER-01-Witness",
+    "username": "admin",
+    "password": "CHANGE_ME"
+  },
+
+  "aos_version": "7.3.1",
+  "aos_package_url": "https://your-fileserver/images/nutanix_installer_package-release-7.3.1.tar.gz",
+  "hypervisor_iso_url": "https://your-fileserver/images/AHV-DVD-x86_64-10.3.1.5-20.iso",
+  "phoenix_iso_url": "https://your-fileserver/images/phoenix-5.10.1-x86_64.iso",
+
+  "production_vlans": [
+    {
+      "subnet_name": "Prod-vLAN-200",
+      "vlan_id": 200,
+      "gateway": "10.20.10.1",
+      "prefix_length": 24,
+      "ip_pool_start": "10.20.10.10",
+      "ip_pool_end": "10.20.10.50"
+    }
+  ],
+
+  "hub_production": {
+    "subnet_name": "vLAN-201",
+    "vlan_id": 201,
+    "gateway": "10.20.20.1",
+    "prefix_length": 24,
+    "ip_pool_start": "10.20.20.10",
+    "ip_pool_end": "10.20.20.50"
+  },
+
+  "prism_central": {
+    "ip": "10.10.10.200",
+    "url": "https://10.10.10.200:9440",
+    "username": "admin",
+    "password": "CHANGE_ME"
+  },
+
+  "eula": {
+    "username": "Core-Service",
+    "job_title": "Infrastructure Team",
+    "company_name": "Your Company Name"
+  },
+
+  "cyberark": {
+    "username": "service-account@company.com",
+    "password": "CHANGE_ME",
+    "security_answer": "CHANGE_ME",
+    "tenant_id": "tenant123",
+    "base_url": "https://tenant123.id.cyberark.cloud",
+    "vault_folder": "Nutanix"
+  },
+
+  "notify": {
+    "to": "engineer@company.com",
+    "cc": "manager@company.com, team@company.com"
+  }
+}
