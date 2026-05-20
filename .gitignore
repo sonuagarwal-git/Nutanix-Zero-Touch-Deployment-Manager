@@ -1,0 +1,61 @@
+# ============================================================
+# deploy-cluster-app — Node.js web app
+# ============================================================
+
+# Dependencies
+deploy-cluster-app/node_modules/
+
+# TLS certificates (auto-generated, machine-specific)
+deploy-cluster-app/certs/
+
+# Environment config — contains secrets and machine-specific values
+deploy-cluster-app/.env
+
+# Runtime data files
+deploy-cluster-app/deployments.json
+deploy-cluster-app/audit-logs.json
+deploy-cluster-app/last-deployment.json
+
+# User accounts (bcrypt-hashed passwords)
+deploy-cluster-app/users.json
+
+# SMTP and AD/LDAP config (server-specific credentials)
+deploy-cluster-app/smtp-config.json
+deploy-cluster-app/idp-config.json
+
+# Service wrapper logs
+deploy-cluster-app/daemon/*.log
+
+# General logs
+deploy-cluster-app/*.log
+deploy-cluster-app/npm-debug.log*
+
+# ============================================================
+# Nutanix-ZTI — PowerShell pipeline
+# ============================================================
+
+# Real cluster configs contain passwords, IPs, and node serials
+# Only the safe example template is committed
+Nutanix-ZTI/Configs/*.json
+!Nutanix-ZTI/Configs/example_template.json
+
+# Pipeline logs and runtime data
+Nutanix-ZTI/Logs/
+Nutanix-ZTI/historical-timings.json
+
+# Password CSV exports from Step 14 (Change Passwords)
+Nutanix-ZTI/*.csv
+
+# ============================================================
+# OS / Editor noise
+# ============================================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
