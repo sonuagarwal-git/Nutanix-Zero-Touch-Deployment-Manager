@@ -59,8 +59,7 @@
   },
   "dns_servers": [
     "10.0.10.80",
-    "10.0.10.81",
-    "10.0.15.120"
+    "10.0.10.81"
   ],
   "dns_admin": {
     "domain": "CORP",
@@ -103,12 +102,12 @@
     "ip": "10.0.113.220",
     "url": "https://10.0.113.220:9440",
     "username": "admin",
-    "password": "CHANGE_ME"
+    "password": "Vestas@4Ever"
   },
   "eula": {
     "username": "Core-Service",
     "job_title": "Infrastructure Team",
-    "company_name": "Your Company Name"
+    "company_name": "Vestas Wind System A/S"
   },
   "cyberark": {
     "username": "cyberark-service-account@company.com",
@@ -117,5 +116,6 @@
     "tenant_id": "aap4624",
     "base_url": "https://aap4624.id.cyberark.cloud",
     "vault_folder": "Nutanix"
-  }
+  },
+  "notify": {}
 }

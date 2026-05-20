@@ -617,6 +617,7 @@ h2 {
 .form-group input[type="text"],
 .form-group input[type="number"],
 .form-group input[type="password"],
+.form-group input[type="email"],
 .form-group select {
     width: 100%;
     padding: 8px 11px;
@@ -632,6 +633,7 @@ h2 {
 .form-group input[type="text"]:hover,
 .form-group input[type="number"]:hover,
 .form-group input[type="password"]:hover,
+.form-group input[type="email"]:hover,
 .form-group select:hover {
     background: var(--bg-input-hover);
 }
@@ -639,6 +641,7 @@ h2 {
 .form-group input[type="text"]:focus,
 .form-group input[type="number"]:focus,
 .form-group input[type="password"]:focus,
+.form-group input[type="email"]:focus,
 .form-group select:focus {
     outline: none;
     border-color: var(--border-focus);

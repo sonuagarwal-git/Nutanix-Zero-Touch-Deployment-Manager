@@ -85,9 +85,13 @@ param(
     [switch]$SkipPreCheck,
 
     # Email address of the person who triggered the pipeline (passed by the web app).
-    # Used as the To address for the result email. Falls back to auto-detection if omitted.
+    # Used as the To address for the result email. If empty, email is skipped.
     [Parameter()]
-    [string]$TriggeredBy = ''
+    [string]$TriggeredBy = '',
+
+    # Optional CC addresses (comma-separated). Passed from notify.cc in the cluster config.
+    [Parameter()]
+    [string]$Cc = ''
 )
 
 #region ── Constants ───────────────────────────────────────────────────────────
@@ -1157,6 +1161,7 @@ if (Test-Path $emailScript) {
     }
     if ($failedStepName) { $emailArgs['FailedStep'] = $failedStepName }
     if ($TriggeredBy)    { $emailArgs['To'] = $TriggeredBy }
+    if ($Cc)             { $emailArgs['Cc'] = $Cc }
     try {
         & $emailScript @emailArgs
     } catch {

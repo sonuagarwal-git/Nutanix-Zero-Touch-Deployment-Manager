@@ -1454,11 +1454,32 @@ app.post('/api/deploy', requireAuth, (req, res) => {
             console.log('Pre-flight checks skipped by user request');
         }
 
-        // Pass the logged-in user's email so the result email goes to the right person
-        const triggeredByEmail = req.session.user.email || req.session.user.username;
-        psArgs.push('-TriggeredBy');
-        psArgs.push(triggeredByEmail);
-        console.log(`Triggered by: ${triggeredByEmail}`);
+        // Read notify fields from the saved config (To/CC for deployment result email)
+        let notifyTo = '';
+        let notifyCc = '';
+        try {
+            const savedCfg = configPath
+                ? JSON.parse(fs.readFileSync(configFilePath, 'utf8'))
+                : config;
+            if (savedCfg && savedCfg.notify) {
+                notifyTo = (savedCfg.notify.to  || '').trim();
+                notifyCc = (savedCfg.notify.cc  || '').trim();
+            }
+        } catch (e) {
+            console.log('Could not read notify fields from config:', e.message);
+        }
+
+        if (notifyTo) {
+            psArgs.push('-TriggeredBy');
+            psArgs.push(notifyTo);
+            console.log(`Notify To: ${notifyTo}`);
+        } else {
+            console.log('No notify.to in config — pipeline result email will be skipped');
+        }
+        if (notifyCc) {
+            psArgs.push('-Cc');
+            psArgs.push(notifyCc);
+        }
 
         // Start PowerShell deployment process
         // Set TERM + DOTNET outputEncoding so pwsh emits true ANSI colour codes and UTF-8

@@ -5,12 +5,14 @@
     Send a pipeline result email for a Nutanix ZTI deployment run.
 
 .DESCRIPTION
-    Reads SMTP settings from deploy-cluster-app\smtp-config.json (same config used by
-    the web service), builds an HTML email with a per-step status table, and sends it
-    to the configured recipient via the internal relay.
+    Reads SMTP settings from deploy-cluster-app\.env (SMTP_HOST, SMTP_PORT, SMTP_USER),
+    builds an HTML email with a per-step status table, and sends it to the recipient
+    configured in the cluster config file (notify.to / notify.cc fields).
 
-    Run standalone to test SMTP delivery, or call from Start-Pipeline.ps1 after the
-    pipeline completes.
+    If SMTP_HOST is not set in .env, or no To address is configured in the cluster
+    config, the script exits cleanly with an informational message and sends nothing.
+
+    Run standalone to test SMTP delivery, or called automatically by Start-Pipeline.ps1.
 
 .PARAMETER ClusterName
     Name of the cluster that was deployed (e.g. DKCDC-1P-NTXTEST-01).
@@ -33,10 +35,8 @@
     Status values: OK, FAILED*, SKIPPED*
 
 .PARAMETER To
-    Recipient address. Defaults to admin@company.com.
-
-.PARAMETER SmtpConfigFile
-    Path to smtp-config.json. Defaults to the sibling deploy-cluster-app folder.
+    Recipient email address. Read from notify.to in the cluster config JSON.
+    If empty, email is skipped silently.
 
 .EXAMPLE
     # Quick connectivity test — no step results
@@ -89,9 +89,6 @@ param(
     [Parameter()]
     [string]$Cc = '',
 
-    [Parameter()]
-    [string]$SmtpConfigFile = '',
-
     # Pipeline start/end times (DateTime objects). Used to compute CET timestamps.
     [Parameter()]
     [datetime]$StartTime = [datetime]::MinValue,
@@ -106,48 +103,43 @@ param(
     [int]$NodeCount = 0
 )
 
-#region ── Resolve SMTP config ─────────────────────────────────────────────────
+#region ── Resolve SMTP settings from .env ────────────────────────────────────
 
-if (-not $SmtpConfigFile) {
-    # Default: sibling folder relative to this script
-    $SmtpConfigFile = Join-Path (Split-Path $PSScriptRoot -Parent) 'deploy-cluster-app\smtp-config.json'
+# SMTP host/port/from are read from deploy-cluster-app\.env.
+# To and CC come from the cluster config JSON via -To / -Cc parameters.
+$envFile  = Join-Path (Split-Path $PSScriptRoot -Parent) 'deploy-cluster-app\.env'
+$smtpHost = ''
+$smtpPort = 25
+$fromAddr = 'noreply@company.com'
+
+if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+        if ($_ -match '^\s*SMTP_HOST=(.+)$')  { $smtpHost = $Matches[1].Trim() }
+        if ($_ -match '^\s*SMTP_PORT=(\d+)$') { $smtpPort = [int]$Matches[1] }
+        if ($_ -match '^\s*SMTP_USER=(.+)$')  { $fromAddr = $Matches[1].Trim() }
+    }
+} else {
+    Write-Host "  .env not found -- skipping email notification." -ForegroundColor DarkGray
+    exit 0
 }
 
-if (-not (Test-Path $SmtpConfigFile)) {
-    Write-Error "SMTP config not found: $SmtpConfigFile"
-    exit 1
+if (-not $smtpHost) {
+    Write-Host "  SMTP_HOST not configured in .env -- skipping email notification." -ForegroundColor DarkGray
+    exit 0
 }
 
-try {
-    $smtp = Get-Content $SmtpConfigFile -Raw | ConvertFrom-Json
-} catch {
-    Write-Error "Failed to parse SMTP config: $_"
-    exit 1
-}
-
-$smtpHost = $smtp.host
-$smtpPort = if ($smtp.port) { [int]$smtp.port } else { 25 }
-$fromAddr = if ($smtp.from) { $smtp.from } else { 'noreply@company.com' }
-
-# Auto-derive To address from the current Windows username if not explicitly provided
+# If no recipient configured in cluster config, skip silently
 if (-not $To) {
-    $winUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-    # Strip domain prefix (DOMAIN\username or username)
-    $shortUser = if ($winUser -match '\\') { $winUser.Split('\')[-1] } else { $winUser }
-    $To = $shortUser
+    Write-Host "  No recipient configured (notify.to not set in cluster config) -- skipping email." -ForegroundColor DarkGray
+    exit 0
 }
 
 # Derive display name for the email body
 if (-not $TriggeredBy) { $TriggeredBy = $To }
 
-# Build the CC list from optional parameter only.
-$extraCc  = if ($Cc) { $Cc -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ } } else { @() }
-$allCc    = $extraCc | Select-Object -Unique
-
-if (-not $smtpHost) {
-    Write-Error "SMTP config is missing 'host' field."
-    exit 1
-}
+# Build the CC list
+$extraCc = if ($Cc) { $Cc -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ } } else { @() }
+$allCc   = $extraCc | Select-Object -Unique
 
 #endregion
 

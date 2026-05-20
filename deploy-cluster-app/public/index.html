@@ -58,6 +58,7 @@
             <button type="button" class="tab-btn-main" data-tab-target="tab-pc">Prism Central</button>
             <button type="button" class="tab-btn-main" data-tab-target="tab-eula">EULA</button>
             <button type="button" class="tab-btn-main" data-tab-target="tab-cyberark">CyberArk</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-notify">Notify</button>
         </div>
 
         <form id="configForm">
@@ -391,6 +392,27 @@
                     <div class="form-group">
                         <label for="cyberarkVaultFolder">Vault Folder</label>
                         <input type="text" id="cyberarkVaultFolder" name="cyberark.vault_folder" placeholder="e.g. Nutanix_Remote_Sites">
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- Notify -->
+            <section class="config-section tab-panel" id="tab-notify">
+                <h2>Notifications <span class="optional-badge">Optional</span></h2>
+                <div class="form-row-grid">
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <p style="margin:0;font-weight:700;color:var(--accent);">&#9432; A pipeline result email is sent when the deployment finishes. Leave both fields empty to skip email notifications entirely.</p>
+                    </div>
+                    <div style="grid-column:1/-1;display:flex;gap:20px;">
+                        <div class="form-group" style="flex:1;">
+                            <label for="notifyTo">To <span style="opacity:0.6;font-weight:400;">(recipient email)</span></label>
+                            <input type="email" id="notifyTo" name="notify.to" placeholder="e.g. engineer@company.com">
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label for="notifyCc">CC <span style="opacity:0.6;font-weight:400;">(comma-separated, optional)</span></label>
+                            <input type="text" id="notifyCc" name="notify.cc" placeholder="e.g. manager@company.com, team@company.com">
+                        </div>
                     </div>
                 </div>
             </section>
