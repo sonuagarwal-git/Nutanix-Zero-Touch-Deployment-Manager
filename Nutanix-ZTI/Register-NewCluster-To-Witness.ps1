@@ -1,3 +1,25 @@
+<#
+.SYNOPSIS
+    Registers a Witness VM with a two-node Nutanix cluster via Prism Element REST API.
+
+.DESCRIPTION
+    Reads cluster VIP and Witness VM details (IP, username, password, name) from the
+    cluster JSON config file. Connects to Prism Element and configures the Witness VM
+    for the two-node cluster to enable high availability.
+
+.PARAMETER ConfigFile
+    Path to the cluster JSON config file. Must contain network.cluster_vip and
+    witness.ip / witness.username / witness.password / witness.name fields.
+
+.EXAMPLE
+    .\Register-NewCluster-To-Witness.ps1 -ConfigFile .\Configs\my-cluster.json
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: Apr 08, 2026
+    Version: 1.0
+#>
+
 param(
     [Parameter(Mandatory = $true)]
     [string]$ConfigFile

@@ -28,10 +28,15 @@
     Seconds between each poll (default: 60 seconds).
 
 .EXAMPLE
-    .\Node-Discover-Check.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json
+    .\Node-Discover-Check.ps1 -ConfigFile .\Configs\my-cluster.json
 
 .EXAMPLE
-    .\Node-Discover-Check.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json -TimeoutMinutes 30
+    .\Node-Discover-Check.ps1 -ConfigFile .\Configs\my-cluster.json -TimeoutMinutes 30
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: Mar 03, 2026
+    Version: 1.0
 #>
 
 [CmdletBinding()]

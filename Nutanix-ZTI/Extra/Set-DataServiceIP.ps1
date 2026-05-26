@@ -45,12 +45,12 @@
         -PrismCentralUrl https://10.0.113.220:9440 `
         -Username admin `
         -Password 'CHANGE_ME' `
-        -ClusterName DKCDC-1P-NTXTEST-03 `
+        -ClusterName my-cluster `
         -DataServiceIP 10.0.113.130
 
 .EXAMPLE
     # Dry-run: validate without changing anything
-    .\Set-DataServiceIP.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json -DataServiceIP 10.0.113.130 -DryRun
+    .\Set-DataServiceIP.ps1 -ConfigFile .\Configs\my-cluster.json -DataServiceIP 10.0.113.130 -DryRun
 #>
 
 [CmdletBinding(SupportsShouldProcess)]

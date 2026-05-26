@@ -1,5 +1,5 @@
 {
-  "clusterName": "DKCDC-1P-NTXTEST-05",
+  "clusterName": "my-cluster",
   "prism_central": {
     "url": "https://10.0.113.220:9440",
     "username": "admin",

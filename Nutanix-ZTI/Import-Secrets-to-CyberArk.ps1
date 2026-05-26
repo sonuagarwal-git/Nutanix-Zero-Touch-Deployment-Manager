@@ -47,7 +47,7 @@
 .EXAMPLE
     # Interactive mode (will prompt for password and security answer)
     .\Import-SecretsAutomated.ps1 `
-        -CSVFilePath ".\DKCDC-1P-NTXTEST-01_Password.csv" `
+        -CSVFilePath ".\my-cluster_Password.csv" `
         -Username "cyberark-service-account@company.com"
 
 .EXAMPLE
@@ -61,7 +61,7 @@
         -SecurityAnswer $secAnswer
 
 .NOTES
-    Author  : DCES Core Service Team
+    Author  : Sonu Agarwal
     Date    : March 23, 2026
     Version : 2.0 (Self-contained - no external dependencies)
     
@@ -75,7 +75,7 @@
     Name Server_Name Username Password Tags Folder Notes
     
     Example with Notes:
-    Prism_Admin DKCDC-1P-NTXTEST-01 admin Pass123 Nutanix Nutanix-test Prism_Element_Cluster_VIP:10.1.1.10
+    Prism_Admin my-cluster admin Pass123 Nutanix Nutanix-infra Prism_Element_Cluster_VIP:10.1.1.10
     CVM_Nutanix cvm01 nutanix Pass456 Nutanix Nutanix-test CVM_IPs:10.1.1.11,10.1.1.12
     AHV_Root ahv01 root Pass789 Nutanix Nutanix-test AHV_Host_IP:10.1.1.13
     

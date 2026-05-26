@@ -24,12 +24,17 @@
 .EXAMPLE
     .\Deploy-Cluster.ps1 -ConfigFile .\my-cluster.json -ForceReimage
     Force re-imaging regardless of current AOS version
+
+.NOTES
+    Author: Søren Reinertsen & Sonu Agarwal
+    Date: Feb 25, 2026
+    Version: 1.0
 #>
 
 [CmdletBinding()]
 param(
     [Parameter()]
-    [string]$ConfigFile = ".\configs\DKLAB-1-Create.json",
+    [string]$ConfigFile = ".\configs\my-cluster.json",
     
     [Parameter()]
     [switch]$DryRun = $false,

@@ -18,7 +18,7 @@
     'phoenix_iso_url' in the config, or overridden with -IsoUrl.
 
 .PARAMETER ConfigFile
-    Path to the cluster JSON config file (e.g. Configs\DKCDC-1P-NTXTEST-01.json).
+    Path to the cluster JSON config file (e.g. Configs\my-cluster.json).
 
 .PARAMETER IloHost
     Optional filter — process only the node whose iLO_ip matches this value.
@@ -35,16 +35,21 @@
     Default: 35.
 
 .EXAMPLE
-    .\Phonix-Boot.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json
+    .\Phonix-Boot.ps1 -ConfigFile .\Configs\my-cluster.json
     Processes all nodes in the cluster config.
 
 .EXAMPLE
-    .\Phonix-Boot.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json -IloHost "10.10.16.120"
+    .\Phonix-Boot.ps1 -ConfigFile .\Configs\my-cluster.json -IloHost "10.10.16.120"
     Processes only the node with that iLO IP.
 
 .EXAMPLE
-    .\Phonix-Boot.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json -IsoUrl "https://example.com/phoenix.iso" -PostStateTimeoutMinutes 60
+    .\Phonix-Boot.ps1 -ConfigFile .\Configs\my-cluster.json -IsoUrl "https://example.com/phoenix.iso" -PostStateTimeoutMinutes 60
     Override ISO URL and wait up to 60 min per node for FinishedPost.
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: Mar 18, 2026
+    Version: 2.0
 #>
 
 [CmdletBinding()]

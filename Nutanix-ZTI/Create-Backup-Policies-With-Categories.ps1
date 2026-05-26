@@ -16,14 +16,12 @@
     Path to the cluster JSON config file.
     
 .EXAMPLE
-    .\Manage-PC-Backup-Policies-WithCategories.ps1 -ConfigFile ".\Configs\DKLAB-1-Create.json"
+    .\Manage-PC-Backup-Policies-WithCategories.ps1 -ConfigFile ".\Configs\my-cluster.json"
     
 .NOTES
-    Author: DCES Core Service Team
+    Author: Sonu Agarwal
     Date: March 24, 2026
     Version: 2.0 - Added Backup category support
-
-    Developed and maintained by DCES core service
 #>
 
 [CmdletBinding()]
@@ -478,7 +476,7 @@ function New-BackupCategoryIfMissing {
         try {
             $createKeyBody = @{
                 name        = "Backup"
-                description = "Backup schedule category - Created by DCES Core Service"
+                description = "Backup schedule category"
             }
             # Nutanix v3: PUT /categories/{name} creates or updates a category key
             Invoke-PrismAPI -Method PUT -Endpoint "categories/Backup" -Body $createKeyBody | Out-Null
@@ -498,7 +496,7 @@ function New-BackupCategoryIfMissing {
                 # Nutanix v3: PUT /categories/{name}/{value} creates a category value
                 $createValueBody = @{
                     value       = $entry.Value
-                    description = "$($entry.Value) backup schedule - Created by DCES Core Service"
+                    description = "$($entry.Value) backup schedule"
                 }
                 Invoke-PrismAPI -Method PUT -Endpoint "categories/Backup/$($entry.Value)" -Body $createValueBody | Out-Null
                 Write-LogMessage "  ✓ Value '$($entry.Value)' created successfully" -Level Success
@@ -628,7 +626,7 @@ function New-ProtectionPolicy {
     $body = @{
         spec = @{
             name        = $PolicyName
-            description = "Automated $ScheduleType backup policy - Created by DCES Core Service"
+            description = "Automated $ScheduleType backup policy"
             resources   = @{
                 start_time                          = ""
                 ordered_availability_zone_list      = $orderedAZList
@@ -957,7 +955,6 @@ function Main {
     Write-LogMessage "Connecting to Prism Central: $PCAddress" -Level Info
     Write-LogMessage "========================================" -Level Info
     Write-LogMessage "Nutanix Backup Policy Management Script" -Level Info
-    Write-LogMessage "Developed and maintained by DCES core service" -Level Info
     Write-LogMessage "Version 2.0 - With Category Support" -Level Info
     Write-LogMessage "========================================" -Level Info
     Write-Host ""

@@ -52,7 +52,10 @@
     )
     .\Send-PipelineEmail.ps1 -ClusterName "NTXTEST-01" -Status "FAILED" `
         -FailedStep "Node Discovery" -Duration "15m 40s" -StepResults $steps
-#>
+.NOTES
+    Author: Sonu Agarwal
+    Date: Apr 03, 2026
+    Version: 1.0#>
 
 [CmdletBinding()]
 param(
@@ -110,7 +113,7 @@ param(
 $envFile  = Join-Path (Split-Path $PSScriptRoot -Parent) 'deploy-cluster-app\.env'
 $smtpHost = ''
 $smtpPort = 25
-$fromAddr = 'noreply@company.com'
+$fromAddr = 'noreply@localhost'
 
 if (Test-Path $envFile) {
     Get-Content $envFile | ForEach-Object {
@@ -149,19 +152,19 @@ $statusColor  = if ($Status -eq 'SUCCESS') { '#27ae60' } else { '#c0392b' }
 $statusIcon   = if ($Status -eq 'SUCCESS') { '&#9989;' } else { '&#10060;' }
 $statusLabel  = if ($Status -eq 'SUCCESS') { 'COMPLETED SUCCESSFULLY' } else { 'FAILED' }
 
-# Convert times to Central European Time (CET/CEST) — DST-aware via Windows timezone
-$cetZone  = [System.TimeZoneInfo]::FindSystemTimeZoneById('Central Europe Standard Time')
-$nowCet   = [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]::UtcNow, $cetZone)
-$runTimestamp = $nowCet.ToString('yyyy-MM-dd HH:mm') + ' CET'
+# Use UTC timestamps — timezone-neutral for shared/open-source use.
+# Override by configuring your local timezone in the .env if needed.
+$nowUtc       = [datetime]::UtcNow
+$runTimestamp = $nowUtc.ToString('yyyy-MM-dd HH:mm') + ' UTC'
 
 $startTimeCet = if ($StartTime -ne [datetime]::MinValue) {
     $utc = if ($StartTime.Kind -eq [System.DateTimeKind]::Local) { $StartTime.ToUniversalTime() } else { $StartTime }
-    [System.TimeZoneInfo]::ConvertTimeFromUtc($utc, $cetZone).ToString('yyyy-MM-dd HH:mm') + ' CET'
+    $utc.ToString('yyyy-MM-dd HH:mm') + ' UTC'
 } else { $runTimestamp }
 
 $endTimeCet = if ($EndTime -ne [datetime]::MinValue) {
     $utc = if ($EndTime.Kind -eq [System.DateTimeKind]::Local) { $EndTime.ToUniversalTime() } else { $EndTime }
-    [System.TimeZoneInfo]::ConvertTimeFromUtc($utc, $cetZone).ToString('yyyy-MM-dd HH:mm') + ' CET'
+    $utc.ToString('yyyy-MM-dd HH:mm') + ' UTC'
 } else { $runTimestamp }
 
 # Per-step HTML rows

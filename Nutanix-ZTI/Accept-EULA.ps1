@@ -26,8 +26,13 @@
     Company name for the EULA acceptance. If not provided, read from config file (eula.company_name).
 
 .EXAMPLE
-    .\Accept-NutanixEULA.ps1 -ConfigFile ".\Configs\DKLAB-1-Create.json" -Password "MyPass!" `
+    .\Accept-NutanixEULA.ps1 -ConfigFile ".\Configs\my-cluster.json" -Password "MyPass!" `
         -EulaUserName "John Doe" -EulaJobTitle "Infrastructure Engineer" -EulaCompanyName "ACME Corp"
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: Mar 15, 2026
+    Version: 1.0
 #>
 
 [CmdletBinding()]
@@ -114,7 +119,8 @@ if (-not $peReady) {
     Write-Host "  ERROR: Prism Element at $cluster_vip did not become accessible within $peMaxWaitMin minutes." -ForegroundColor Red
     exit 1
 }
-Write-Host "  Prism Element is accessible." -ForegroundColor Green ─────────────────────────────────────────
+Write-Host "  Prism Element is accessible." -ForegroundColor Green
+# ─────────────────────────────────────────
 Write-Host "`n[1/2] Checking current EULA status on $cluster_vip..." -ForegroundColor Cyan
 try {
     $eulaStatus = Invoke-RestMethod -Uri "$baseUrl/eulas" `

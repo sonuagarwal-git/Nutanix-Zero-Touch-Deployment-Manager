@@ -1,3 +1,22 @@
+<#
+.SYNOPSIS
+    Registers a newly deployed Nutanix cluster to Prism Central via NCLI over SSH.
+
+.PARAMETER ConfigFile
+    Path to the cluster JSON config file.
+
+.PARAMETER CVMIP
+    Optional CVM IP override. Auto-detected from config if not provided.
+
+.EXAMPLE
+    .\Register-NewCluster-To-PC.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: Apr 02, 2026
+    Version: 1.0
+#>
+
 param(
     [Parameter(Mandatory = $true)]
     [string]$ConfigFile,

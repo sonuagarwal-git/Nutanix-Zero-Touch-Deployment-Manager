@@ -8,7 +8,7 @@
     Always performs forced re-imaging (nodes will be wiped).
     Does NOT form a cluster. Use Deploy-Cluster.ps1 for full deployment.
 .PARAMETER ConfigFile
-    Path to the imaging configuration JSON file. Default: Configs\DKLAB-3-ImageOnly.json
+    Path to the imaging configuration JSON file. Default: Configs\my-cluster-imageonly.json
 .PARAMETER DryRun
     Run validation only without making any changes
 .PARAMETER SkipPasswordCheck
@@ -23,14 +23,14 @@
     .\Deploy-Cluster-TestImaging.ps1 -DryRun
     Run validation without imaging
 .EXAMPLE
-    .\Deploy-Cluster-TestImaging.ps1 -ConfigFile .\Configs\DKLAB-3-ImageOnly.json
+    .\Deploy-Cluster-TestImaging.ps1 -ConfigFile .\Configs\my-cluster-imageonly.json
     Image nodes via FC (no cluster formation)
 #>
 
 [CmdletBinding()]
 param(
     [Parameter()]
-    [string]$ConfigFile = "Configs\DKLAB-3-ImageOnly.json",
+    [string]$ConfigFile = "Configs\my-cluster-imageonly.json",
 
     [Parameter()]
     [switch]$DryRun,
@@ -1368,7 +1368,7 @@ try {
     Write-Host "[PHASE 9] Imaging complete." -ForegroundColor Cyan
     Write-Host "  ✓ All nodes have been imaged successfully." -ForegroundColor Green
     Write-Host "  ℹ Mode=ImageOnly: no cluster was formed." -ForegroundColor Cyan
-    Write-Host "  ℹ To form a cluster, run: .\Deploy-Cluster.ps1 -ConfigFile .\Configs\DKLAB-3-deploy.json" -ForegroundColor White
+    Write-Host "  ℹ To form a cluster, run: .\Deploy-Cluster.ps1 -ConfigFile .\Configs\my-cluster.json" -ForegroundColor White
     Write-DeploymentLog -Message "Phase 9: Imaging complete. No cluster formed (Mode=ImageOnly)." -Level INFO
     Write-Host ""
     #endregion

@@ -47,21 +47,26 @@
     Preview the full pipeline plan without executing any scripts.
 
 .EXAMPLE
-    .\Start-Pipeline.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json
-    Run the full pipeline for DKLAB-1.
+    .\Start-Pipeline.ps1 -ConfigFile .\Configs\my-cluster.json
+    Run the full pipeline for my-cluster.
 
 .EXAMPLE
-    .\Start-Pipeline.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json -WhatIf
+    .\Start-Pipeline.ps1 -ConfigFile .\Configs\my-cluster.json -WhatIf
     Preview the pipeline without executing anything.
 
 .EXAMPLE
-    .\Start-Pipeline.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json -DryRun
+    .\Start-Pipeline.ps1 -ConfigFile .\Configs\my-cluster.json -DryRun
     Validate imaging + cluster creation without making any changes.
     Steps without DryRun support run normally.
 
 .EXAMPLE
-    .\Start-Pipeline.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json -StartAtStep 5
+    .\Start-Pipeline.ps1 -ConfigFile .\Configs\my-cluster.json -StartAtStep 5
     Skip Phoenix Boot steps — resume from Accept-EULA.
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: May 25, 2026
+    Version: 1.0
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
@@ -685,6 +690,28 @@ $containerName = if ($cfg.storage_container_name) { $cfg.storage_container_name 
 $pcPassword    = $pcSection.password
 $clusterName   = $cfg.clusterName
 $nodeCount     = if ($cfg.network.nodes) { @($cfg.network.nodes).Count } else { 0 }
+
+# Merge notify.to / notify.cc from config into pipeline email params.
+# Config values are used as fallback when the web app does not pass them as parameters.
+# If both exist, they are merged (comma-separated) so no address is lost.
+if ($cfg.notify -and $cfg.notify.to) {
+    if ($TriggeredBy) {
+        # Both provided — merge so both addresses receive the email
+        $TriggeredBy = ((@($TriggeredBy) + @($cfg.notify.to | Where-Object { $_ -ne $TriggeredBy })) -join ',')
+    } else {
+        $TriggeredBy = $cfg.notify.to
+    }
+}
+if ($cfg.notify -and $cfg.notify.cc) {
+    if ($Cc) {
+        # Merge config CC with any CC passed from web app, deduplicating
+        $allCcAddresses = (@($Cc -split ',') + @($cfg.notify.cc -split ',')) |
+                          ForEach-Object { $_.Trim() } | Where-Object { $_ } | Select-Object -Unique
+        $Cc = $allCcAddresses -join ','
+    } else {
+        $Cc = $cfg.notify.cc
+    }
+}
 
 #endregion
 

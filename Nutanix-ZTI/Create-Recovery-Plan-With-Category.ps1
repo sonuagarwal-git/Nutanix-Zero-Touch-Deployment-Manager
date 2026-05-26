@@ -21,14 +21,12 @@
 
 .EXAMPLE
     # Create recovery plan using config file
-    .\Manage-Recovery-Plan-With-Category.ps1 -ConfigFile ".\Configs\DKLAB-1-Create.json"
+    .\Manage-Recovery-Plan-With-Category.ps1 -ConfigFile ".\Configs\my-cluster.json"
 
 .NOTES
-    Author: DCES Core Service Team
+    Author: Sonu Agarwal
     Date: March 27, 2026
     Version: 2.0 - Per-cluster recovery plans (one plan per source cluster)
-
-    Developed and maintained by DCES core service
 #>
 
 [CmdletBinding()]
@@ -322,7 +320,7 @@ function New-FailoverCategoryIfMissing {
         Write-LogMessage "  Creating '$CATEGORY_KEY' key..." -Level Warning
         Invoke-PrismAPI -Method PUT -Endpoint "categories/$CATEGORY_KEY" -Body @{
             name        = $CATEGORY_KEY
-            description = "Failover category - Created by DCES Core Service"
+            description = "Failover category"
         } | Out-Null
         Write-LogMessage "  ✓ '$CATEGORY_KEY' key created" -Level Success
     }
@@ -330,7 +328,7 @@ function New-FailoverCategoryIfMissing {
         Write-LogMessage "  Creating value '$CATEGORY_VALUE'..." -Level Warning
         Invoke-PrismAPI -Method PUT -Endpoint "categories/$CATEGORY_KEY/$CATEGORY_VALUE" -Body @{
             value       = $CATEGORY_VALUE
-            description = "Failover replication - Created by DCES Core Service"
+            description = "Failover replication"
         } | Out-Null
         Write-LogMessage "  ✓ Value '$CATEGORY_VALUE' created" -Level Success
     }
@@ -391,7 +389,7 @@ function New-FailoverRecoveryPlan {
     $body = @{
         spec     = @{
             name        = $PlanName
-            description = "Failover Recovery Plan for cross-site replication - Created by DCES Core Service"
+            description = "Failover Recovery Plan for cross-site replication"
             resources   = @{
                 stage_list = @(
                     @{
@@ -625,7 +623,6 @@ function Main {
     Write-LogMessage "Connecting to Prism Central: $PCAddress" -Level Info
     Write-LogMessage "========================================" -Level Info
     Write-LogMessage "Failover Recovery Plan Management" -Level Info
-    Write-LogMessage "Developed and maintained by DCES core service" -Level Info
     Write-LogMessage "Version 1.0 - Cross-site replication" -Level Info
     Write-LogMessage "========================================" -Level Info
     Write-Host ""

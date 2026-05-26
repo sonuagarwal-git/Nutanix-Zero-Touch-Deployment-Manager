@@ -16,14 +16,12 @@
     Path to the cluster JSON config file.
 
 .EXAMPLE
-    .\Manage-Protection-Policy-With-Category.ps1 -ConfigFile ".\Configs\DKLAB-1-Create.json"
+    .\Manage-Protection-Policy-With-Category.ps1 -ConfigFile ".\Configs\my-cluster.json"
 
 .NOTES
-    Author: DCES Core Service Team
+    Author: Sonu Agarwal
     Date: March 26, 2026
     Version: 1.0 - Cross-site failover protection policy with category support
-
-    Developed and maintained by DCES core service
 #>
 
 [CmdletBinding()]
@@ -333,7 +331,7 @@ function New-FailoverCategoryIfMissing {
         try {
             Invoke-PrismAPI -Method PUT -Endpoint "categories/$CATEGORY_KEY" -Body @{
                 name        = $CATEGORY_KEY
-                description = "Failover category - Created by DCES Core Service"
+                description = "Failover category"
             } | Out-Null
             Write-LogMessage "  ✓ '$CATEGORY_KEY' category key created" -Level Success
         }
@@ -349,7 +347,7 @@ function New-FailoverCategoryIfMissing {
         try {
             Invoke-PrismAPI -Method PUT -Endpoint "categories/$CATEGORY_KEY/$CATEGORY_VALUE" -Body @{
                 value       = $CATEGORY_VALUE
-                description = "Failover replication - Created by DCES Core Service"
+                description = "Failover replication"
             } | Out-Null
             Write-LogMessage "  ✓ Value '$CATEGORY_VALUE' created" -Level Success
         }
@@ -428,7 +426,7 @@ function New-FailoverProtectionPolicy {
     $body = @{
         spec     = @{
             name        = $POLICY_NAME
-            description = "Cross-site replication Failover policy - Created by DCES Core Service"
+            description = "Cross-site replication Failover policy"
             resources   = @{
                 start_time                          = ""
                 ordered_availability_zone_list      = $orderedAZList
@@ -734,7 +732,6 @@ function Main {
     Write-LogMessage "Connecting to Prism Central: $PCAddress" -Level Info
     Write-LogMessage "========================================" -Level Info
     Write-LogMessage "Failover Protection Policy Management" -Level Info
-    Write-LogMessage "Developed and maintained by DCES core service" -Level Info
     Write-LogMessage "Version 1.0 - Cross-site replication" -Level Info
     Write-LogMessage "========================================" -Level Info
     Write-Host ""

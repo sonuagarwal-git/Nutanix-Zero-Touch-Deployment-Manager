@@ -8,7 +8,7 @@
     Reads iLO credentials from the cluster config file under 'network.nodes[]'
     (fields: iLO_ip, iLO_username, iLO_password).
 .PARAMETER ConfigFile
-    Path to the cluster JSON config file (e.g. Configs\DKCDC-1P-NTXTEST-01.json).
+    Path to the cluster JSON config file (e.g. Configs\my-cluster.json).
 .PARAMETER IloHost
     Optional filter — check only the node whose iLO_ip matches this value.
 .PARAMETER TimeoutMinutes
@@ -16,11 +16,16 @@
 .PARAMETER PollIntervalSeconds
     Poll interval when TimeoutMinutes > 0. Default: 20.
 .EXAMPLE
-    .\Phoonix-Boot-Check.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json
+    .\Phoonix-Boot-Check.ps1 -ConfigFile .\Configs\my-cluster.json
 .EXAMPLE
-    .\Phoonix-Boot-Check.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json -IloHost 10.10.16.120
+    .\Phoonix-Boot-Check.ps1 -ConfigFile .\Configs\my-cluster.json -IloHost 10.10.16.120
 .EXAMPLE
-    .\Phoonix-Boot-Check.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json -TimeoutMinutes 10
+    .\Phoonix-Boot-Check.ps1 -ConfigFile .\Configs\my-cluster.json -TimeoutMinutes 10
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: Mar 20, 2026
+    Version: 1.0
 #>
 
 [CmdletBinding()]

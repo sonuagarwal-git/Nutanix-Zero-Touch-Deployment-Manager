@@ -23,7 +23,12 @@
     - AHV_Root: AHV_Host_IP:10.0.113.111
     
 .EXAMPLE
-    .\Change-Prism-CVM-AHV-Password-ToCSV.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json
+    .\Change-Prism-CVM-AHV-Password-ToCSV.ps1 -ConfigFile .\Configs\my-cluster.json
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: Mar 16, 2026
+    Version: 1.0
 #>
 
 param(

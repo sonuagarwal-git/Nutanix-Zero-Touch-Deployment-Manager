@@ -27,10 +27,15 @@
       AHV root:            nutanix/4u
 
 .EXAMPLE
-    .\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json
+    .\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\my-cluster.json
 
 .EXAMPLE
-    .\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json -ForceChange -WaitSeconds 30
+    .\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\my-cluster.json -ForceChange -WaitSeconds 30
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: Apr 12, 2026
+    Version: 1.0
 #>
 
 [CmdletBinding()]

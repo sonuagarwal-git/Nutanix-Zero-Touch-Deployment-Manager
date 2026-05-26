@@ -13,9 +13,14 @@
       Subnet create  : POST /api/networking/v4.2/config/subnets
       Task poll      : GET  /api/prism/v4.0/config/tasks/{extId}
 .EXAMPLE
-    .\Create-Nutanix-vLAN.ps1 -ConfigFile ".\Configs\DKLAB-1-Create.json"
+    .\Create-Nutanix-vLAN.ps1 -ConfigFile ".\Configs\my-cluster.json"
 .EXAMPLE
-    .\Create-Nutanix-vLAN.ps1 -ConfigFile ".\Configs\DKLAB-1-Create.json" -SkipExistingCheck
+    .\Create-Nutanix-vLAN.ps1 -ConfigFile ".\Configs\my-cluster.json" -SkipExistingCheck
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: Mar 29, 2026
+    Version: 1.0
 #>
 
 param(

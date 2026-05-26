@@ -14,9 +14,14 @@
       Task poll      : GET  /api/prism/v4.0/config/tasks/{extId}
 
 .EXAMPLE
-    .\Create-Nutanix-Storage-Container.ps1 -ConfigFile ".\Configs\DKLAB-1-Create.json"
+    .\Create-Nutanix-Storage-Container.ps1 -ConfigFile ".\Configs\my-cluster.json"
 .EXAMPLE
-    .\Create-Nutanix-Storage-Container.ps1 -ConfigFile ".\Configs\DKLAB-1-Create.json" -EnableCompression:$false -ReplicationFactor 3
+    .\Create-Nutanix-Storage-Container.ps1 -ConfigFile ".\Configs\my-cluster.json" -EnableCompression:$false -ReplicationFactor 3
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: Mar 20, 2026
+    Version: 1.0
 #>
 
 param(

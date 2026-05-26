@@ -30,12 +30,17 @@
 .PARAMETER Username
     Convenience alternative to -Credential. Script prompts for password.
 .EXAMPLE
-    .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json
+    .\Add-DNS-Record.ps1 -ConfigFile .\Configs\my-cluster.json
 .EXAMPLE
-    $cred = Get-Credential "CORP\SVC-NTX-AUTO"
-    .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json -Credential $cred
+    $cred = Get-Credential "DOMAIN\SVC-NTX-AUTO"
+    .\Add-DNS-Record.ps1 -ConfigFile .\Configs\my-cluster.json -Credential $cred
 .EXAMPLE
-    .\Add-DNS-Record.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-01.json -Username "CORP\SVC-NTX-AUTO"
+    .\Add-DNS-Record.ps1 -ConfigFile .\Configs\my-cluster.json -Username "DOMAIN\SVC-NTX-AUTO"
+
+.NOTES
+    Author: Sonu Agarwal
+    Date: Mar 28, 2026
+    Version: 1.0
 #>
 
 [CmdletBinding()]
