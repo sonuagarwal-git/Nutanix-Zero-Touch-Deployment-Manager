@@ -18,10 +18,62 @@
     Path to the cluster JSON config file.
     Source network is taken from the first entry of 'production_vlans'.
     Recovery network is taken from 'hub_production'.
+    Optional when all individual parameters are supplied directly.
+
+.PARAMETER PrismCentralIP
+    Prism Central IP or FQDN. Overrides the value from ConfigFile if both are provided.
+
+.PARAMETER Username
+    Prism Central admin username.
+
+.PARAMETER Password
+    Prism Central admin password.
+
+.PARAMETER ClusterName
+    Name of the source cluster.
+
+.PARAMETER SourceNetworkName
+    Name of the source (primary site) network/subnet.
+
+.PARAMETER SourceGateway
+    Gateway IP of the source network.
+
+.PARAMETER SourcePrefixLength
+    Prefix length of the source network (e.g. 24).
+
+.PARAMETER SourceStartIP
+    Start of the source IP pool.
+
+.PARAMETER SourceEndIP
+    End of the source IP pool.
+
+.PARAMETER RecoveryNetworkName
+    Name of the recovery (hub/target site) network/subnet.
+
+.PARAMETER RecoveryGateway
+    Gateway IP of the recovery network.
+
+.PARAMETER RecoveryPrefixLength
+    Prefix length of the recovery network (e.g. 24).
+
+.PARAMETER RecoveryStartIP
+    Start of the recovery IP pool.
+
+.PARAMETER RecoveryEndIP
+    End of the recovery IP pool.
 
 .EXAMPLE
     # Create recovery plan using config file
     .\Manage-Recovery-Plan-With-Category.ps1 -ConfigFile ".\Configs\my-cluster.json"
+
+.EXAMPLE
+    # Run without a config file — supply all values manually
+    .\Create-Recovery-Plan-With-Category.ps1 -PrismCentralIP "10.0.1.20" `
+        -Username "admin" -Password "MyPass!" -ClusterName "my-cluster" `
+        -SourceNetworkName "prod-vlan100" -SourceGateway "10.0.100.1" -SourcePrefixLength 24 `
+        -SourceStartIP "10.0.100.50" -SourceEndIP "10.0.100.100" `
+        -RecoveryNetworkName "hub-prod-vlan200" -RecoveryGateway "10.0.200.1" -RecoveryPrefixLength 24 `
+        -RecoveryStartIP "10.0.200.50" -RecoveryEndIP "10.0.200.100"
 
 .NOTES
     Author: Sonu Agarwal
@@ -31,33 +83,77 @@
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$ConfigFile
+    [Parameter(Mandatory = $false)]
+    [string]$ConfigFile,
+
+    [Parameter(Mandatory = $false)]
+    [string]$PrismCentralIP,
+
+    [Parameter(Mandatory = $false)]
+    [string]$Username,
+
+    [Parameter(Mandatory = $false)]
+    [string]$Password,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ClusterName,
+
+    [Parameter(Mandatory = $false)]
+    [string]$SourceNetworkName,
+
+    [Parameter(Mandatory = $false)]
+    [string]$SourceGateway,
+
+    [Parameter(Mandatory = $false)]
+    [int]$SourcePrefixLength,
+
+    [Parameter(Mandatory = $false)]
+    [string]$SourceStartIP,
+
+    [Parameter(Mandatory = $false)]
+    [string]$SourceEndIP,
+
+    [Parameter(Mandatory = $false)]
+    [string]$RecoveryNetworkName,
+
+    [Parameter(Mandatory = $false)]
+    [string]$RecoveryGateway,
+
+    [Parameter(Mandatory = $false)]
+    [int]$RecoveryPrefixLength,
+
+    [Parameter(Mandatory = $false)]
+    [string]$RecoveryStartIP,
+
+    [Parameter(Mandatory = $false)]
+    [string]$RecoveryEndIP
 )
 
 # Load config
-$config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
+if ($ConfigFile) {
+    $config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
+    if (-not $PrismCentralIP)    { $PrismCentralIP    = $config.prism_central.ip }
+    if (-not $Username)          { $Username          = $config.prism_central.username }
+    if (-not $Password)          { $Password          = $config.prism_central.password }
+    if (-not $ClusterName)       { $ClusterName       = $config.clusterName }
+    $srcVlan = $config.production_vlans[0]
+    $hubVlan = $config.hub_production
+    if (-not $SourceNetworkName)   { $SourceNetworkName   = $srcVlan.subnet_name }
+    if (-not $SourceGateway)       { $SourceGateway       = $srcVlan.gateway }
+    if (-not $SourcePrefixLength)  { $SourcePrefixLength  = [int]$srcVlan.prefix_length }
+    if (-not $SourceStartIP)       { $SourceStartIP       = $srcVlan.ip_pool_start }
+    if (-not $SourceEndIP)         { $SourceEndIP         = $srcVlan.ip_pool_end }
+    if (-not $RecoveryNetworkName) { $RecoveryNetworkName = $hubVlan.subnet_name }
+    if (-not $RecoveryGateway)     { $RecoveryGateway     = $hubVlan.gateway }
+    if (-not $RecoveryPrefixLength){ $RecoveryPrefixLength= [int]$hubVlan.prefix_length }
+    if (-not $RecoveryStartIP)     { $RecoveryStartIP     = $hubVlan.ip_pool_start }
+    if (-not $RecoveryEndIP)       { $RecoveryEndIP       = $hubVlan.ip_pool_end }
+} elseif (-not $PrismCentralIP -or -not $Username -or -not $Password -or -not $ClusterName) {
+    Write-Host "ERROR: Provide either -ConfigFile or all of: -PrismCentralIP, -Username, -Password, -ClusterName (plus network params)." -ForegroundColor Red
+    exit 1
+}
 
-$PrismCentralIP = $config.prism_central.ip
-$Username       = $config.prism_central.username
-$Password       = $config.prism_central.password
-$NewClusterName = $config.clusterName
-
-# Source network — first entry of production_vlans
-$srcVlan              = $config.production_vlans[0]
-$SourceNetworkName    = $srcVlan.subnet_name
-$SourceGateway        = $srcVlan.gateway
-$SourcePrefixLength   = [int]$srcVlan.prefix_length
-$SourceStartIP        = $srcVlan.ip_pool_start
-$SourceEndIP          = $srcVlan.ip_pool_end
-
-# Recovery network — hub_production section
-$hubVlan              = $config.hub_production
-$RecoveryNetworkName  = $hubVlan.subnet_name
-$RecoveryGateway      = $hubVlan.gateway
-$RecoveryPrefixLength = [int]$hubVlan.prefix_length
-$RecoveryStartIP      = $hubVlan.ip_pool_start
-$RecoveryEndIP        = $hubVlan.ip_pool_end
+$NewClusterName = $ClusterName
 
 if (-not $PrismCentralIP) {
     Write-Host "ERROR: 'prism_central.ip' not found in config file: $ConfigFile" -ForegroundColor Red

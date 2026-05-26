@@ -9,8 +9,14 @@
     (fields: iLO_ip, iLO_username, iLO_password).
 .PARAMETER ConfigFile
     Path to the cluster JSON config file (e.g. Configs\my-cluster.json).
+    Optional when -IloHost, -IloUsername and -IloPassword are supplied directly.
 .PARAMETER IloHost
-    Optional filter — check only the node whose iLO_ip matches this value.
+    iLO IP address to target. When used with -ConfigFile, filters to that node only.
+    When used without -ConfigFile, this is the single node to check.
+.PARAMETER IloUsername
+    iLO admin username. Overrides the value from ConfigFile if both are provided.
+.PARAMETER IloPassword
+    iLO admin password. Overrides the value from ConfigFile if both are provided.
 .PARAMETER TimeoutMinutes
     Max wait time per node. 0 = single check without polling. Default: 15.
 .PARAMETER PollIntervalSeconds
@@ -21,6 +27,9 @@
     .\Phoonix-Boot-Check.ps1 -ConfigFile .\Configs\my-cluster.json -IloHost 10.10.16.120
 .EXAMPLE
     .\Phoonix-Boot-Check.ps1 -ConfigFile .\Configs\my-cluster.json -TimeoutMinutes 10
+.EXAMPLE
+    # Run without a config file — supply all values manually
+    .\Phoonix-Boot-Check.ps1 -IloHost "10.10.16.120" -IloUsername "admin" -IloPassword "MyPass!"
 
 .NOTES
     Author: Sonu Agarwal
@@ -30,8 +39,10 @@
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string]$ConfigFile,
+    [Parameter(Mandatory = $false)][string]$ConfigFile,
     [string]$IloHost,
+    [string]$IloUsername,
+    [string]$IloPassword,
     [int]$TimeoutMinutes = 15,
     [int]$PollIntervalSeconds = 20
 )
@@ -39,48 +50,59 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # ── Load cluster config ───────────────────────────────────────────────────────
-if (-not (Test-Path $ConfigFile)) {
-    Write-Host "ERROR: Config file not found: $ConfigFile" -ForegroundColor Red
-    exit 1
-}
-
-try {
-    $config = Get-Content $ConfigFile -Raw | ConvertFrom-Json
-} catch {
-    Write-Host "ERROR: Failed to parse config file: $_" -ForegroundColor Red
-    exit 1
-}
-
-if (-not $config.network -or -not $config.network.nodes -or $config.network.nodes.Count -eq 0) {
-    Write-Host "ERROR: No nodes defined in config under 'network.nodes'." -ForegroundColor Red
-    exit 1
-}
-
-$servers = $config.network.nodes | ForEach-Object {
-    if (-not $_.iLO_ip -or -not $_.iLO_username -or -not $_.iLO_password) {
-        Write-Host "WARN: Node '$($_.hostname)' is missing iLO_ip/iLO_username/iLO_password — skipping." -ForegroundColor Yellow
-        return
-    }
-    [PSCustomObject]@{
-        iloHost  = $_.iLO_ip
-        username = $_.iLO_username
-        password = $_.iLO_password
-        hostname = $_.hostname
-    }
-} | Where-Object { $_ -ne $null }
-
-if ($servers.Count -eq 0) {
-    Write-Host "ERROR: No valid nodes with iLO credentials found in config." -ForegroundColor Red
-    exit 1
-}
-
-if ($IloHost) {
-    $servers = @($servers | Where-Object { $_.iloHost -eq $IloHost })
-    if ($servers.Count -eq 0) {
-        $available = ($config.network.nodes | Where-Object { $_.iLO_ip } | ForEach-Object { $_.iLO_ip }) -join ', '
-        Write-Host "ERROR: iLO host '$IloHost' not found in config nodes. Available: $available" -ForegroundColor Red
+if ($ConfigFile) {
+    if (-not (Test-Path $ConfigFile)) {
+        Write-Host "ERROR: Config file not found: $ConfigFile" -ForegroundColor Red
         exit 1
     }
+    try {
+        $config = Get-Content $ConfigFile -Raw | ConvertFrom-Json
+    } catch {
+        Write-Host "ERROR: Failed to parse config file: $_" -ForegroundColor Red
+        exit 1
+    }
+    if (-not $config.network -or -not $config.network.nodes -or $config.network.nodes.Count -eq 0) {
+        Write-Host "ERROR: No nodes defined in config under 'network.nodes'." -ForegroundColor Red
+        exit 1
+    }
+    $servers = $config.network.nodes | ForEach-Object {
+        $nodeUser = if ($IloUsername) { $IloUsername } else { $_.iLO_username }
+        $nodePass = if ($IloPassword) { $IloPassword } else { $_.iLO_password }
+        if (-not $_.iLO_ip -or -not $nodeUser -or -not $nodePass) {
+            Write-Host "WARN: Node '$($_.hostname)' is missing iLO_ip/iLO_username/iLO_password — skipping." -ForegroundColor Yellow
+            return
+        }
+        [PSCustomObject]@{
+            iloHost  = $_.iLO_ip
+            username = $nodeUser
+            password = $nodePass
+            hostname = $_.hostname
+        }
+    } | Where-Object { $_ -ne $null }
+    if ($servers.Count -eq 0) {
+        Write-Host "ERROR: No valid nodes with iLO credentials found in config." -ForegroundColor Red
+        exit 1
+    }
+    if ($IloHost) {
+        $servers = @($servers | Where-Object { $_.iloHost -eq $IloHost })
+        if ($servers.Count -eq 0) {
+            $available = ($config.network.nodes | Where-Object { $_.iLO_ip } | ForEach-Object { $_.iLO_ip }) -join ', '
+            Write-Host "ERROR: iLO host '$IloHost' not found in config nodes. Available: $available" -ForegroundColor Red
+            exit 1
+        }
+    }
+} else {
+    # Manual mode — all required values must be passed as parameters
+    if (-not $IloHost -or -not $IloUsername -or -not $IloPassword) {
+        Write-Host "ERROR: Provide either -ConfigFile or all of: -IloHost, -IloUsername, -IloPassword." -ForegroundColor Red
+        exit 1
+    }
+    $servers = @([PSCustomObject]@{
+        iloHost  = $IloHost
+        username = $IloUsername
+        password = $IloPassword
+        hostname = $IloHost
+    })
 }
 
 # ── Helper: Create iLO session ───────────────────────────────────────────────

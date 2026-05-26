@@ -4,12 +4,30 @@
 
 .PARAMETER ConfigFile
     Path to the cluster JSON config file.
+    Optional when -ClusterVIP, -PrismCentralIP, -PrismCentralUsername and -PrismCentralPassword are supplied.
+
+.PARAMETER ClusterVIP
+    Cluster VIP or Prism Element IP. Overrides the value from ConfigFile if both are provided.
+
+.PARAMETER PrismCentralIP
+    Prism Central IP or FQDN. Overrides the value from ConfigFile if both are provided.
+
+.PARAMETER PrismCentralUsername
+    Prism Central admin username.
+
+.PARAMETER PrismCentralPassword
+    Prism Central admin password.
 
 .PARAMETER CVMIP
     Optional CVM IP override. Auto-detected from config if not provided.
 
 .EXAMPLE
     .\Register-NewCluster-To-PC.ps1 -ConfigFile .\Configs\my-cluster.json
+
+.EXAMPLE
+    # Run without a config file — supply all values manually
+    .\Register-NewCluster-To-PC.ps1 -ClusterVIP "10.0.1.10" `
+        -PrismCentralIP "10.0.1.20" -PrismCentralUsername "admin" -PrismCentralPassword "MyPass!"
 
 .NOTES
     Author: Sonu Agarwal
@@ -18,23 +36,42 @@
 #>
 
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$ConfigFile,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ClusterVIP,
+
+    [Parameter(Mandatory = $false)]
+    [string]$PrismCentralIP,
+
+    [Parameter(Mandatory = $false)]
+    [string]$PrismCentralUsername,
+
+    [Parameter(Mandatory = $false)]
+    [string]$PrismCentralPassword,
 
     [Parameter(Mandatory = $false)]
     [string]$CVMIP  # Optional - will auto-detect if not provided
 )
 
 # Load config
-$config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
-$cluster_vip = $config.network.cluster_vip
+if ($ConfigFile) {
+    $config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
+    if (-not $ClusterVIP)             { $ClusterVIP             = $config.network.cluster_vip }
+    if (-not $PrismCentralIP)         { $PrismCentralIP         = $config.prism_central.ip }
+    if (-not $PrismCentralUsername)   { $PrismCentralUsername   = $config.prism_central.username }
+    if (-not $PrismCentralPassword)   { $PrismCentralPassword   = $config.prism_central.password }
+} elseif (-not $ClusterVIP -or -not $PrismCentralIP -or -not $PrismCentralUsername -or -not $PrismCentralPassword) {
+    Write-Host "ERROR: Provide either -ConfigFile or all of: -ClusterVIP, -PrismCentralIP, -PrismCentralUsername, -PrismCentralPassword." -ForegroundColor Red
+    exit 1
+}
+
+$cluster_vip = $ClusterVIP
 if (-not $cluster_vip) {
     Write-Host "ERROR: 'network.cluster_vip' not found in config file: $ConfigFile" -ForegroundColor Red
     exit 1
 }
-$PrismCentralIP       = $config.prism_central.ip
-$PrismCentralUsername = $config.prism_central.username
-$PrismCentralPassword = $config.prism_central.password
 
 # Hardcoded credentials
 $ClusterUsername       = "admin"

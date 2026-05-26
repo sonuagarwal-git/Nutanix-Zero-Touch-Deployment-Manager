@@ -9,6 +9,11 @@
 
 .PARAMETER ConfigFile
     Path to the cluster JSON config file. The cluster VIP is read from network.cluster_vip.
+    Optional when -ClusterVIP is supplied directly.
+
+.PARAMETER ClusterVIP
+    Prism Element cluster VIP or IP address. Overrides the value from ConfigFile if both are provided.
+    Required when ConfigFile is not supplied.
 
 .PARAMETER Username
     Prism Element admin username (default: admin).
@@ -29,6 +34,11 @@
     .\Accept-NutanixEULA.ps1 -ConfigFile ".\Configs\my-cluster.json" -Password "MyPass!" `
         -EulaUserName "John Doe" -EulaJobTitle "Infrastructure Engineer" -EulaCompanyName "ACME Corp"
 
+.EXAMPLE
+    # Run without a config file — supply all values manually
+    .\Accept-EULA.ps1 -ClusterVIP "10.0.1.10" -Password "MyPass!" `
+        -EulaUserName "John Doe" -EulaJobTitle "Infrastructure Engineer" -EulaCompanyName "ACME Corp"
+
 .NOTES
     Author: Sonu Agarwal
     Date: Mar 15, 2026
@@ -37,8 +47,11 @@
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$ConfigFile,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ClusterVIP,
 
     [Parameter(Mandatory = $false)]
     [string]$Username = "admin",
@@ -56,15 +69,22 @@ param(
     [string]$EulaCompanyName = ""
 )
 
-# Load cluster_vip from config file
-$config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
-$cluster_vip = $config.network.cluster_vip
-if (-not $cluster_vip) {
-    Write-Host "ERROR: 'network.cluster_vip' not found in config file: $ConfigFile" -ForegroundColor Red
+# Load cluster_vip — from parameter, or from config file
+if ($ClusterVIP) {
+    $cluster_vip = $ClusterVIP
+} elseif ($ConfigFile) {
+    $config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
+    $cluster_vip = $config.network.cluster_vip
+    if (-not $cluster_vip) {
+        Write-Host "ERROR: 'network.cluster_vip' not found in config file: $ConfigFile" -ForegroundColor Red
+        exit 1
+    }
+} else {
+    Write-Host "ERROR: Provide either -ConfigFile or -ClusterVIP." -ForegroundColor Red
     exit 1
 }
 
-# Resolve EULA fields — parameter overrides config, config is required if parameter not supplied
+# Resolve EULA fields — parameter overrides config, config used as fallback if loaded
 if (-not $EulaUserName)    { $EulaUserName    = $config.eula.username }
 if (-not $EulaJobTitle)    { $EulaJobTitle    = $config.eula.job_title }
 if (-not $EulaCompanyName) { $EulaCompanyName = $config.eula.company_name }

@@ -14,9 +14,27 @@
     
 .PARAMETER ConfigFile
     Path to the cluster JSON config file.
+    Optional when -PrismCentralIP, -Username, -Password and -ClusterName are supplied directly.
+
+.PARAMETER PrismCentralIP
+    Prism Central IP or FQDN. Overrides the value from ConfigFile if both are provided.
+
+.PARAMETER Username
+    Prism Central admin username.
+
+.PARAMETER Password
+    Prism Central admin password.
+
+.PARAMETER ClusterName
+    Name of the cluster to add to backup policies.
     
 .EXAMPLE
     .\Manage-PC-Backup-Policies-WithCategories.ps1 -ConfigFile ".\Configs\my-cluster.json"
+
+.EXAMPLE
+    # Run without a config file — supply all values manually
+    .\Create-Backup-Policies-With-Categories.ps1 -PrismCentralIP "10.0.1.20" `
+        -Username "admin" -Password "MyPass!" -ClusterName "my-cluster"
     
 .NOTES
     Author: Sonu Agarwal
@@ -26,16 +44,35 @@
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$ConfigFile
+    [Parameter(Mandatory = $false)]
+    [string]$ConfigFile,
+
+    [Parameter(Mandatory = $false)]
+    [string]$PrismCentralIP,
+
+    [Parameter(Mandatory = $false)]
+    [string]$Username,
+
+    [Parameter(Mandatory = $false)]
+    [string]$Password,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ClusterName
 )
 
 # Load config
-$config         = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
-$PrismCentralIP = $config.prism_central.ip
-$Username       = $config.prism_central.username
-$Password       = $config.prism_central.password
-$NewClusterName = $config.clusterName
+if ($ConfigFile) {
+    $config         = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
+    if (-not $PrismCentralIP) { $PrismCentralIP = $config.prism_central.ip }
+    if (-not $Username)       { $Username       = $config.prism_central.username }
+    if (-not $Password)       { $Password       = $config.prism_central.password }
+    if (-not $ClusterName)    { $ClusterName    = $config.clusterName }
+} elseif (-not $PrismCentralIP -or -not $Username -or -not $Password -or -not $ClusterName) {
+    Write-Host "ERROR: Provide either -ConfigFile or all of: -PrismCentralIP, -Username, -Password, -ClusterName." -ForegroundColor Red
+    exit 1
+}
+
+$NewClusterName = $ClusterName
 
 if (-not $PrismCentralIP) {
     Write-Host "ERROR: 'prism_central.ip' not found in config file: $ConfigFile" -ForegroundColor Red

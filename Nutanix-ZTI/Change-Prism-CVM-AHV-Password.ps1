@@ -25,6 +25,10 @@
 .EXAMPLE
     .\Change-Prism-CVM-AHV-Password-ToCSV.ps1 -ConfigFile .\Configs\my-cluster.json
 
+.EXAMPLE
+    # Run without a config file — supply cluster VIP directly
+    .\Change-Prism-CVM-AHV-Password-ToCSV.ps1 -ClusterVIP "10.0.1.10"
+
 .NOTES
     Author: Sonu Agarwal
     Date: Mar 16, 2026

@@ -20,6 +20,24 @@
 
 .PARAMETER ConfigFile
     Path to the cluster JSON config file.
+    Optional when -FoundationCentralURL, -Username, -Password and -NodeSerials are supplied.
+
+.PARAMETER FoundationCentralURL
+    Foundation Central / Prism Central URL (e.g. https://10.0.1.20:9440).
+    Overrides the value from ConfigFile if both are provided.
+
+.PARAMETER Username
+    Foundation Central admin username.
+
+.PARAMETER Password
+    Foundation Central admin password.
+
+.PARAMETER NodeSerials
+    Comma-separated list of node serial numbers to wait for (e.g. "SN001,SN002").
+    Overrides the node list from ConfigFile if both are provided.
+
+.PARAMETER ClusterName
+    Optional cluster name for display purposes only.
 
 .PARAMETER TimeoutMinutes
     Maximum time to poll (default: 60 minutes).
@@ -31,7 +49,12 @@
     .\Node-Discover-Check.ps1 -ConfigFile .\Configs\my-cluster.json
 
 .EXAMPLE
-    .\Node-Discover-Check.ps1 -ConfigFile .\Configs\my-cluster.json -TimeoutMinutes 30
+    .\Node-Discovery-Check.ps1 -ConfigFile .\Configs\my-cluster.json -TimeoutMinutes 30
+
+.EXAMPLE
+    # Run without a config file — supply all values manually
+    .\Node-Discovery-Check.ps1 -FoundationCentralURL "https://10.0.1.20:9440" `
+        -Username "admin" -Password "MyPass!" -NodeSerials "SN001,SN002"
 
 .NOTES
     Author: Sonu Agarwal
@@ -41,8 +64,23 @@
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$ConfigFile,
+
+    [Parameter()]
+    [string]$FoundationCentralURL,
+
+    [Parameter()]
+    [string]$Username,
+
+    [Parameter()]
+    [string]$Password,
+
+    [Parameter()]
+    [string]$NodeSerials,
+
+    [Parameter()]
+    [string]$ClusterName,
 
     [Parameter()]
     [int]$TimeoutMinutes = 60,
@@ -57,45 +95,53 @@ $PSDefaultParameterValues['Invoke-RestMethod:SkipCertificateCheck'] = $true
 $ErrorActionPreference = 'Stop'
 
 # ── Load config ───────────────────────────────────────────────────────────────
-if (-not (Test-Path $ConfigFile)) {
-    Write-Host "ERROR: Config file not found: $ConfigFile" -ForegroundColor Red
+if ($ConfigFile) {
+    if (-not (Test-Path $ConfigFile)) {
+        Write-Host "ERROR: Config file not found: $ConfigFile" -ForegroundColor Red
+        exit 1
+    }
+    $config = Get-Content $ConfigFile -Raw | ConvertFrom-Json
+    if (-not $FoundationCentralURL) { $FoundationCentralURL = $config.prism_central.url }
+    if (-not $Username)             { $Username             = $config.prism_central.username }
+    if (-not $Password)             { $Password             = $config.prism_central.password }
+    if (-not $ClusterName)          { $ClusterName          = $config.clusterName }
+} elseif (-not $FoundationCentralURL -or -not $Username -or -not $Password -or -not $NodeSerials) {
+    Write-Host "ERROR: Provide either -ConfigFile or all of: -FoundationCentralURL, -Username, -Password, -NodeSerials." -ForegroundColor Red
     exit 1
 }
 
-$config = Get-Content $ConfigFile -Raw | ConvertFrom-Json
-
-if (-not $config.prism_central) {
-    Write-Host "ERROR: Config missing 'prism_central' section." -ForegroundColor Red
-    exit 1
-}
-
-$fcUrl      = $config.prism_central.url
-$fcUser     = $config.prism_central.username
-$fcPassword = $config.prism_central.password
-
-if (-not $fcUrl -or -not $fcUser -or -not $fcPassword) {
+if (-not $FoundationCentralURL -or -not $Username -or -not $Password) {
     Write-Host "ERROR: prism_central section must have 'url', 'username', and 'password'." -ForegroundColor Red
     exit 1
 }
 
-if (-not $config.network.nodes -or @($config.network.nodes).Count -eq 0) {
-    Write-Host "ERROR: No nodes defined in config file (network.nodes)." -ForegroundColor Red
+$fcUrl      = $FoundationCentralURL
+$fcUser     = $Username
+$fcPassword = $Password
+
+# Build expected node list — from config nodes array or from -NodeSerials parameter
+if ($NodeSerials) {
+    $serialList    = $NodeSerials -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+    $expectedNodes = @($serialList | ForEach-Object {
+        [PSCustomObject]@{ Serial = $_; Hostname = $_; IloIp = ''; CvmIp = ''; HypervisorIp = '' }
+    })
+} elseif ($config -and $config.network.nodes) {
+    $expectedNodes = @($config.network.nodes | ForEach-Object {
+        [PSCustomObject]@{
+            Serial       = $_.serial
+            Hostname     = $_.hostname
+            IloIp        = $_.iLO_ip
+            CvmIp        = $_.cvm_ip
+            HypervisorIp = $_.hypervisor_ip
+        }
+    }) | Where-Object { $_.Serial }
+} else {
+    Write-Host "ERROR: No nodes defined. Provide -NodeSerials or a config file with network.nodes." -ForegroundColor Red
     exit 1
 }
 
-# Build expected node list from config
-$expectedNodes = @($config.network.nodes | ForEach-Object {
-    [PSCustomObject]@{
-        Serial       = $_.serial
-        Hostname     = $_.hostname
-        IloIp        = $_.iLO_ip
-        CvmIp        = $_.cvm_ip
-        HypervisorIp = $_.hypervisor_ip
-    }
-}) | Where-Object { $_.Serial }
-
 if ($expectedNodes.Count -eq 0) {
-    Write-Host "ERROR: No nodes with 'serial' field found in config." -ForegroundColor Red
+    Write-Host "ERROR: No nodes with 'serial' field found." -ForegroundColor Red
     exit 1
 }
 
@@ -163,7 +209,6 @@ function Get-FCNodes {
 }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
-$clusterName = $config.clusterName
 $nodeCount   = $expectedNodes.Count
 
 Write-Host ""

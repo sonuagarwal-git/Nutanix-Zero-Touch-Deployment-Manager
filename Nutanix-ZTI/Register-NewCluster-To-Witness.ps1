@@ -10,9 +10,36 @@
 .PARAMETER ConfigFile
     Path to the cluster JSON config file. Must contain network.cluster_vip and
     witness.ip / witness.username / witness.password / witness.name fields.
+    Optional when -ClusterVIP, -WitnessIP, -WitnessUsername and -WitnessPassword are supplied.
+
+.PARAMETER ClusterVIP
+    Prism Element cluster VIP or IP. Overrides the value from ConfigFile if both are provided.
+
+.PARAMETER WitnessIP
+    Witness VM IP address. Overrides the value from ConfigFile if both are provided.
+
+.PARAMETER WitnessUsername
+    Witness VM admin username.
+
+.PARAMETER WitnessPassword
+    Witness VM admin password.
+
+.PARAMETER WitnessName
+    Witness VM display name (optional).
+
+.PARAMETER ClusterUsername
+    Prism Element admin username. Defaults to 'admin'.
+
+.PARAMETER ClusterPassword
+    Prism Element admin password. Defaults to 'Nutanix/4u'.
 
 .EXAMPLE
     .\Register-NewCluster-To-Witness.ps1 -ConfigFile .\Configs\my-cluster.json
+
+.EXAMPLE
+    # Run without a config file — supply all values manually
+    .\Register-NewCluster-To-Witness.ps1 -ClusterVIP "10.0.1.10" `
+        -WitnessIP "10.0.1.30" -WitnessUsername "admin" -WitnessPassword "MyPass!"
 
 .NOTES
     Author: Sonu Agarwal
@@ -21,27 +48,49 @@
 #>
 
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$ConfigFile
+    [Parameter(Mandatory = $false)]
+    [string]$ConfigFile,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ClusterVIP,
+
+    [Parameter(Mandatory = $false)]
+    [string]$WitnessIP,
+
+    [Parameter(Mandatory = $false)]
+    [string]$WitnessUsername,
+
+    [Parameter(Mandatory = $false)]
+    [string]$WitnessPassword,
+
+    [Parameter(Mandatory = $false)]
+    [string]$WitnessName,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ClusterUsername = "admin",
+
+    [Parameter(Mandatory = $false)]
+    [string]$ClusterPassword = "Nutanix/4u"
 )
 
 # Load config
-$config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
-$cluster_vip = $config.network.cluster_vip
+if ($ConfigFile) {
+    $config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
+    if (-not $ClusterVIP)      { $ClusterVIP      = $config.network.cluster_vip }
+    if (-not $WitnessIP)       { $WitnessIP       = $config.witness.ip }
+    if (-not $WitnessUsername) { $WitnessUsername = $config.witness.username }
+    if (-not $WitnessPassword) { $WitnessPassword = $config.witness.password }
+    if (-not $WitnessName)     { $WitnessName     = $config.witness.name }
+} elseif (-not $ClusterVIP -or -not $WitnessIP -or -not $WitnessUsername -or -not $WitnessPassword) {
+    Write-Host "ERROR: Provide either -ConfigFile or all of: -ClusterVIP, -WitnessIP, -WitnessUsername, -WitnessPassword." -ForegroundColor Red
+    exit 1
+}
+
+$cluster_vip = $ClusterVIP
 if (-not $cluster_vip) {
     Write-Host "ERROR: 'network.cluster_vip' not found in config file: $ConfigFile" -ForegroundColor Red
     exit 1
 }
-
-# Prism Element Cluster Configuration
-$ClusterUsername = "admin"          # Cluster admin username
-$ClusterPassword = "Nutanix/4u"     # Cluster admin password
-
-# Witness VM Configuration (from config file)
-$WitnessIP       = $config.witness.ip
-$WitnessUsername = $config.witness.username
-$WitnessPassword = $config.witness.password
-$WitnessName     = $config.witness.name
 
 Write-Host "=== Register Witness VM with Two-Node Cluster ===" -ForegroundColor Cyan
 Write-Host "Cluster VIP: $cluster_vip" -ForegroundColor Cyan
