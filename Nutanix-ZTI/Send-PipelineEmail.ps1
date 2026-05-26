@@ -15,7 +15,7 @@
     Run standalone to test SMTP delivery, or called automatically by Start-Pipeline.ps1.
 
 .PARAMETER ClusterName
-    Name of the cluster that was deployed (e.g. DKCDC-1P-NTXTEST-01).
+    Name of the cluster that was deployed (e.g. my-cluster).
 
 .PARAMETER Status
     Overall pipeline result: SUCCESS or FAILED.
@@ -296,7 +296,7 @@ $stepRowsHtml        </tbody>
     <div style="padding:12px 24px 20px;border-top:1px solid #eee;">
       $logFooter
       <p style="font-size:11px;color:#aaa;margin-top:12px;">
-        Sent automatically by Nutanix ZTI &mdash; DKCDCSTORJUMP01
+        Sent automatically by Nutanix ZTI
       </p>
     </div>
 

@@ -37,7 +37,7 @@
 
 .EXAMPLE
     # Using a ZTI config file
-    .\Set-DataServiceIP.ps1 -ConfigFile .\Configs\DKCDC-1P-NTXTEST-03.json -DataServiceIP 10.0.113.130
+    .\Set-DataServiceIP.ps1 -ConfigFile .\Configs\my-cluster.json -DataServiceIP 10.0.113.130
 
 .EXAMPLE
     # Supplying all parameters directly

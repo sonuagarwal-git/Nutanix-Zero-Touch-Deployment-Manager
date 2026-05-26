@@ -34,7 +34,7 @@
     Query and print leases for ALL scopes on the DHCP server.
 
 .PARAMETER Credential
-    PSCredential for a DHCP admin or read-only account (e.g. CORP\SVC-NTX-AUTO).
+    PSCredential for a DHCP admin or read-only account (e.g. DOMAIN\SVC-NTX-AUTO).
 
 .PARAMETER Username
     Convenience alternative to -Credential. Script prompts for the password.
@@ -50,11 +50,11 @@
 .EXAMPLE
     # Query multiple subnets with service account
     .\Query-DhcpLeases.ps1 -DhcpServer 10.0.10.80 -ScopeId 10.0.113.0,10.0.114.0 `
-        -Username "CORP\SVC-NTX-AUTO"
+        -Username "DOMAIN\SVC-NTX-AUTO"
 
 .EXAMPLE
     # Query ALL scopes using service account credentials
-    .\Query-DhcpLeases.ps1 -DhcpServer 10.0.10.80 -All -Username "CORP\SVC-NTX-AUTO"
+    .\Query-DhcpLeases.ps1 -DhcpServer 10.0.10.80 -All -Username "DOMAIN\SVC-NTX-AUTO"
 #>
 
 [CmdletBinding(DefaultParameterSetName = 'Scope')]
@@ -502,7 +502,7 @@ foreach ($scope in $ScopeId) {
             Write-Host "  ERROR: Access denied querying DHCP server '$DhcpServer'." -ForegroundColor Red
             Write-Host "  Your account does not have DHCP Administrator rights on this server." -ForegroundColor Yellow
             Write-Host "  Fix: re-run with a privileged account:" -ForegroundColor Yellow
-            Write-Host "    .\Query-DhcpLeases.ps1 -DhcpServer $DhcpServer -ScopeId $scope -Username 'CORP\SVC-NTX-AUTO'" -ForegroundColor DarkYellow
+            Write-Host "    .\Query-DhcpLeases.ps1 -DhcpServer $DhcpServer -ScopeId $scope -Username 'DOMAIN\SVC-NTX-AUTO'" -ForegroundColor DarkYellow
         }
         else {
             Write-Host "  ERROR querying scope '$scope': $msg" -ForegroundColor Red

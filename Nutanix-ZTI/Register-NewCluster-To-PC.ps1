@@ -9,7 +9,7 @@
     Optional CVM IP override. Auto-detected from config if not provided.
 
 .EXAMPLE
-    .\Register-NewCluster-To-PC.ps1 -ConfigFile .\Configs\DKLAB-1-Create.json
+    .\Register-NewCluster-To-PC.ps1 -ConfigFile .\Configs\my-cluster.json
 
 .NOTES
     Author: Sonu Agarwal
