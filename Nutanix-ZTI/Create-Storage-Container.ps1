@@ -3,7 +3,7 @@
     Create a Storage Container on a Nutanix cluster via Prism Central REST API v4.
 .DESCRIPTION
     Uses the Nutanix storage v4.0 REST API via Prism Central to create a storage container.
-    All credentials are read from the config file (prism_central section).
+    Config file is the primary input; all values can also be supplied via individual parameters.
     The cluster is located by name via clustermgmt v4.2, then the container is created
     and scoped to that cluster. Task completion is polled via prism v4.0 tasks API.
 
@@ -13,10 +13,51 @@
       Create         : POST /api/storage/v4.0.a3/config/storage-containers
       Task poll      : GET  /api/prism/v4.0/config/tasks/{extId}
 
+.PARAMETER ConfigFile
+    Path to the cluster JSON config file. Optional when individual parameters are supplied.
+
+.PARAMETER PrismCentralIP
+    Prism Central IP address. Overrides the value from ConfigFile if both are provided.
+
+.PARAMETER PrismCentralUsername
+    Prism Central admin username.
+
+.PARAMETER PrismCentralPassword
+    Prism Central admin password.
+
+.PARAMETER ClusterName
+    Name of the target cluster as registered in Prism Central.
+
+.PARAMETER ContainerName
+    Storage container name. Defaults to the value in ConfigFile, or 'Workload-Container'.
+
+.PARAMETER EnableCompression
+    Enable compression on the storage container. Default: enabled.
+
+.PARAMETER EnableDeduplication
+    Enable post-process deduplication. Default: disabled.
+
+.PARAMETER ReplicationFactor
+    Replication factor (1 or 2). When using ConfigFile, auto-derived from node count unless
+    explicitly supplied. In standalone mode, defaults to 2.
+
 .EXAMPLE
-    .\Create-Nutanix-Storage-Container.ps1 -ConfigFile ".\Configs\my-cluster.json"
+    .\Create-Storage-Container.ps1 -ConfigFile ".\Configs\my-cluster.json"
 .EXAMPLE
-    .\Create-Nutanix-Storage-Container.ps1 -ConfigFile ".\Configs\my-cluster.json" -EnableCompression:$false -ReplicationFactor 3
+    .\Create-Storage-Container.ps1 -ConfigFile ".\Configs\my-cluster.json" -EnableCompression:$false
+.EXAMPLE
+    # Run without a config file — container name defaults to 'Workload-Container'
+    .\Create-Storage-Container.ps1 -PrismCentralIP "10.0.1.200" -PrismCentralUsername "admin" `
+        -PrismCentralPassword "MyPass!" -ClusterName "SITE-1P-CLUSTER-01"
+.EXAMPLE
+    # Run without a config file — specify a custom container name
+    .\Create-Storage-Container.ps1 -PrismCentralIP "10.0.1.200" -PrismCentralUsername "admin" `
+        -PrismCentralPassword "MyPass!" -ClusterName "SITE-1P-CLUSTER-01" -ContainerName "My-Storage-Container"
+.EXAMPLE
+    # Standalone with explicit RF (RF2 is default; use -ReplicationFactor 1 for single-node)
+    .\Create-Storage-Container.ps1 -PrismCentralIP "10.0.1.200" -PrismCentralUsername "admin" `
+        -PrismCentralPassword "MyPass!" -ClusterName "SITE-1P-CLUSTER-01" `
+        -ContainerName "My-Storage-Container" -ReplicationFactor 2
 
 .NOTES
     Author: Sonu Agarwal
@@ -25,8 +66,23 @@
 #>
 
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$ConfigFile,
+
+    [Parameter(Mandatory = $false)]
+    [string]$PrismCentralIP,
+
+    [Parameter(Mandatory = $false)]
+    [string]$PrismCentralUsername,
+
+    [Parameter(Mandatory = $false)]
+    [string]$PrismCentralPassword,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ClusterName,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ContainerName = 'Workload-Container',
 
     [Parameter(Mandatory = $false)]
     [switch]$EnableCompression = $true,
@@ -47,32 +103,38 @@ param(
     [int]$TaskPollSeconds = 5
 )
 
-# ─── Load config ──────────────────────────────────────────────────────────────
-$config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
+# ─── Load config or validate individual params ─────────────────────────────────
+$clusterVip = $null
+if ($ConfigFile) {
+    $config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
+    if (-not $ClusterName)          { $ClusterName          = $config.clusterName }
+    if (-not $PrismCentralIP)       { $PrismCentralIP       = $config.prism_central.ip }
+    if (-not $PrismCentralUsername) { $PrismCentralUsername = $config.prism_central.username }
+    if (-not $PrismCentralPassword) { $PrismCentralPassword = $config.prism_central.password }
+    if (-not $PSBoundParameters.ContainsKey('ContainerName')) {
+        $ContainerName = if ($config.storage_container_name) { $config.storage_container_name } else { 'Workload-Container' }
+    }
+    $clusterVip = $config.network.cluster_vip
+    # Auto-derive RF from node count only if -ReplicationFactor was not explicitly supplied
+    if (-not $PSBoundParameters.ContainsKey('ReplicationFactor')) {
+        $nodeCount         = if ($config.network.nodes) { @($config.network.nodes).Count } else { 3 }
+        $ReplicationFactor = if ($nodeCount -eq 1) { 1 } else { 2 }
+        Write-Host "  ℹ $nodeCount node(s) detected — Replication Factor set to $ReplicationFactor." -ForegroundColor Cyan
+    }
+} elseif (-not $PrismCentralIP -or -not $PrismCentralUsername -or -not $PrismCentralPassword -or -not $ClusterName) {
+    Write-Host "ERROR: Provide either -ConfigFile or all of: -PrismCentralIP, -PrismCentralUsername, -PrismCentralPassword, -ClusterName." -ForegroundColor Red
+    exit 1
+}
 
-$clusterName = $config.clusterName
-if (-not $clusterName) {
+if (-not $ClusterName) {
     Write-Host "ERROR: 'clusterName' not found in config file: $ConfigFile" -ForegroundColor Red
     exit 1
 }
 
-$pcSection = $config.prism_central
-if (-not $pcSection) {
-    Write-Host "ERROR: 'prism_central' section not found in config file: $ConfigFile" -ForegroundColor Red
-    exit 1
-}
-
-$pcBaseUrl     = $pcSection.url.TrimEnd('/')
-$pcUsername    = $pcSection.username
-$pcPassword    = $pcSection.password
-$clusterVip    = $config.network.cluster_vip
-# Container name from config, defaulting to 'Workload-Container'
-$ContainerName = if ($config.storage_container_name) { $config.storage_container_name } else { 'Workload-Container' }
-
-# Derive replication factor from node count: 1 node = RF1, 2+ nodes = RF2
-$nodeCount = if ($config.network.nodes) { @($config.network.nodes).Count } else { 3 }
-$ReplicationFactor = if ($nodeCount -eq 1) { 1 } else { 2 }
-Write-Host "  ℹ $nodeCount node(s) detected — Replication Factor set to $ReplicationFactor." -ForegroundColor Cyan
+$pcBaseUrl   = "https://${PrismCentralIP}:9440"
+$pcUsername  = $PrismCentralUsername
+$pcPassword  = $PrismCentralPassword
+$clusterName = $ClusterName
 
 # SSL bypass for self-signed certs
 [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
