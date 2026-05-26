@@ -1,8 +1,8 @@
 {
-  "_comment": "Nutanix ZTI Deployment Configuration",
+  "_comment": "Nutanix Zero Touch Deployment Configuration",
   "_note": "IPMI netmask and gateway are auto-detected from Foundation Central. You can override by specifying them here.",
   "_output_level_options": "minimal (only headers), normal (headers + important messages), verbose (all details)",
-  "clusterName": "SITE-1P-CLUSTER-01",
+  "clusterName": "SITE-CLUSTER-01",
   "hypervisor": "AHV",
   "storage_container_name": "Workload-Container",
   "timezone": "Europe/Copenhagen",
@@ -52,7 +52,7 @@
 
   "witness": {
     "ip": "10.10.10.5",
-    "name": "SITE-1P-CLUSTER-01-Witness",
+    "name": "SITE-CLUSTER-01-Witness",
     "username": "admin",
     "password": "CHANGE_ME"
   },
