@@ -148,48 +148,106 @@ function Get-PrismCentralCluster {
     $pcEntry = $Clusters | Where-Object { $_.status.resources.config.service_list -contains "PRISM_CENTRAL" }
     if (-not $pcEntry) {
         Write-LogMessage "Could not find PC entry in clusters list" -Level Error
+        Write-LogMessage "Could not determine which cluster hosts Prism Central" -Level Error
         return $null
     }
 
     $pcVMName = $pcEntry.spec.name
-    Write-LogMessage "PC VM name: $pcVMName" -Level Info
+    Write-LogMessage "PC VM name from cluster list: $pcVMName" -Level Info
 
-    $searchBody = @{ kind = "vm"; filter = "vm_name==$pcVMName"; length = 10 }
-    try {
-        $vmSearch = Invoke-PrismAPI -Method POST -Endpoint "vms/list" -Body $searchBody
-        if ($vmSearch.entities.Count -eq 0) {
-            Write-LogMessage "VM search for '$pcVMName' returned no results" -Level Error
-            return $null
-        }
-
-        $pcVM       = $vmSearch.entities[0]
-        $pcVMDetail = Invoke-PrismAPI -Method GET -Endpoint "vms/$($pcVM.metadata.uuid)"
-
+    # Helper: follow a VM's cluster_reference back to the real cluster entity
+    function Resolve-ClusterFromVM {
+        param([object]$pcVM)
+        Write-LogMessage "  Resolving cluster for VM: $($pcVM.spec.name) (UUID: $($pcVM.metadata.uuid))" -Level Info
+        $detail = Invoke-PrismAPI -Method GET -Endpoint "vms/$($pcVM.metadata.uuid)"
         $hostClusterUUID = $null
-        if ($pcVMDetail.spec.cluster_reference)   { $hostClusterUUID = $pcVMDetail.spec.cluster_reference.uuid }
-        elseif ($pcVMDetail.status.cluster_reference) { $hostClusterUUID = $pcVMDetail.status.cluster_reference.uuid }
+        if ($detail.spec.cluster_reference)        { $hostClusterUUID = $detail.spec.cluster_reference.uuid }
+        elseif ($detail.status.cluster_reference)  { $hostClusterUUID = $detail.status.cluster_reference.uuid }
 
         if (-not $hostClusterUUID) {
-            Write-LogMessage "Could not extract cluster reference from PC VM" -Level Error
+            Write-LogMessage "  Could not extract cluster_reference from VM" -Level Warning
             return $null
         }
-
         $hostCluster = $Clusters | Where-Object {
             $_.metadata.uuid -eq $hostClusterUUID -and
             $_.status.resources.config.service_list -notcontains "PRISM_CENTRAL"
         }
-
         if ($hostCluster) {
-            Write-LogMessage "Prism Central runs on cluster: $($hostCluster.spec.name)" -Level Success
+            Write-LogMessage "Prism Central is running on cluster: $($hostCluster.spec.name)" -Level Success
             return $hostCluster
         }
-        Write-LogMessage "Could not match UUID $hostClusterUUID to a real cluster" -Level Error
+        Write-LogMessage "  Cluster UUID $hostClusterUUID not found in cluster list" -Level Warning
         return $null
     }
-    catch {
-        Write-LogMessage "Error locating PC cluster: $($_.Exception.Message)" -Level Error
-        return $null
+
+    # ── Primary: subnet match on NTNX-*-PCVM-* VMs ───────────────────────────
+    # PC VIP and PC VM IPs share the same /24 subnet. VM names follow:
+    # NTNX-<vm-ip-dashes>-PCVM-<suffix>  e.g. NTNX-10-0-66-26-PCVM-1778...
+    # Match on the first 3 octets so .26/.27/.28 are all found when VIP is .25
+    try {
+        $pcIp    = $PrismCentralIP
+        $subnet3 = ($pcIp -split '\.')[0..2] -join '-'   # e.g. "10-0-66"
+
+        Write-LogMessage "Searching for PCVM VMs in subnet '$subnet3.*'..." -Level Info
+
+        $body     = @{ kind = "vm"; length = 500 }
+        $allPCVMs = Invoke-PrismAPI -Method POST -Endpoint "vms/list" -Body $body
+
+        Write-LogMessage "  Found $($allPCVMs.entities.Count) total VM(s), filtering for PCVM in subnet '$subnet3'..." -Level Info
+
+        $subnetMatches = $allPCVMs.entities | Where-Object { $_.spec.name -match "PCVM" -and $_.spec.name -match [regex]::Escape($subnet3) }
+
+        if ($subnetMatches) {
+            Write-LogMessage "  $($subnetMatches.Count) VM(s) match subnet '$subnet3'" -Level Info
+            foreach ($vm in $subnetMatches) {
+                $result = Resolve-ClusterFromVM -pcVM $vm
+                if ($result) { return $result }
+            }
+        } else {
+            Write-LogMessage "  No PCVM VMs matched subnet '$subnet3'" -Level Warning
+        }
+    } catch {
+        Write-LogMessage "Subnet-based PCVM search failed: $($_.Exception.Message)" -Level Warning
     }
+
+    # ── Fallback: exact VM name match ─────────────────────────────────────────
+    try {
+        Write-LogMessage "Falling back to exact name search for '$pcVMName'..." -Level Info
+        $body             = @{ kind = "vm"; filter = "vm_name==$pcVMName"; length = 10 }
+        $vmSearchResponse = Invoke-PrismAPI -Method POST -Endpoint "vms/list" -Body $body
+        if ($vmSearchResponse.entities.Count -gt 0) {
+            $result = Resolve-ClusterFromVM -pcVM $vmSearchResponse.entities[0]
+            if ($result) { return $result }
+        } else {
+            Write-LogMessage "  Exact name search returned no results" -Level Warning
+        }
+    } catch {
+        Write-LogMessage "Exact name search failed: $($_.Exception.Message)" -Level Warning
+    }
+
+    # ── Last resort: description tag 'NutanixPrismCentral' ───────────────────
+    try {
+        Write-LogMessage "Last resort: searching for VM with description 'NutanixPrismCentral'..." -Level Info
+        $body     = @{ kind = "vm"; length = 500 }
+        $allVMs   = Invoke-PrismAPI -Method POST -Endpoint "vms/list" -Body $body
+        $pcByDesc = $allVMs.entities | Where-Object {
+            $_.spec.description   -match "NutanixPrismCentral" -or
+            $_.status.description -match "NutanixPrismCentral"
+        } | Select-Object -First 1
+
+        if ($pcByDesc) {
+            Write-LogMessage "Found PC VM by description: $($pcByDesc.spec.name)" -Level Info
+            $result = Resolve-ClusterFromVM -pcVM $pcByDesc
+            if ($result) { return $result }
+        } else {
+            Write-LogMessage "  No VM found with description 'NutanixPrismCentral'" -Level Warning
+        }
+    } catch {
+        Write-LogMessage "Description-based VM search failed: $($_.Exception.Message)" -Level Warning
+    }
+
+    Write-LogMessage "Could not determine which cluster hosts Prism Central" -Level Error
+    return $null
 }
 
 function Get-AvailabilityZones {
