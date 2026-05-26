@@ -615,7 +615,7 @@ async function sendWelcomeEmail(user) {
                                                 Best regards,
                                             </p>
                                             <p style="color: #024da1; font-size: 15px; line-height: 1.6; margin: 0; font-weight: 600;">
-                                                DCES Core Service Team
+                                                Nutanix ZTI Automation Team
                                             </p>
                                             
                                             <hr style="border: none; border-top: 1px solid #e1e4e8; margin: 25px 0 15px 0;">

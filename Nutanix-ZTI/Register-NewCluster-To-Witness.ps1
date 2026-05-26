@@ -271,7 +271,7 @@ try {
     Write-Host "  4. Check: Home > Data Resiliency Status" -ForegroundColor White
     Write-Host ""
     Write-Host "Manual Verification via SSH:" -ForegroundColor Yellow
-    Write-Host "  ssh nutanix@10.0.113.114" -ForegroundColor Cyan
+    Write-Host "  ssh nutanix@<CVM_IP>   # Use any CVM IP from your cluster config" -ForegroundColor Cyan
     Write-Host "  ncli cluster info | grep -i external" -ForegroundColor Cyan
     Write-Host ""
     

@@ -404,7 +404,7 @@ function Initialize-PrismConnection {
 function Get-IPAddresses {
     [CmdletBinding()]
     param(
-        # Full gateway IP, e.g. "10.0.113.1"
+        # Full gateway IP, e.g. "10.10.10.1"
         [Parameter(Mandatory = $true)]
         [string]$Gateway,
         # CIDR prefix length, e.g. 24

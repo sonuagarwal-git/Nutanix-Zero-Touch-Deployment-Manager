@@ -18,9 +18,9 @@
     - NodeName_AHV_Root: Individual AHV root per host (Notes: Individual AHV host IP)
     
     Notes Column Content:
-    - Prism_Admin: Prism_Element_Cluster_VIP:10.0.113.110
-    - CVM_Nutanix: CVM_IPs:10.0.113.112,10.0.113.114
-    - AHV_Root: AHV_Host_IP:10.0.113.111
+    - Prism_Admin: Prism_Element_Cluster_VIP:10.10.10.110
+    - CVM_Nutanix: CVM_IPs:10.10.10.112,10.10.10.114
+    - AHV_Root: AHV_Host_IP:10.10.10.111
     
 .EXAMPLE
     .\Change-Prism-CVM-AHV-Password-ToCSV.ps1 -ConfigFile .\Configs\my-cluster.json

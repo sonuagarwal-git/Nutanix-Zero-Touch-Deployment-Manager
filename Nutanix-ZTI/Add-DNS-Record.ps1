@@ -245,7 +245,7 @@ function New-DNSARecord {
     if ($create.Success) {
         Write-Result -Type 'A  ' -Query $displayQuery -DnsServer $DnsServer -Result 'Created (A)' -Success $true
         # PTR: use class A reverse zone (e.g. 10.in-addr.arpa), name = last-three-octets reversed
-        # e.g. 10.0.113.144 -> zone=10.in-addr.arpa, name=144.113.0 -> FQDN=144.113.0.10.in-addr.arpa
+        # e.g. 10.10.10.144 -> zone=10.in-addr.arpa, name=144.10.10 -> FQDN=144.10.10.10.in-addr.arpa
         $octets  = $IPAddress -split '\.'
         $revZone = "$($octets[0]).in-addr.arpa"
         $ptrName = "$($octets[3]).$($octets[2]).$($octets[1])"
