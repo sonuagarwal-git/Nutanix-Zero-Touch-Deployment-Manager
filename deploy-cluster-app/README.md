@@ -423,7 +423,7 @@ Installed automatically by `npm install`:
 | `express-session` | ^1.19 | Session management (cookie-based auth) |
 | `bcryptjs` | ^3.0 | Password hashing for local user accounts |
 | `ws` | ^8.19 | WebSocket server — real-time pipeline log streaming |
-| `ldapjs` | ^3.0 | LDAP/AD authentication and user search |
+| `ldapts` | ^3.2 | LDAP/AD authentication and user search (async/await, replaces ldapjs) |
 | `nodemailer` | ^8.0 | Email notifications (welcome emails, deployment alerts) |
 | `node-windows` | ^1.0 | Windows service install/uninstall helper |
 | `dotenv` | ^17.3 | Optional `.env` file support for environment overrides |
@@ -671,6 +671,7 @@ WebSocket endpoint: `wss://<host>:3443` — streams `log`, `step_update`, `deplo
 - Passwords are stored as **bcrypt** hashes (cost factor 10).
 - AD bind passwords are **never returned to the browser** (masked as `********`).
 - LDAP connections use `rejectUnauthorized: false` to accommodate internal CAs — consider enabling strict validation in production.
+- All LDAP search filters are sanitised using OWASP-compliant escaping before use, preventing LDAP injection attacks.
 - The self-signed certificate is valid for 5 years; replace with a CA-signed certificate for production use.
 - A daily cleanup job automatically removes deployment records and audit logs older than 30 days.
 

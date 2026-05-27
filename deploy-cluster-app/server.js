@@ -9,7 +9,7 @@ const WebSocket = require('ws');
 const https = require('https');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
-const ldap = require('ldapjs');
+const { Client: LdapClient } = require('ldapts');
 const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3443;
@@ -217,186 +217,109 @@ function saveIdpConfig(config) {
     }
 }
 
+// LDAP filter value escaper — prevents LDAP injection (OWASP)
+function escapeLdapFilter(value) {
+    return String(value)
+        .replace(/\\/g, '\\5c')
+        .replace(/\*/g,  '\\2a')
+        .replace(/\(/g,  '\\28')
+        .replace(/\)/g,  '\\29')
+        .replace(/\0/g,  '\\00');
+}
+
 // LDAP/AD helper: authenticate a user against AD
-function authenticateWithAD(username, password) {
-    return new Promise((resolve, reject) => {
-        const config = loadIdpConfig();
-        if (!config.enabled) {
-            return reject(new Error('Identity Provider not enabled'));
-        }
+async function authenticateWithAD(username, password) {
+    const config = loadIdpConfig();
+    if (!config.enabled) throw new Error('Identity Provider not enabled');
 
-        const useSsl = config.useSsl || config.port === 636;
-        const protocol = useSsl ? 'ldaps' : 'ldap';
-        const url = `${protocol}://${config.server}:${config.port}`;
-
-        const client = ldap.createClient({
-            url: url,
-            tlsOptions: { rejectUnauthorized: false },
-            connectTimeout: 10000
-        });
-
-        client.on('error', (err) => {
-            console.error('LDAP client error:', err);
-            reject(new Error('Failed to connect to AD server'));
-        });
-
-        // First bind with service account to find the user
-        client.bind(config.bindDN, config.bindPassword, (err) => {
-            if (err) {
-                client.unbind();
-                return reject(new Error('Failed to bind to AD server'));
-            }
-
-            // Search for the user
-            const searchFilter = config.userSearchFilter.replace('{{username}}', username);
-            const displayNameAttr = config.displayNameAttr || 'displayName';
-            const emailAttr = config.emailAttr || 'mail';
-            const opts = {
-                filter: searchFilter,
-                scope: 'sub',
-                attributes: ['dn', 'sAMAccountName', displayNameAttr, emailAttr]
-            };
-
-            client.search(config.baseDN, opts, (err, res) => {
-                if (err) {
-                    try { client.unbind(); } catch(e) {}
-                    return reject(new Error('LDAP search failed'));
-                }
-
-                let userDN = null;
-                let userData = null;
-
-                res.on('searchEntry', (entry) => {
-                    userDN = entry.pojo ? entry.pojo.objectName : (entry.objectName || entry.dn);
-                    const attrs = {};
-                    if (entry.attributes) {
-                        entry.attributes.forEach(attr => {
-                            attrs[attr.type] = attr.values && attr.values.length === 1 ? attr.values[0] : (attr.values || []);
-                        });
-                    }
-                    userData = attrs;
-                });
-
-                res.on('error', (err) => {
-                    try { client.unbind(); } catch(e) {}
-                    reject(new Error('LDAP search error: ' + err.message));
-                });
-
-                res.on('end', (result) => {
-                    if (!userDN) {
-                        try { client.unbind(); } catch(e) {}
-                        return reject(new Error('User not found in AD'));
-                    }
-
-                    // Now bind as the user to verify password
-                    client.bind(userDN.toString(), password, (err) => {
-                        try { client.unbind(); } catch(e) {}
-                        if (err) {
-                            return reject(new Error('Invalid AD password'));
-                        }
-                        resolve({
-                            username: username,
-                            displayName: userData ? (userData[displayNameAttr] || username) : username,
-                            email: userData ? (userData[emailAttr] || '') : '',
-                            source: 'ad'
-                        });
-                    });
-                });
-            });
-        });
+    const useSsl = config.useSsl || config.port === 636;
+    const url    = `${useSsl ? 'ldaps' : 'ldap'}://${config.server}:${config.port}`;
+    const client = new LdapClient({
+        url,
+        tlsOptions: { rejectUnauthorized: false },
+        connectTimeout: 10000,
+        timeout: 30000
     });
+
+    try {
+        await client.bind(config.bindDN, config.bindPassword);
+
+        const displayNameAttr = config.displayNameAttr || 'displayName';
+        const emailAttr       = config.emailAttr       || 'mail';
+        const safeUsername    = escapeLdapFilter(username);
+        const searchFilter    = config.userSearchFilter.replace('{{username}}', safeUsername);
+
+        const { searchEntries } = await client.search(config.baseDN, {
+            filter:     searchFilter,
+            scope:      'sub',
+            attributes: ['dn', 'sAMAccountName', displayNameAttr, emailAttr]
+        });
+
+        if (!searchEntries || searchEntries.length === 0) throw new Error('User not found in AD');
+
+        const entry  = searchEntries[0];
+        const userDN = entry.dn;
+
+        // Re-bind as the user to verify password
+        await client.bind(userDN, password);
+
+        return {
+            username,
+            displayName: entry[displayNameAttr] || username,
+            email:       entry[emailAttr]       || '',
+            source:      'ad'
+        };
+    } catch (err) {
+        if (err.code === 49) throw new Error('Invalid AD password');
+        throw err;
+    } finally {
+        try { await client.unbind(); } catch (_) {}
+    }
 }
 
 // LDAP/AD helper: search users in AD
-function searchADUsers(searchTerm) {
-    return new Promise((resolve, reject) => {
-        const config = loadIdpConfig();
-        if (!config.enabled) {
-            return reject(new Error('Identity Provider not enabled'));
-        }
+async function searchADUsers(searchTerm) {
+    const config = loadIdpConfig();
+    if (!config.enabled) throw new Error('Identity Provider not enabled');
 
-        const useSsl = config.useSsl || config.port === 636;
-        const protocol = useSsl ? 'ldaps' : 'ldap';
-        const url = `${protocol}://${config.server}:${config.port}`;
-
-        const client = ldap.createClient({
-            url: url,
-            tlsOptions: { rejectUnauthorized: false },
-            connectTimeout: 10000
-        });
-
-        client.on('error', (err) => {
-            console.error('LDAP client error:', err);
-            reject(new Error('Failed to connect to AD server'));
-        });
-
-        client.bind(config.bindDN, config.bindPassword, (err) => {
-            if (err) {
-                try { client.unbind(); } catch(e) {}
-                return reject(new Error('Failed to bind to AD server: ' + err.message));
-            }
-
-            // Strip domain prefix (e.g. "DOMAIN\username" -> "username")
-            let cleanTerm = searchTerm;
-            if (cleanTerm.includes('\\')) {
-                cleanTerm = cleanTerm.split('\\').pop();
-            }
-            if (cleanTerm.includes('/')) {
-                cleanTerm = cleanTerm.split('/').pop();
-            }
-
-            // Use exact prefix match on sAMAccountName for speed, wildcard on displayName
-            const searchFilter = `(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(|(sAMAccountName=${cleanTerm})(sAMAccountName=${cleanTerm}*)(displayName=*${cleanTerm}*)(mail=${cleanTerm}*)))`;
-            const displayNameAttr = config.displayNameAttr || 'displayName';
-            const emailAttr = config.emailAttr || 'mail';
-            const opts = {
-                filter: searchFilter,
-                scope: 'sub',
-                attributes: ['sAMAccountName', displayNameAttr, emailAttr],
-                sizeLimit: 20,
-                timeLimit: 30
-            };
-
-            client.search(config.baseDN, opts, (err, res) => {
-                if (err) {
-                    try { client.unbind(); } catch(e) {}
-                    return reject(new Error('LDAP search failed: ' + err.message));
-                }
-
-                const users = [];
-
-                res.on('searchEntry', (entry) => {
-                    const attrs = {};
-                    if (entry.attributes) {
-                        entry.attributes.forEach(attr => {
-                            attrs[attr.type] = attr.values && attr.values.length === 1 ? attr.values[0] : (attr.values || []);
-                        });
-                    }
-                    users.push({
-                        username: attrs.sAMAccountName || '',
-                        displayName: attrs[displayNameAttr] || attrs.sAMAccountName || '',
-                        email: attrs[emailAttr] || ''
-                    });
-                });
-
-                res.on('error', (err) => {
-                    try { client.unbind(); } catch(e) {}
-                    // If we got partial results before the error (e.g. time/size limit), return them
-                    if (users.length > 0) {
-                        console.log(`LDAP search returned ${users.length} partial results before error: ${err.message}`);
-                        resolve(users);
-                    } else {
-                        reject(new Error('LDAP search error: ' + err.message));
-                    }
-                });
-
-                res.on('end', () => {
-                    try { client.unbind(); } catch(e) {}
-                    resolve(users);
-                });
-            });
-        });
+    const useSsl = config.useSsl || config.port === 636;
+    const url    = `${useSsl ? 'ldaps' : 'ldap'}://${config.server}:${config.port}`;
+    const client = new LdapClient({
+        url,
+        tlsOptions: { rejectUnauthorized: false },
+        connectTimeout: 10000,
+        timeout: 30000
     });
+
+    try {
+        await client.bind(config.bindDN, config.bindPassword);
+
+        // Strip domain prefix (e.g. "DOMAIN\username" -> "username")
+        let cleanTerm = searchTerm;
+        if (cleanTerm.includes('\\')) cleanTerm = cleanTerm.split('\\').pop();
+        if (cleanTerm.includes('/'))  cleanTerm = cleanTerm.split('/').pop();
+
+        const safeTerm        = escapeLdapFilter(cleanTerm);
+        const displayNameAttr = config.displayNameAttr || 'displayName';
+        const emailAttr       = config.emailAttr       || 'mail';
+        const searchFilter    = `(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(|(sAMAccountName=${safeTerm})(sAMAccountName=${safeTerm}*)(displayName=*${safeTerm}*)(mail=${safeTerm}*)))`;
+
+        const { searchEntries } = await client.search(config.baseDN, {
+            filter:     searchFilter,
+            scope:      'sub',
+            attributes: ['sAMAccountName', displayNameAttr, emailAttr],
+            sizeLimit:  20,
+            timeLimit:  30
+        });
+
+        return (searchEntries || []).map(entry => ({
+            username:    String(entry.sAMAccountName || ''),
+            displayName: String(entry[displayNameAttr] || entry.sAMAccountName || ''),
+            email:       String(entry[emailAttr] || '')
+        }));
+    } finally {
+        try { await client.unbind(); } catch (_) {}
+    }
 }
 
 // Helper functions for deployment tracking
@@ -1013,72 +936,39 @@ app.post('/api/idp/config', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Test IdP connection (admin only)
-app.post('/api/idp/test', requireAuth, requireAdmin, (req, res) => {
-    const config = req.body;
-    const existingConfig = loadIdpConfig();
-    let responded = false;
-    
-    function sendResponse(status, body) {
-        if (!responded) {
-            responded = true;
-            res.status(status).json(body);
+app.post('/api/idp/test', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const config = req.body;
+        const existingConfig = loadIdpConfig();
+
+        if (config.bindPassword === '********') {
+            config.bindPassword = existingConfig.bindPassword;
         }
-    }
-    
-    // If password is masked, use existing
-    if (config.bindPassword === '********') {
-        config.bindPassword = existingConfig.bindPassword;
-    }
-    
-    // Auto-detect SSL for port 636
-    const useSsl = config.useSsl || config.port === 636;
-    const protocol = useSsl ? 'ldaps' : 'ldap';
-    const url = `${protocol}://${config.server}:${config.port}`;
 
-    console.log('Testing LDAP connection to:', url, 'with bindDN:', config.bindDN);
+        const useSsl = config.useSsl || config.port === 636;
+        const url    = `${useSsl ? 'ldaps' : 'ldap'}://${config.server}:${config.port}`;
 
-    const client = ldap.createClient({
-        url: url,
-        tlsOptions: { rejectUnauthorized: false },
-        connectTimeout: 10000
-    });
+        console.log('Testing LDAP connection to:', url, 'with bindDN:', config.bindDN);
 
-    client.on('error', (err) => {
-        console.error('LDAP test connection error:', err.message);
-        sendResponse(500, { error: 'Connection failed: ' + err.message });
-    });
-
-    client.on('connectError', (err) => {
-        console.error('LDAP test connectError:', err.message);
-        sendResponse(500, { error: 'Connection failed: ' + err.message });
-    });
-
-    client.bind(config.bindDN, config.bindPassword, (err) => {
-        if (err) {
-            console.error('LDAP test bind error:', err.message);
-            try { client.unbind(); } catch(e) {}
-            return sendResponse(400, { error: 'Bind failed: ' + err.message });
-        }
-        
-        // Try a basic search to verify baseDN
-        client.search(config.baseDN, { scope: 'base', filter: '(objectClass=*)' }, (err, searchRes) => {
-            if (err) {
-                try { client.unbind(); } catch(e) {}
-                return sendResponse(400, { error: 'Base DN search failed: ' + err.message });
-            }
-            
-            searchRes.on('end', () => {
-                try { client.unbind(); } catch(e) {}
-                saveAuditLog('idp_test_connection', { success: true, server: config.server }, req.session.user.username);
-                sendResponse(200, { success: true, message: 'Connection successful! AD server is reachable.' });
-            });
-            
-            searchRes.on('error', (err) => {
-                try { client.unbind(); } catch(e) {}
-                sendResponse(400, { error: 'Search error: ' + err.message });
-            });
+        const client = new LdapClient({
+            url,
+            tlsOptions: { rejectUnauthorized: false },
+            connectTimeout: 10000,
+            timeout: 10000
         });
-    });
+
+        try {
+            await client.bind(config.bindDN, config.bindPassword);
+            await client.search(config.baseDN, { scope: 'base', filter: '(objectClass=*)' });
+            saveAuditLog('idp_test_connection', { success: true, server: config.server }, req.session.user.username);
+            res.json({ success: true, message: 'Connection successful! AD server is reachable.' });
+        } finally {
+            try { await client.unbind(); } catch (_) {}
+        }
+    } catch (error) {
+        console.error('LDAP test error:', error.message);
+        res.status(500).json({ error: 'Connection failed: ' + error.message });
+    }
 });
 
 // Search AD users (admin only)

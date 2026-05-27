@@ -62,6 +62,16 @@ if (-not $pwshCmd) {
 Write-Step "Step 3 -- Installing npm packages"
 Set-Location $scriptDir
 npm install --prefer-offline
+
+# Auto-patch transitive dependency vulnerabilities where possible (non-breaking only)
+$ErrorActionPreference = 'Continue'
+$auditOutput = npm audit fix 2>&1
+$ErrorActionPreference = 'Stop'
+if ($LASTEXITCODE -eq 0) {
+    Write-OK "Vulnerability patches applied"
+} else {
+    Write-Warn "One or more vulnerabilities could not be auto-patched without breaking changes (run 'npm audit' for details)"
+}
 Write-OK "npm packages installed"
 
 # Reset admin password to default (Changeme) using bcryptjs
