@@ -14,6 +14,20 @@ const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3443;
 
+// Resolve the full path to pwsh.exe at startup.
+// Windows services run with a minimal PATH that often excludes PowerShell 7,
+// so we check the default install locations before falling back to PATH lookup.
+const PWSH_PATH = (() => {
+    const candidates = [
+        'C:\\Program Files\\PowerShell\\7\\pwsh.exe',
+        'C:\\Program Files\\PowerShell\\pwsh.exe',
+    ];
+    for (const p of candidates) {
+        try { fs.accessSync(p); return p; } catch (_) {}
+    }
+    return 'pwsh.exe'; // fallback — works when Node.js is run interactively
+})();
+
 // Path to users file
 const usersFilePath          = path.join(__dirname, 'users.json');
 const deploymentsFilePath     = path.join(__dirname, 'deployments.json');
@@ -1373,7 +1387,7 @@ app.post('/api/deploy', requireAuth, (req, res) => {
 
         // Start PowerShell deployment process
         // Set TERM + DOTNET outputEncoding so pwsh emits true ANSI colour codes and UTF-8
-        const psProcess = spawn('pwsh.exe', psArgs, {
+        const psProcess = spawn(PWSH_PATH, psArgs, {
             cwd: path.dirname(deployScriptPath),
             env: Object.assign({}, process.env, {
                 TERM: 'xterm-256color',
@@ -1649,7 +1663,7 @@ app.post('/api/terminal/run', requireAuth, (req, res) => {
     }
 
     const initCmd = `$OutputEncoding = [System.Text.UTF8Encoding]::new($false); [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $PSStyle.OutputRendering = 'Ansi'; `;
-    const proc = spawn('pwsh.exe', [
+    const proc = spawn(PWSH_PATH, [
         '-NoProfile',
         '-ExecutionPolicy', 'Bypass',
         '-Command', initCmd + command

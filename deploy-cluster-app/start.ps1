@@ -48,8 +48,11 @@ Write-OK "Node.js $((node --version))"
 Write-Step "Step 2 -- Checking PowerShell 7"
 $pwshCmd = Get-Command pwsh -ErrorAction SilentlyContinue
 if (-not $pwshCmd) {
-    Write-Host "    PowerShell 7 not found. Installing via winget..." -ForegroundColor Yellow
-    winget install Microsoft.PowerShell --accept-source-agreements --accept-package-agreements
+    Write-Host "    PowerShell 7 not found. Installing via MSI (machine-wide)..." -ForegroundColor Yellow
+    # winget installs PS7 as a per-user MSIX alias (WindowsApps) which the Windows
+    # service (SYSTEM account) cannot spawn. The MSI installer puts pwsh.exe at
+    # C:\Program Files\PowerShell\7\ which is accessible to all accounts.
+    iex "& { $(irm https://aka.ms/install-powershell.ps1) } -UseMSI -Quiet"
     # Reload PATH so pwsh is available in this session
     $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' +
                 [System.Environment]::GetEnvironmentVariable('PATH', 'User')

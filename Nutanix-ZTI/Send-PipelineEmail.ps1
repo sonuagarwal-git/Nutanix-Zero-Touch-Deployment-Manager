@@ -295,6 +295,9 @@ $stepRowsHtml        </tbody>
     <!-- Footer -->
     <div style="padding:12px 24px 20px;border-top:1px solid #eee;">
       $logFooter
+      <p style="margin:12px 0 4px;">Best regards,<br>
+        <strong>Nutanix ZTI Automation Team</strong>
+      </p>
       <p style="font-size:11px;color:#aaa;margin-top:12px;">
         Sent automatically by Nutanix ZTI
       </p>

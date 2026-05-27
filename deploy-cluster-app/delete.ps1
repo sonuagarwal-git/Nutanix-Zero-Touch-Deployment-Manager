@@ -84,7 +84,10 @@ if ($nodeCheck) {
 Write-Step "Step 5 -- Uninstalling PowerShell 7"
 $pwshCheck = Get-Command pwsh -ErrorAction SilentlyContinue
 if ($pwshCheck) {
-    winget uninstall Microsoft.PowerShell --accept-source-agreements
+    # --all-versions handles the case where both an MSI (machine-wide) and an
+    # MSIX/winget (per-user) install exist simultaneously — winget errors if it
+    # finds multiple versions without an explicit selector.
+    winget uninstall Microsoft.PowerShell --all-versions --accept-source-agreements
     Write-OK "PowerShell 7 uninstalled"
 } else {
     Write-Skip "PowerShell 7 not installed"
