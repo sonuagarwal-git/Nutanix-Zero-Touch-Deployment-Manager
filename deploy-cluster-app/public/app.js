@@ -13,7 +13,122 @@ document.addEventListener('DOMContentLoaded', () => {
             if (target) target.classList.add('active');
         });
     });
+    initBackupPolicyToggles();
+    initProtectionPolicyToggle();
+    initRecoveryPlanToggle();
+    initStorageCompressionToggle();
 });
+
+/* ── Storage container: show/hide compression delay field ─── */
+function initStorageCompressionToggle() {
+    const sel   = document.getElementById('storageCompression');
+    const group = document.getElementById('storageCompressionDelayGroup');
+    if (!sel || !group) return;
+    const update = () => { group.style.display = sel.value === 'post_process' ? '' : 'none'; };
+    sel.addEventListener('change', update);
+    update();
+}
+
+/* ── Backup policy checkbox toggles ──────────────────────── */
+function initBackupPolicyToggles() {
+    const enabledCb   = document.getElementById('backup-enabled');
+    const configPanel = document.getElementById('backup-config-panel');
+    if (enabledCb && configPanel) {
+        enabledCb.addEventListener('change', () => {
+            configPanel.style.display = enabledCb.checked ? '' : 'none';
+        });
+    }
+    document.querySelectorAll('.backup-policy-toggle').forEach(cb => {
+        cb.addEventListener('change', () => {
+            const panel = document.getElementById(`backup-panel-${cb.dataset.policy}`);
+            if (panel) panel.style.display = cb.checked ? '' : 'none';
+        });
+    });
+}
+
+/** Show/check panels for whichever policy sub-objects exist in a loaded config */
+function restoreBackupPolicyState(cfg) {
+    const enabledCb   = document.getElementById('backup-enabled');
+    const configPanel = document.getElementById('backup-config-panel');
+    const hasBackup   = !!(cfg && cfg.backup_policy);
+    if (enabledCb)    enabledCb.checked          = hasBackup;
+    if (configPanel)  configPanel.style.display   = hasBackup ? '' : 'none';
+    ['hourly', 'daily', 'weekly', 'monthly'].forEach(type => {
+        const cb    = document.getElementById(`backup-enable-${type}`);
+        const panel = document.getElementById(`backup-panel-${type}`);
+        if (!cb || !panel) return;
+        const hasData = hasBackup && !!(cfg.backup_policy[type]);
+        cb.checked          = hasData;
+        panel.style.display = hasData ? '' : 'none';
+    });
+}
+
+/** Hide all policy panels and uncheck boxes (used on form reset) */
+function resetBackupPolicyState() {
+    const enabledCb   = document.getElementById('backup-enabled');
+    const configPanel = document.getElementById('backup-config-panel');
+    if (enabledCb)   enabledCb.checked         = false;
+    if (configPanel) configPanel.style.display  = 'none';
+    ['hourly', 'daily', 'weekly', 'monthly'].forEach(type => {
+        const cb    = document.getElementById(`backup-enable-${type}`);
+        const panel = document.getElementById(`backup-panel-${type}`);
+        if (cb)    cb.checked          = false;
+        if (panel) panel.style.display = 'none';
+    });
+}
+
+/* ── Protection policy toggle ────────────────────────── */
+function initProtectionPolicyToggle() {
+    const enabledCb   = document.getElementById('protection-enabled');
+    const configPanel = document.getElementById('protection-config-panel');
+    if (enabledCb && configPanel) {
+        enabledCb.addEventListener('change', () => {
+            configPanel.style.display = enabledCb.checked ? '' : 'none';
+        });
+    }
+}
+
+function restoreProtectionPolicyState(cfg) {
+    const enabledCb   = document.getElementById('protection-enabled');
+    const configPanel = document.getElementById('protection-config-panel');
+    const hasProtection = !!(cfg && cfg.protection_policy && cfg.protection_policy.remote_cluster_name);
+    if (enabledCb)   enabledCb.checked         = hasProtection;
+    if (configPanel) configPanel.style.display  = hasProtection ? '' : 'none';
+}
+
+function resetProtectionPolicyState() {
+    const enabledCb   = document.getElementById('protection-enabled');
+    const configPanel = document.getElementById('protection-config-panel');
+    if (enabledCb)   enabledCb.checked         = false;
+    if (configPanel) configPanel.style.display  = 'none';
+}
+
+/* ── Recovery plan toggle ─────────────────────────────────────────────────── */
+function initRecoveryPlanToggle() {
+    const enabledCb   = document.getElementById('recovery-plan-enabled');
+    const configPanel = document.getElementById('recovery-plan-config-panel');
+    if (enabledCb && configPanel) {
+        enabledCb.addEventListener('change', () => {
+            configPanel.style.display = enabledCb.checked ? '' : 'none';
+        });
+    }
+}
+
+function restoreRecoveryPlanState(cfg) {
+    const enabledCb   = document.getElementById('recovery-plan-enabled');
+    const configPanel = document.getElementById('recovery-plan-config-panel');
+    const hasRP = !!(cfg && cfg.recovery_plan && cfg.recovery_plan.target_network &&
+                    cfg.recovery_plan.target_network.subnet_name);
+    if (enabledCb)   enabledCb.checked        = hasRP;
+    if (configPanel) configPanel.style.display = hasRP ? '' : 'none';
+}
+
+function resetRecoveryPlanState() {
+    const enabledCb   = document.getElementById('recovery-plan-enabled');
+    const configPanel = document.getElementById('recovery-plan-config-panel');
+    if (enabledCb)   enabledCb.checked         = false;
+    if (configPanel) configPanel.style.display  = 'none';
+}
 
 let currentFormat    = 'json';
 let ws               = null;
@@ -595,7 +710,7 @@ function validateRequiredSections() {
 
     // 1. Basic Configuration
     chk('clusterName',       'Cluster Name',          'Basic Configuration');
-    chk('storageContainer',  'Storage Container Name', 'Basic Configuration');
+    chk('storageContainerName', 'Container Name', 'Storage Container');
     chk('timezone',          'Timezone',               'Basic Configuration');
 
     // 2. Management Network
@@ -645,13 +760,15 @@ function validateRequiredSections() {
         }
     }
 
-    // 8. Hub Production Network
-    chk('hubSubnetName',   'Subnet Name',   'Hub Production Network');
-    chk('hubVlanId',       'VLAN ID',       'Hub Production Network');
-    chk('hubGateway',      'Gateway',       'Hub Production Network');
-    chk('hubPrefixLength', 'Prefix Length', 'Hub Production Network');
-    chk('hubIpPoolStart',  'IP Pool Start', 'Hub Production Network');
-    chk('hubIpPoolEnd',    'IP Pool End',   'Hub Production Network');
+    // 8. Recovery Plan Target Network — only validated when recovery-plan-enabled is checked
+    const recoveryPlanEnabled = document.getElementById('recovery-plan-enabled');
+    if (recoveryPlanEnabled && recoveryPlanEnabled.checked) {
+        chk('rpSubnetName',   'Subnet Name',   'Recovery Plan — Target Network');
+        chk('rpGateway',      'Gateway',       'Recovery Plan — Target Network');
+        chk('rpPrefixLength', 'Prefix Length', 'Recovery Plan — Target Network');
+        chk('rpIpPoolStart',  'IP Pool Start', 'Recovery Plan — Target Network');
+        chk('rpIpPoolEnd',    'IP Pool End',   'Recovery Plan — Target Network');
+    }
 
     // 9. Prism Central
     chk('pcIp',       'Prism Central IP',      'Prism Central');
@@ -663,6 +780,62 @@ function validateRequiredSections() {
     chk('eulaUsername',    'Full Name',    'EULA Details');
     chk('eulaJobTitle',    'Job Title',    'EULA Details');
     chk('eulaCompanyName', 'Company Name', 'EULA Details');
+
+    // 11. Backup Policies — only validated when the backup-enabled checkbox is checked
+    const backupEnabled = document.getElementById('backup-enabled');
+    if (backupEnabled && backupEnabled.checked) {
+        // Remote cluster name is always required when backup is enabled
+        chk('backupRemoteClusterName', 'Remote Cluster Name', 'Backup Policies');
+
+        // At least one policy must be selected
+        const policyTypes     = ['hourly', 'daily', 'weekly', 'monthly'];
+        const checkedPolicies = policyTypes.filter(t => {
+            const cb = document.getElementById(`backup-enable-${t}`);
+            return cb && cb.checked;
+        });
+        if (checkedPolicies.length === 0) {
+            errors.push('At least one backup policy must be selected (Backup Policies)');
+            const firstCb = document.getElementById('backup-enable-hourly');
+            if (firstCb) {
+                allEls.push(firstCb);
+                if (!firstEl) firstEl = firstCb;
+                const panel = firstCb.closest('.tab-panel');
+                if (panel) tabIds.add(panel.id);
+            }
+        }
+
+        // Per-policy required field IDs (name, rpo, local/remote retention, category key/value)
+        const policyFields = {
+            hourly:  ['backupHourlyName',  'backupHourlyRpo',  'backupHourlyLocal',  'backupHourlyRemote',  'backupHourlyCatKey',  'backupHourlyCat'],
+            daily:   ['backupDailyName',   'backupDailyRpo',   'backupDailyLocal',   'backupDailyRemote',   'backupDailyCatKey',   'backupDailyCat'],
+            weekly:  ['backupWeeklyName',  'backupWeeklyRpo',  'backupWeeklyLocal',  'backupWeeklyRemote',  'backupWeeklyCatKey',  'backupWeeklyCat'],
+            monthly: ['backupMonthlyName', 'backupMonthlyRpo', 'backupMonthlyLocal', 'backupMonthlyRemote', 'backupMonthlyCatKey', 'backupMonthlyCat'],
+        };
+        const policyFieldLabels = {
+            hourly:  ['Policy Name', 'RPO (hours)', 'Local Retention', 'Remote Retention', 'Category Key', 'Category Value'],
+            daily:   ['Policy Name', 'RPO (hours)', 'Local Retention', 'Remote Retention', 'Category Key', 'Category Value'],
+            weekly:  ['Policy Name', 'RPO (days)',  'Local Retention', 'Remote Retention', 'Category Key', 'Category Value'],
+            monthly: ['Policy Name', 'RPO (days)',  'Local Retention', 'Remote Retention', 'Category Key', 'Category Value'],
+        };
+        checkedPolicies.forEach(type => {
+            const cap = type.charAt(0).toUpperCase() + type.slice(1);
+            policyFields[type].forEach((fieldId, i) => {
+                chk(fieldId, `${cap} — ${policyFieldLabels[type][i]}`, 'Backup Policies');
+            });
+        });
+    }
+
+    // 12. Protection Policy — only validated when protection-enabled checkbox is checked
+    const protectionEnabled = document.getElementById('protection-enabled');
+    if (protectionEnabled && protectionEnabled.checked) {
+        chk('protectionRemoteClusterName', 'Remote Cluster Name', 'Protection Policy');
+        chk('protectionPolicyName',        'Policy Name',         'Protection Policy');
+        chk('protectionRpo',               'RPO (hours)',         'Protection Policy');
+        chk('protectionLocalRetention',    'Local Retention',     'Protection Policy');
+        chk('protectionRemoteRetention',   'Remote Retention',    'Protection Policy');
+        chk('protectionCategoryKey',       'Category Key',        'Protection Policy');
+        chk('protectionCategoryValue',     'Category Value',      'Protection Policy');
+    }
 
     return { errors, firstEl, allEls, tabIds };
 }
@@ -993,6 +1166,9 @@ document.getElementById('loadConfigBtn').addEventListener('click', async () => {
         const config = await res.json();
         if (res.ok) {
             populateForm(config);
+            restoreBackupPolicyState(config);
+            restoreProtectionPolicyState(config);
+            restoreRecoveryPlanState(config);
             loadedConfigFile = filename;  // remember for deployment (no date-stamp)
             // Pre-select in the resume panel too
             const resumeSel = document.getElementById('resumeConfigSelect');
@@ -1133,7 +1309,60 @@ function buildConfigObject(formData) {
         }
     });
 
-    return config;
+    // Backup section: omit entirely if not enabled; otherwise drop unchecked policies and remove mode field.
+    const backupEnabledCb = document.getElementById('backup-enabled');
+    if (!backupEnabledCb || !backupEnabledCb.checked) {
+        delete config.backup_policy;
+    } else if (config.backup_policy) {
+        delete config.backup_policy.mode;  // mode removed — always remote replication
+        ['hourly', 'daily', 'weekly', 'monthly'].forEach(type => {
+            const cb = document.getElementById(`backup-enable-${type}`);
+            if (!cb || !cb.checked) delete config.backup_policy[type];
+        });
+    }
+
+    // Protection policy section: omit entirely if not enabled.
+    const protectionEnabledCb = document.getElementById('protection-enabled');
+    if (!protectionEnabledCb || !protectionEnabledCb.checked) {
+        delete config.protection_policy;
+    }
+
+    // Recovery plan section: omit entirely if not enabled.
+    const recoveryPlanEnabledCb = document.getElementById('recovery-plan-enabled');
+    if (!recoveryPlanEnabledCb || !recoveryPlanEnabledCb.checked) {
+        delete config.recovery_plan;
+    }
+
+    // Storage container: checkboxes and the empty-string RF select are skipped by
+    // the FormData loop (unchecked checkboxes are absent; empty values are filtered).
+    // Write them explicitly so the JSON always reflects the current UI state.
+    if (!config.storage_container) config.storage_container = {};
+    const scDedupEl   = document.getElementById('storageDedup');
+    const scRfEl      = document.getElementById('storageRf');
+    if (scDedupEl)  config.storage_container.deduplication             = scDedupEl.checked;
+    if (scRfEl)     config.storage_container.replication_factor        = scRfEl.value;  // '' = node-count default
+
+    // Reorder top-level keys to match template structure:
+    // _comments → clusterName → hypervisor → storage_container → timezone → output_level → rest
+    const KEY_ORDER = [
+        '_comment', '_note', '_output_level_options',
+        'clusterName', 'hypervisor', 'storage_container', 'timezone', 'output_level',
+        'network', 'dns_servers', 'dns_admin', 'ntp_servers', 'witness',
+        'aos_version', 'aos_package_url', 'hypervisor_iso_url', 'phoenix_iso_url',
+        'production_vlans',
+        'backup_policy', 'protection_policy', 'recovery_plan',
+        'prism_central', 'eula', 'cyberark', 'notify'
+    ];
+    const ordered = {};
+    for (const k of KEY_ORDER) {
+        if (k in config) ordered[k] = config[k];
+    }
+    // Append any keys not in the explicit order list (future-proof)
+    for (const k of Object.keys(config)) {
+        if (!(k in ordered)) ordered[k] = config[k];
+    }
+
+    return ordered;
 }
 
 /* =========================================================
@@ -1150,6 +1379,9 @@ document.getElementById('resetBtn').addEventListener('click', () => {
     renderVlanRows(1);
     document.getElementById('nodeCount').value = '2';
     document.getElementById('output').style.display = 'none';
+    resetBackupPolicyState();
+    resetProtectionPolicyState();
+    resetRecoveryPlanState();
 });
 
 document.getElementById('loadBtn').addEventListener('click', () => {
@@ -1258,6 +1490,9 @@ function handleFileLoad(event) {
                 config = parseSimpleYAML(e.target.result);
             }
             populateForm(config);
+            restoreBackupPolicyState(config);
+            restoreProtectionPolicyState(config);
+            restoreRecoveryPlanState(config);
         } catch (err) {
             alert('Error loading file: ' + err.message);
         }

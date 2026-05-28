@@ -132,22 +132,47 @@ param(
 # Load config
 if ($ConfigFile) {
     $config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
-    if (-not $PrismCentralIP)    { $PrismCentralIP    = $config.prism_central.ip }
-    if (-not $Username)          { $Username          = $config.prism_central.username }
-    if (-not $Password)          { $Password          = $config.prism_central.password }
-    if (-not $ClusterName)       { $ClusterName       = $config.clusterName }
+    if (-not $PrismCentralIP) { $PrismCentralIP = $config.prism_central.ip }
+    if (-not $Username)       { $Username       = $config.prism_central.username }
+    if (-not $Password)       { $Password       = $config.prism_central.password }
+    if (-not $ClusterName)    { $ClusterName    = $config.clusterName }
+
+    # ── Early exit if no recovery_plan section ────────────────────────────────
+    if (-not $config.recovery_plan) {
+        Write-Host "  ► No 'recovery_plan' section found in configuration — skipping (Step 12)." -ForegroundColor DarkYellow
+        exit 0
+    }
+
+    # ── Validate required fields ──────────────────────────────────────────────
+    $rpErrors = [System.Collections.Generic.List[string]]::new()
+    $rpCfg    = $config.recovery_plan
+    $tgtNet   = $rpCfg.target_network
+    if (-not $tgtNet)                    { $rpErrors.Add("recovery_plan.target_network section is required") }
+    else {
+        if (-not $tgtNet.subnet_name)    { $rpErrors.Add("recovery_plan.target_network.subnet_name is required") }
+        if (-not $tgtNet.gateway)        { $rpErrors.Add("recovery_plan.target_network.gateway is required") }
+        if (-not $tgtNet.prefix_length)  { $rpErrors.Add("recovery_plan.target_network.prefix_length is required") }
+        if (-not $tgtNet.ip_pool_start)  { $rpErrors.Add("recovery_plan.target_network.ip_pool_start is required") }
+        if (-not $tgtNet.ip_pool_end)    { $rpErrors.Add("recovery_plan.target_network.ip_pool_end is required") }
+    }
+    if ($rpErrors.Count -gt 0) {
+        Write-Host "  ERROR: Recovery plan config validation failed — missing required fields:" -ForegroundColor Red
+        $rpErrors | ForEach-Object { Write-Host "    - $_" -ForegroundColor Red }
+        exit 1
+    }
+
+    # ── Map config values to script variables ─────────────────────────────────
     $srcVlan = $config.production_vlans[0]
-    $hubVlan = $config.hub_production
     if (-not $SourceNetworkName)   { $SourceNetworkName   = $srcVlan.subnet_name }
     if (-not $SourceGateway)       { $SourceGateway       = $srcVlan.gateway }
     if (-not $SourcePrefixLength)  { $SourcePrefixLength  = [int]$srcVlan.prefix_length }
     if (-not $SourceStartIP)       { $SourceStartIP       = $srcVlan.ip_pool_start }
     if (-not $SourceEndIP)         { $SourceEndIP         = $srcVlan.ip_pool_end }
-    if (-not $RecoveryNetworkName) { $RecoveryNetworkName = $hubVlan.subnet_name }
-    if (-not $RecoveryGateway)     { $RecoveryGateway     = $hubVlan.gateway }
-    if (-not $RecoveryPrefixLength){ $RecoveryPrefixLength= [int]$hubVlan.prefix_length }
-    if (-not $RecoveryStartIP)     { $RecoveryStartIP     = $hubVlan.ip_pool_start }
-    if (-not $RecoveryEndIP)       { $RecoveryEndIP       = $hubVlan.ip_pool_end }
+    if (-not $RecoveryNetworkName) { $RecoveryNetworkName = $tgtNet.subnet_name }
+    if (-not $RecoveryGateway)     { $RecoveryGateway     = $tgtNet.gateway }
+    if (-not $RecoveryPrefixLength){ $RecoveryPrefixLength= [int]$tgtNet.prefix_length }
+    if (-not $RecoveryStartIP)     { $RecoveryStartIP     = $tgtNet.ip_pool_start }
+    if (-not $RecoveryEndIP)       { $RecoveryEndIP       = $tgtNet.ip_pool_end }
 } elseif (-not $PrismCentralIP -or -not $Username -or -not $Password -or -not $ClusterName) {
     Write-Host "ERROR: Provide either -ConfigFile or all of: -PrismCentralIP, -Username, -Password, -ClusterName (plus network params)." -ForegroundColor Red
     exit 1
@@ -168,7 +193,7 @@ if (-not $SourceNetworkName) {
     exit 1
 }
 
-# ── Constants ──────────────────────────────────────────────────────────────────
+# ── Constants (category reuses the Failover category created by protection policy) ──
 $CATEGORY_KEY   = "Failover"
 $CATEGORY_VALUE = "Failover"
 

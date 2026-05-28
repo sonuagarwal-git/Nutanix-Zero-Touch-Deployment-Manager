@@ -1887,9 +1887,6 @@ Software:
 Services:
   DNS:               $($Config.dns_servers -join ', ')
   NTP:               $($Config.ntp_servers -join ', ')
-  
-Storage:
-  Container:         $($Config.storage_container_name)
 
 ═══════════════════════════════════════════════════════════════
 "@

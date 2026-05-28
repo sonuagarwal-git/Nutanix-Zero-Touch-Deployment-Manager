@@ -74,6 +74,122 @@ if ($ConfigFile) {
 
 $NewClusterName = $ClusterName
 
+# ── Extract backup settings from config (all values have safe defaults) ───────
+# Helper: return property value if non-empty, else return default
+function Get-BVal { param($obj, $prop, $default)
+    if ($obj -and $null -ne $obj.$prop -and "$($obj.$prop)" -ne '') { return $obj.$prop }
+    return $default
+}
+$backupCfg              = if ($ConfigFile -and $config -and $config.backup_policy) { $config.backup_policy } else { $null }
+
+# If no backup section in config, skip this step gracefully
+if (-not $backupCfg) {
+    Write-Host ""
+    Write-Host "  ► No 'backup' section found in configuration — skipping backup policy creation (Step 10)." -ForegroundColor DarkYellow
+    Write-Host ""
+    exit 0
+}
+
+$script:RemoteClusterName = Get-BVal $backupCfg 'remote_cluster_name' ''       # required for remote replication
+
+$hourlyCfg  = if ($backupCfg -and $backupCfg.hourly)  { $backupCfg.hourly }  else { $null }
+$dailyCfg   = if ($backupCfg -and $backupCfg.daily)   { $backupCfg.daily }   else { $null }
+$weeklyCfg  = if ($backupCfg -and $backupCfg.weekly)  { $backupCfg.weekly }  else { $null }
+$monthlyCfg = if ($backupCfg -and $backupCfg.monthly) { $backupCfg.monthly } else { $null }
+
+# Build PolicyDefs only for policy types present in config (chosen in UI)
+$script:PolicyDefs = [ordered]@{}
+if ($hourlyCfg) {
+    $script:PolicyDefs[(Get-BVal $hourlyCfg 'name' 'Hourly-Backup-Policy')] = @{
+        ScheduleType    = "HOURLY"
+        RPO             = [int](Get-BVal $hourlyCfg 'rpo_hours'        1)   * 3600
+        LocalRetention  = [int](Get-BVal $hourlyCfg 'local_retention'  24)
+        RemoteRetention = [int](Get-BVal $hourlyCfg 'remote_retention' 24)
+        CategoryKey     = Get-BVal $hourlyCfg 'category_key'   'Backup'
+        CategoryValue   = Get-BVal $hourlyCfg 'category_value' 'Hourly-Backup'
+        AppConsistent   = [bool]($hourlyCfg.app_consistent)
+    }
+}
+if ($dailyCfg) {
+    $script:PolicyDefs[(Get-BVal $dailyCfg 'name' 'Daily-Backup-Policy')] = @{
+        ScheduleType    = "DAILY"
+        RPO             = [int](Get-BVal $dailyCfg   'rpo_hours'        24)  * 3600
+        LocalRetention  = [int](Get-BVal $dailyCfg   'local_retention'  7)
+        RemoteRetention = [int](Get-BVal $dailyCfg   'remote_retention' 7)
+        CategoryKey     = Get-BVal $dailyCfg   'category_key'   'Backup'
+        CategoryValue   = Get-BVal $dailyCfg   'category_value' 'Daily-Backup'
+        AppConsistent   = [bool]($dailyCfg.app_consistent)
+    }
+}
+if ($weeklyCfg) {
+    $script:PolicyDefs[(Get-BVal $weeklyCfg 'name' 'Weekly-Backup-Policy')] = @{
+        ScheduleType    = "WEEKLY"
+        RPO             = [int](Get-BVal $weeklyCfg  'rpo_days'         7)   * 86400
+        LocalRetention  = [int](Get-BVal $weeklyCfg  'local_retention'  4)
+        RemoteRetention = [int](Get-BVal $weeklyCfg  'remote_retention' 4)
+        CategoryKey     = Get-BVal $weeklyCfg  'category_key'   'Backup'
+        CategoryValue   = Get-BVal $weeklyCfg  'category_value' 'Weekly-Backup'
+        AppConsistent   = [bool]($weeklyCfg.app_consistent)
+    }
+}
+if ($monthlyCfg) {
+    $script:PolicyDefs[(Get-BVal $monthlyCfg 'name' 'Monthly-Backup-Policy')] = @{
+        ScheduleType    = "MONTHLY"
+        RPO             = [int](Get-BVal $monthlyCfg 'rpo_days'         30)  * 86400
+        LocalRetention  = [int](Get-BVal $monthlyCfg 'local_retention'  1)
+        RemoteRetention = [int](Get-BVal $monthlyCfg 'remote_retention' 6)
+        CategoryKey     = Get-BVal $monthlyCfg 'category_key'   'Backup'
+        CategoryValue   = Get-BVal $monthlyCfg 'category_value' 'Monthly-Backup'
+        AppConsistent   = [bool]($monthlyCfg.app_consistent)
+    }
+}
+
+if ($script:PolicyDefs.Count -eq 0) {
+    Write-Host ""
+    Write-Host "  ► No policies selected in 'backup' config — skipping backup policy creation (Step 10)." -ForegroundColor DarkYellow
+    Write-Host ""
+    exit 0
+}
+
+# --- Validate all required fields are present in config ---
+$configErrors = [System.Collections.Generic.List[string]]::new()
+
+if (-not $script:RemoteClusterName) {
+    $configErrors.Add("backup.remote_cluster_name is required but not set")
+}
+
+$policyRawMap = @{
+    hourly  = @{ cfg = $hourlyCfg;  rpoField = 'rpo_hours' }
+    daily   = @{ cfg = $dailyCfg;   rpoField = 'rpo_hours' }
+    weekly  = @{ cfg = $weeklyCfg;  rpoField = 'rpo_days'  }
+    monthly = @{ cfg = $monthlyCfg; rpoField = 'rpo_days'  }
+}
+foreach ($type in $policyRawMap.Keys) {
+    $raw = $policyRawMap[$type]
+    if (-not $raw.cfg) { continue }  # policy not selected — skip
+    $cfg  = $raw.cfg
+    $rpo  = $raw.rpoField
+    $pre  = "backup.$type"
+
+    if (-not ($cfg.name))             { $configErrors.Add("$pre.name is required") }
+    if (-not ($cfg.$rpo))             { $configErrors.Add("$pre.$rpo is required") }
+    if (-not ($cfg.local_retention))  { $configErrors.Add("$pre.local_retention is required") }
+    if (-not ($cfg.remote_retention)) { $configErrors.Add("$pre.remote_retention is required") }
+    if (-not ($cfg.category_key))     { $configErrors.Add("$pre.category_key is required") }
+    if (-not ($cfg.category_value))   { $configErrors.Add("$pre.category_value is required") }
+}
+
+if ($configErrors.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  ERROR: Backup config validation failed — missing required fields:" -ForegroundColor Red
+    foreach ($err in $configErrors) {
+        Write-Host "    • $err" -ForegroundColor Red
+    }
+    Write-Host ""
+    exit 1
+}
+# --- End validation ---
+
 if (-not $PrismCentralIP) {
     Write-Host "ERROR: 'prism_central.ip' not found in config file: $ConfigFile" -ForegroundColor Red
     exit 1
@@ -401,145 +517,108 @@ function Get-AvailabilityZoneForCluster {
 function Get-BackupCategoryValues {
     <#
     .SYNOPSIS
-        Checks if the "Backup" category exists in Prism Central and retrieves its values.
+        For each unique CategoryKey across all PolicyDefs, checks if the key and
+        its required values exist in Prism Central.
     .OUTPUTS
-        Hashtable with:
-          - Found      : $true/$false - whether Backup category exists
-          - Values     : array of value strings found under the Backup key
-          - HasDaily   : $true/$false
-          - HasWeekly  : $true/$false
-          - HasMonthly : $true/$false
+        Hashtable: CategoryKey string → @{ Found; Values; MissingValues }
     #>
-    
-    Write-LogMessage "Checking for 'Backup' category in Prism Central..." -Level Info
-    
-    $result = @{
-        Found      = $false
-        Values     = @()
-        HasDaily   = $false
-        HasWeekly  = $false
-        HasMonthly = $false
+
+    # Build map: CategoryKey → [required CategoryValues]
+    $keyToVals = @{}
+    foreach ($policyCfg in $script:PolicyDefs.Values) {
+        $ck  = $policyCfg.CategoryKey
+        $val = $policyCfg.CategoryValue
+        if (-not $keyToVals.ContainsKey($ck)) { $keyToVals[$ck] = @() }
+        if ($keyToVals[$ck] -notcontains $val) { $keyToVals[$ck] += $val }
     }
-    
-    # Step 1: List all category keys to confirm "Backup" exists
+
+    $result = @{}
+
+    # Fetch all category keys once
+    $allCatKeyNames = @()
     try {
-        $keysBody = @{
-            kind   = "category"
-            length = 500
-        }
-        $keysResponse = Invoke-PrismAPI -Method POST -Endpoint "categories/list" -Body $keysBody
-        
-        Write-LogMessage "Found $($keysResponse.entities.Count) category key(s) in Prism Central" -Level Info
-        
-        $backupKey = $keysResponse.entities | Where-Object { $_.name -eq "Backup" }
-        
-        if (-not $backupKey) {
-            Write-LogMessage "  'Backup' category key NOT found in Prism Central" -Level Warning
-            Write-LogMessage "  Available category keys:" -Level Info
-            foreach ($key in $keysResponse.entities) {
-                Write-LogMessage "    - $($key.name)" -Level Info
-            }
-            return $result
-        }
-        
-        Write-LogMessage "  'Backup' category key found" -Level Success
-        $result.Found = $true
+        $resp = Invoke-PrismAPI -Method POST -Endpoint "categories/list" -Body @{ kind = "category"; length = 500 }
+        $allCatKeyNames = @($resp.entities | ForEach-Object { $_.name })
+        Write-LogMessage "Found $($allCatKeyNames.Count) category key(s) in Prism Central" -Level Info
     }
     catch {
         Write-LogMessage "Error listing category keys: $($_.Exception.Message)" -Level Error
+        foreach ($ck in $keyToVals.Keys) {
+            $result[$ck] = @{ Found = $false; Values = @(); MissingValues = @($keyToVals[$ck]) }
+        }
         return $result
     }
-    
-    # Step 2: List all values under the "Backup" category key
-    try {
-        $valuesBody = @{
-            kind   = "category"
-            length = 500
+
+    foreach ($catKey in $keyToVals.Keys) {
+        $requiredVals = @($keyToVals[$catKey])
+        $status = @{ Found = $false; Values = @(); MissingValues = @($requiredVals) }
+
+        if ($allCatKeyNames -contains $catKey) {
+            Write-LogMessage "  '$catKey' category key found" -Level Success
+            $status.Found = $true
+            try {
+                $valResp   = Invoke-PrismAPI -Method POST -Endpoint "categories/$catKey/list" -Body @{ kind = "category"; length = 500 }
+                $foundVals = @($valResp.entities | ForEach-Object { $_.value })
+                $status.Values        = $foundVals
+                $status.MissingValues = @($requiredVals | Where-Object { $foundVals -notcontains $_ })
+                foreach ($v in $requiredVals) {
+                    if ($foundVals -contains $v) { Write-LogMessage "    ✓ $catKey=$v" -Level Success }
+                    else                         { Write-LogMessage "    ✗ $catKey=$v missing" -Level Warning }
+                }
+            }
+            catch {
+                Write-LogMessage "  Error listing values for '$catKey': $($_.Exception.Message)" -Level Error
+            }
         }
-        $valuesResponse = Invoke-PrismAPI -Method POST -Endpoint "categories/Backup/list" -Body $valuesBody
-        
-        $foundValues = @()
-        foreach ($val in $valuesResponse.entities) {
-            $foundValues += $val.value
+        else {
+            Write-LogMessage "  '$catKey' category key NOT found" -Level Warning
+            Write-LogMessage "  Will create it automatically" -Level Info
         }
-        
-        $result.Values = $foundValues
-        
-        Write-LogMessage "  'Backup' category values found: $($foundValues -join ', ')" -Level Info
-        
-        # Check for required values
-        $result.HasDaily   = $foundValues -contains "Daily-Backup"
-        $result.HasWeekly  = $foundValues -contains "Weekly-Backup"
-        $result.HasMonthly = $foundValues -contains "Monthly-Backup"
-        
-        if ($result.HasDaily)   { Write-LogMessage "  ✓ Found value: Daily-Backup"   -Level Success }
-        else                    { Write-LogMessage "  ✗ Missing value: Daily-Backup"   -Level Warning }
-        
-        if ($result.HasWeekly)  { Write-LogMessage "  ✓ Found value: Weekly-Backup"  -Level Success }
-        else                    { Write-LogMessage "  ✗ Missing value: Weekly-Backup"  -Level Warning }
-        
-        if ($result.HasMonthly) { Write-LogMessage "  ✓ Found value: Monthly-Backup" -Level Success }
-        else                    { Write-LogMessage "  ✗ Missing value: Monthly-Backup" -Level Warning }
+
+        $result[$catKey] = $status
     }
-    catch {
-        Write-LogMessage "Error listing values for 'Backup' category: $($_.Exception.Message)" -Level Error
-        # Category key exists but values could not be retrieved - still mark as found
-    }
-    
+
     return $result
 }
 
 function New-BackupCategoryIfMissing {
     <#
     .SYNOPSIS
-        Creates the "Backup" category key and/or any missing required values
-        (Daily-Backup, Weekly-Backup, Monthly-Backup) if they do not already exist.
-    .PARAMETER CategoryStatus
-        The hashtable returned by Get-BackupCategoryValues.
+        Creates any category keys and/or values that are absent in Prism Central.
+    .PARAMETER CategoryStatusMap
+        Hashtable returned by Get-BackupCategoryValues: CategoryKey → @{ Found; MissingValues }
     #>
     param(
-        [hashtable]$CategoryStatus
+        [hashtable]$CategoryStatusMap
     )
 
-    $requiredValues = @(
-        @{ Value = "Daily-Backup";   Has = $CategoryStatus.HasDaily   },
-        @{ Value = "Weekly-Backup";  Has = $CategoryStatus.HasWeekly  },
-        @{ Value = "Monthly-Backup"; Has = $CategoryStatus.HasMonthly }
-    )
+    foreach ($catKey in $CategoryStatusMap.Keys) {
+        $status = $CategoryStatusMap[$catKey]
 
-    # --- Create the Backup key if it does not exist ---
-    if (-not $CategoryStatus.Found) {
-        Write-LogMessage "  Creating 'Backup' category key..." -Level Warning
-        try {
-            $createKeyBody = @{
-                name        = "Backup"
-                description = "Backup schedule category"
-            }
-            # Nutanix v3: PUT /categories/{name} creates or updates a category key
-            Invoke-PrismAPI -Method PUT -Endpoint "categories/Backup" -Body $createKeyBody | Out-Null
-            Write-LogMessage "  ✓ 'Backup' category key created successfully" -Level Success
-        }
-        catch {
-            Write-LogMessage "  Failed to create 'Backup' category key: $($_.Exception.Message)" -Level Error
-            throw
-        }
-    }
-
-    # --- Create each missing value ---
-    foreach ($entry in $requiredValues) {
-        if (-not $entry.Has) {
-            Write-LogMessage "  Creating missing value '$($entry.Value)'..." -Level Warning
+        # Create the key if it does not exist
+        if (-not $status.Found) {
+            Write-LogMessage "  Creating '$catKey' category key..." -Level Warning
             try {
-                # Nutanix v3: PUT /categories/{name}/{value} creates a category value
-                $createValueBody = @{
-                    value       = $entry.Value
-                    description = "$($entry.Value) backup schedule"
-                }
-                Invoke-PrismAPI -Method PUT -Endpoint "categories/Backup/$($entry.Value)" -Body $createValueBody | Out-Null
-                Write-LogMessage "  ✓ Value '$($entry.Value)' created successfully" -Level Success
+                Invoke-PrismAPI -Method PUT -Endpoint "categories/$catKey" `
+                    -Body @{ name = $catKey; description = "$catKey backup schedule category" } | Out-Null
+                Write-LogMessage "  ✓ '$catKey' category key created" -Level Success
             }
             catch {
-                Write-LogMessage "  Failed to create value '$($entry.Value)': $($_.Exception.Message)" -Level Error
+                Write-LogMessage "  Failed to create '$catKey': $($_.Exception.Message)" -Level Error
+                throw
+            }
+        }
+
+        # Create each missing value
+        foreach ($val in $status.MissingValues) {
+            Write-LogMessage "  Creating missing value '$catKey=$val'..." -Level Warning
+            try {
+                Invoke-PrismAPI -Method PUT -Endpoint "categories/$catKey/$val" `
+                    -Body @{ value = $val; description = "$val backup schedule" } | Out-Null
+                Write-LogMessage "  ✓ '$catKey=$val' created" -Level Success
+            }
+            catch {
+                Write-LogMessage "  Failed to create '$catKey=$val': $($_.Exception.Message)" -Level Error
                 throw
             }
         }
@@ -556,64 +635,66 @@ function New-ProtectionPolicy {
         [object]$RemoteCluster,
         [array]$PrimaryClusters,
         [array]$AvailabilityZones,
-        [string]$CategoryValue = ""   # e.g. "Daily-Backup" - empty means no category filter
+        [string]$CategoryValue = "",  # e.g. "Daily-Backup"
+        [string]$CategoryKey   = "Backup"  # per-policy category key
     )
     
     Write-LogMessage "Creating protection policy: $PolicyName..." -Level Info
     
-    # Build category filter
-    # If a CategoryValue is supplied (and the Backup key was confirmed to exist),
-    # scope the policy to only VMs tagged with Backup=<CategoryValue>.
-    # Otherwise fall back to matching all VMs (empty params).
     if ($CategoryValue -ne "") {
-        Write-LogMessage "  Applying category filter: Backup = $CategoryValue" -Level Info
+        Write-LogMessage "  Applying category filter: $CategoryKey = $CategoryValue" -Level Info
         $categoryFilter = @{
             type   = "CATEGORIES_MATCH_ANY"
-            params = @{
-                "Backup" = @($CategoryValue)
-            }
+            params = @{ $CategoryKey = @($CategoryValue) }
         }
     } else {
         Write-LogMessage "  No category filter applied (policy covers all VMs)" -Level Warning
-        $categoryFilter = @{
-            type   = "CATEGORIES_MATCH_ANY"
-            params = @{}
-        }
+        $categoryFilter = @{ type = "CATEGORIES_MATCH_ANY"; params = @{} }
     }
     
-    # Build availability zone list - CRITICAL: Only 2 entries total
-    # Entry 0: Primary location with cluster_uuid_list (array of all primary clusters)
-    # Entry 1: Remote location with cluster_uuid (single PC cluster)
+    # Always use local + remote replication (2 AZ entries, bidirectional)
     $orderedAZList = @()
-    
-    # Get the Local AZ UUID (should be the same for all local clusters)
-    $localAZ = $AvailabilityZones | Select-Object -First 1
+    $localAZ    = $AvailabilityZones | Select-Object -First 1
     $localAZUrl = ""
-    
+
     if ($localAZ) {
-        # Use the AZ's management_url (which is actually the AZ UUID)
         $localAZUrl = $localAZ.spec.resources.management_url
         Write-LogMessage "Using Local AZ: $localAZUrl" -Level Info
     } else {
         Write-LogMessage "WARNING: No Availability Zone found, using empty AZ URL" -Level Warning
     }
-    
+
     # Build array of primary cluster UUIDs
     $primaryClusterUUIDs = @()
     foreach ($cluster in $PrimaryClusters) {
         Write-LogMessage "  Adding primary cluster: $($cluster.spec.name)" -Level Info
         $primaryClusterUUIDs += $cluster.metadata.uuid
     }
-    
-    # Entry 0: Primary location (all source clusters as array)
+
+    # Entry 0: Primary location (always present)
     $orderedAZList += @{
         availability_zone_url   = $localAZUrl
         availability_zone_label = "0"
         cluster_uuid_list       = @($primaryClusterUUIDs)
         target_type             = "AOS_CLUSTER"
     }
-    
-    # Entry 1: Remote cluster (PC cluster - single target)
+
+    # Build snapshot schedule
+    $snapshotType = if ($ScheduleConfig.AppConsistent) { 'APPLICATION_CONSISTENT' } else { 'CRASH_CONSISTENT' }
+    Write-LogMessage "  Snapshot type: $snapshotType" -Level Info
+    $snapshotSchedule = @{
+        recovery_point_objective_secs    = $ScheduleConfig.RPO
+        local_snapshot_retention_policy  = @{ num_snapshots = $ScheduleConfig.LocalRetention }
+        auto_suspend_timeout_secs        = 0
+        snapshot_type                    = $snapshotType
+    }
+
+    # Build connectivity list and remote AZ entry
+    $connectivityList = @()
+
+    $snapshotSchedule.remote_snapshot_retention_policy = @{ num_snapshots = $ScheduleConfig.RemoteRetention }
+
+    # Add remote AZ entry
     Write-LogMessage "  Adding remote cluster: $($RemoteCluster.spec.name)" -Level Info
     $orderedAZList += @{
         availability_zone_url   = $localAZUrl
@@ -621,23 +702,7 @@ function New-ProtectionPolicy {
         cluster_uuid            = $RemoteCluster.metadata.uuid
         target_type             = "AOS_CLUSTER"
     }
-    
-    # Build snapshot schedule
-    $snapshotSchedule = @{
-        recovery_point_objective_secs = $ScheduleConfig.RPO
-        local_snapshot_retention_policy = @{
-            num_snapshots = $ScheduleConfig.LocalRetention
-        }
-        remote_snapshot_retention_policy = @{
-            num_snapshots = $ScheduleConfig.RemoteRetention
-        }
-        auto_suspend_timeout_secs = 0
-        snapshot_type             = "CRASH_CONSISTENT"
-    }
-    
-    # Build connectivity list - ONLY between index 0 and 1 (bidirectional)
-    $connectivityList = @()
-    
+
     # Forward: Primary (0) to Remote (1)
     $connectivityList += @{
         source_availability_zone_index      = 0
@@ -646,7 +711,6 @@ function New-ProtectionPolicy {
         destination_availability_zone_label = "1"
         snapshot_schedule_list              = @($snapshotSchedule)
     }
-    
     # Reverse: Remote (1) to Primary (0)
     $connectivityList += @{
         source_availability_zone_index      = 1
@@ -655,8 +719,8 @@ function New-ProtectionPolicy {
         destination_availability_zone_label = "0"
         snapshot_schedule_list              = @($snapshotSchedule)
     }
-    
-    # Primary location list - index 0 is primary (contains all source clusters)
+
+    # Primary location list - index 0 is always primary
     $primaryLocationIndices = @(0)
     
     # Build the protection rule body
@@ -774,20 +838,18 @@ function Update-ProtectionPolicy {
         [string]$NewClusterName,
         [array]$AvailabilityZones,
         [object]$NewCluster,
-        [string]$CategoryValue = ""   # Expected category value e.g. "Daily-Backup"
+        [string]$CategoryValue = "",
+        [string]$CategoryKey   = "Backup"  # per-policy category key
     )
-    
+
     Write-LogMessage "Updating policy '$($Policy.spec.name)' to include cluster: $NewClusterName..." -Level Info
-    
-    # Get full policy details
+
     $policyDetail = Invoke-PrismAPI -Method GET -Endpoint "protection_rules/$($Policy.metadata.uuid)"
-    
-    # Get the AZ list - should have 2 entries: Primary (index 0) and Remote (index 1)
+
     $azList = $policyDetail.spec.resources.ordered_availability_zone_list
-    
+
     if ($azList.Count -ne 2) {
-        Write-LogMessage "ERROR: Expected 2 AZ entries, found $($azList.Count)" -Level Error
-        throw "Invalid policy structure"
+        Write-LogMessage "WARNING: Expected 2 AZ entries, found $($azList.Count) — proceeding anyway" -Level Warning
     }
     
     # Check if cluster already exists in primary location (index 0)
@@ -822,16 +884,16 @@ function Update-ProtectionPolicy {
     # --- Check category filter (only log, never recreate — categories are managed separately) ---
     $categoryNeedsUpdate = $false
     if ($CategoryValue -ne "") {
-        $existingParams = $policyDetail.spec.resources.category_filter.params
+        $existingParams    = $policyDetail.spec.resources.category_filter.params
         $existingCatValues = @()
-        if ($existingParams -and $existingParams.PSObject.Properties["Backup"]) {
-            $existingCatValues = @($existingParams.Backup)
+        if ($existingParams -and $existingParams.PSObject.Properties[$CategoryKey]) {
+            $existingCatValues = @($existingParams.$CategoryKey)
         }
 
         if ($existingCatValues -contains $CategoryValue) {
-            Write-LogMessage "  ✓ Category filter already set: Backup = $CategoryValue" -Level Success
+            Write-LogMessage "  ✓ Category filter already set: $CategoryKey = $CategoryValue" -Level Success
         } else {
-            Write-LogMessage "  ✗ Category filter missing or incorrect (expected Backup=$CategoryValue, found: '$($existingCatValues -join ', ')') - will fix" -Level Warning
+            Write-LogMessage "  ✗ Category filter missing/incorrect (expected $CategoryKey=$CategoryValue) - will fix" -Level Warning
             $categoryNeedsUpdate = $true
         }
     }
@@ -921,10 +983,10 @@ function Update-ProtectionPolicy {
 
     # Apply correct category filter if needed
     if ($categoryNeedsUpdate -and $CategoryValue -ne "") {
-        Write-LogMessage "  Applying category filter: Backup = $CategoryValue" -Level Info
+        Write-LogMessage "  Applying category filter: $CategoryKey = $CategoryValue" -Level Info
         $policyDetail.spec.resources.category_filter = @{
             type   = "CATEGORIES_MATCH_ANY"
-            params = @{ "Backup" = @($CategoryValue) }
+            params = @{ $CategoryKey = @($CategoryValue) }
         }
     }
     
@@ -1039,16 +1101,25 @@ function Main {
         return
     }
     
-    # Step 2: Find the cluster where PC is running
-    $pcCluster = Get-PrismCentralCluster -Clusters $clusters
-    
-    if (-not $pcCluster) {
-        Write-LogMessage "Cannot proceed without identifying PC cluster" -Level Error
+    # Step 2: Find the remote cluster (always required for backup policies)
+    if (-not $script:RemoteClusterName) {
+        Write-LogMessage "ERROR: 'backup.remote_cluster_name' is not set in config." -Level Error
+        Write-LogMessage "Remote cluster name is required for backup policy creation." -Level Info
         return
     }
-    
-    $pcClusterUUID = $pcCluster.metadata.uuid
+    Write-LogMessage "Resolving remote cluster: '$($script:RemoteClusterName)'..." -Level Info
+    $pcCluster = $clusters | Where-Object {
+        $_.spec.name -eq $script:RemoteClusterName -and
+        $_.status.resources.config.service_list -notcontains "PRISM_CENTRAL"
+    } | Select-Object -First 1
+    if (-not $pcCluster) {
+        Write-LogMessage "ERROR: Remote cluster '$($script:RemoteClusterName)' not found in Prism Central" -Level Error
+        Write-LogMessage "Available clusters: $(($clusters | Where-Object { $_.status.resources.config.service_list -notcontains 'PRISM_CENTRAL' } | ForEach-Object { $_.spec.name }) -join ', ')" -Level Info
+        return
+    }
     $pcClusterName = $pcCluster.spec.name
+    $pcClusterUUID = $pcCluster.metadata.uuid
+    Write-LogMessage "Remote cluster resolved: $pcClusterName (UUID: $pcClusterUUID)" -Level Success
     
     # Step 3: Find the new cluster (handle duplicate names from stale registrations)
     $matchingClusters = @($clusters | Where-Object {
@@ -1109,121 +1180,90 @@ function Main {
         return
     }
 
-    # Step 6: Check for Backup category and its values; create anything missing
+    # Step 6: Check for configured category key and values; create anything missing
     Write-Host ""
     Write-LogMessage "========================================" -Level Info
-    Write-LogMessage "Step 6: Checking Backup categories..." -Level Info
+    Write-LogMessage "Step 6: Checking backup categories in Prism Central..." -Level Info
     Write-LogMessage "========================================" -Level Info
 
-    # 6a: Check what already exists
-    $backupCategory = Get-BackupCategoryValues
-
-    # 6b: Create key and/or values that are missing
-    $needsCreation = (-not $backupCategory.Found) -or
-                     (-not $backupCategory.HasDaily) -or
-                     (-not $backupCategory.HasWeekly) -or
-                     (-not $backupCategory.HasMonthly)
-
-    if ($needsCreation) {
-        Write-LogMessage "  Some category items are missing - creating them now..." -Level Warning
-        New-BackupCategoryIfMissing -CategoryStatus $backupCategory
+    $categoryStatusMap = Get-BackupCategoryValues
+    $needsCreation = @($categoryStatusMap.Values | Where-Object { -not $_.Found -or $_.MissingValues.Count -gt 0 })
+    if ($needsCreation.Count -gt 0) {
+        Write-LogMessage "  Some category items are missing — creating them now..." -Level Warning
+        New-BackupCategoryIfMissing -CategoryStatusMap $categoryStatusMap
     } else {
-        Write-LogMessage "  All required Backup category values already exist" -Level Success
-    }
-
-    # All three values are now guaranteed to exist
-    $policyCategoryMap = @{
-        "Daily-Backup-Policy"   = "Daily-Backup"
-        "Weekly-Backup-Policy"  = "Weekly-Backup"
-        "Monthly-Backup-Policy" = "Monthly-Backup"
+        Write-LogMessage "  All required category keys and values already exist" -Level Success
     }
 
     Write-Host ""
     Write-LogMessage "Category assignment summary:" -Level Info
-    foreach ($policyName in $policyCategoryMap.Keys) {
-        Write-LogMessage "  $policyName → Category: Backup = $($policyCategoryMap[$policyName])" -Level Success
+    foreach ($pName in $script:PolicyDefs.Keys) {
+        $cfg = $script:PolicyDefs[$pName]
+        Write-LogMessage "  $pName → $($cfg.CategoryKey) = $($cfg.CategoryValue)" -Level Success
     }
-    
+
     # Step 7: Get existing protection policies
     $existingPolicies = Get-ProtectionPolicies
-    
-    # Define policy configurations
-    $policyConfigs = @{
-        "Daily-Backup-Policy" = @{
-            ScheduleType    = "DAILY"
-            RPO             = 86400   # 1 day in seconds
-            LocalRetention  = 7
-            RemoteRetention = 7
-        }
-        "Weekly-Backup-Policy" = @{
-            ScheduleType    = "WEEKLY"
-            RPO             = 604800  # 7 days in seconds
-            LocalRetention  = 4
-            RemoteRetention = 4
-        }
-        "Monthly-Backup-Policy" = @{
-            ScheduleType    = "MONTHLY"
-            RPO             = 2592000 # 30 days in seconds
-            LocalRetention  = 1
-            RemoteRetention = 6
-        }
-    }
-    
+
     # Step 8: Check and create/update policies
     Write-Host ""
     Write-LogMessage "Processing backup policies..." -Level Info
     Write-Host ""
-    
-    foreach ($policyName in $policyConfigs.Keys) {
-        $config          = $policyConfigs[$policyName]
-        $existingPolicy  = $existingPolicies | Where-Object { $_.spec.name -eq $policyName }
-        $catValue        = $policyCategoryMap[$policyName]
-        
+
+    foreach ($policyName in $script:PolicyDefs.Keys) {
+        $policyCfg      = $script:PolicyDefs[$policyName]
+        $existingPolicy = $existingPolicies | Where-Object { $_.spec.name -eq $policyName }
+        $catKey         = $policyCfg.CategoryKey
+        $catValue       = $policyCfg.CategoryValue
+
         if ($existingPolicy) {
             Write-LogMessage "Policy '$policyName' already exists" -Level Info
             try {
                 Update-ProtectionPolicy `
-                    -Policy          $existingPolicy `
-                    -NewClusterUUID  $newClusterUUID `
-                    -NewClusterName  $NewClusterName `
+                    -Policy            $existingPolicy `
+                    -NewClusterUUID    $newClusterUUID `
+                    -NewClusterName    $NewClusterName `
                     -AvailabilityZones $availabilityZones `
-                    -NewCluster      $newCluster `
-                    -CategoryValue   $catValue
+                    -NewCluster        $newCluster `
+                    -CategoryValue     $catValue `
+                    -CategoryKey       $catKey
             }
             catch {
                 Write-LogMessage "Failed to update policy '$policyName'" -Level Error
                 throw
             }
-        }
-        else {
+        } else {
             Write-LogMessage "Policy '$policyName' does not exist, creating..." -Level Info
             try {
                 $null = New-ProtectionPolicy `
                     -PolicyName        $policyName `
-                    -ScheduleType      $config.ScheduleType `
-                    -ScheduleConfig    $config `
+                    -ScheduleType      $policyCfg.ScheduleType `
+                    -ScheduleConfig    $policyCfg `
                     -RemoteCluster     $pcCluster `
                     -PrimaryClusters   @($newCluster) `
                     -AvailabilityZones $availabilityZones `
-                    -CategoryValue     $catValue
+                    -CategoryValue     $catValue `
+                    -CategoryKey       $catKey
             }
             catch {
                 Write-LogMessage "Failed to create policy '$policyName' - STOPPING" -Level Error
                 throw
             }
         }
-        
+
         Write-Host ""
     }
-    
+
     Write-LogMessage "========================================" -Level Info
     Write-LogMessage "Backup policy management completed!" -Level Success
     Write-LogMessage "========================================" -Level Info
     Write-Host ""
     Write-LogMessage "Summary:" -Level Info
-    Write-LogMessage "  - PC Cluster: $pcClusterName" -Level Info
-    Write-LogMessage "  - New Cluster: $ClusterName" -Level Info
-    Write-LogMessage "  - Policies processed: $($policyConfigs.Keys.Count)" -Level Info
+    Write-LogMessage "  - Mode          : $($script:BackupMode)" -Level Info
+    Write-LogMessage "  - Remote cluster: $pcClusterName" -Level Info
+    Write-LogMessage "  - New Cluster   : $ClusterName" -Level Info
+    Write-LogMessage "  - Category key  : $($script:BackupCategoryKey)" -Level Info
+    Write-LogMessage "  - Policies      : $($script:PolicyDefs.Keys.Count)" -Level Info
     Write-Host ""
     
     # Validate all policies - poll each until COMPLETE or timeout

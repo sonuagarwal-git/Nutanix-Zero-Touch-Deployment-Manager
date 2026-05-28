@@ -612,6 +612,95 @@ function Invoke-PreFlightChecks {
         Write-Host ""
     }
 
+    # ── 9. Backup Policy Config Completeness ────────────────────────────────────
+    if ($Config.backup_policy) {
+        Write-Host '  ── Backup Policy Configuration ─────────────────────────────────────────' -ForegroundColor DarkCyan
+        $bkErrors = @()
+        if (-not $Config.backup_policy.remote_cluster_name) {
+            $bkErrors += 'backup_policy.remote_cluster_name is required but not set'
+        }
+        $policyPresent = $Config.backup_policy.hourly -or $Config.backup_policy.daily -or $Config.backup_policy.weekly -or $Config.backup_policy.monthly
+        if (-not $policyPresent) {
+            $bkErrors += 'At least one policy (hourly/daily/weekly/monthly) must be configured under backup_policy'
+        }
+        $policyRawMap = @{
+            hourly  = @{ cfg = $Config.backup_policy.hourly;   rpo = 'rpo_hours' }
+            daily   = @{ cfg = $Config.backup_policy.daily;    rpo = 'rpo_hours' }
+            weekly  = @{ cfg = $Config.backup_policy.weekly;   rpo = 'rpo_days'  }
+            monthly = @{ cfg = $Config.backup_policy.monthly;  rpo = 'rpo_days'  }
+        }
+        foreach ($type in $policyRawMap.Keys) {
+            $raw = $policyRawMap[$type]
+            if (-not $raw.cfg) { continue }
+            $p   = $raw.cfg
+            $rpo = $raw.rpo
+            if (-not $p.name)             { $bkErrors += "backup_policy.$type.name is required" }
+            if (-not $p.$rpo)             { $bkErrors += "backup_policy.$type.$rpo is required" }
+            if (-not $p.local_retention)  { $bkErrors += "backup_policy.$type.local_retention is required" }
+            if (-not $p.remote_retention) { $bkErrors += "backup_policy.$type.remote_retention is required" }
+            if (-not $p.category_key)     { $bkErrors += "backup_policy.$type.category_key is required" }
+            if (-not $p.category_value)   { $bkErrors += "backup_policy.$type.category_value is required" }
+        }
+        if ($bkErrors.Count -gt 0) {
+            foreach ($err in $bkErrors) {
+                Write-Check "Backup config: $err" 'FAIL' $err `
+                    -Suggestion "Fix '$err' in the config file before running the pipeline."
+            }
+        } else {
+            $policyNames = @('hourly','daily','weekly','monthly') | Where-Object { $Config.backup_policy.$_ } | ForEach-Object { $_ }
+            Write-Check 'Backup config' 'PASS' "remote_cluster_name='$($Config.backup_policy.remote_cluster_name)', policies: $($policyNames -join ', ')"
+        }
+        Write-Host ""
+    }
+
+    # ── 10. Protection Policy Config Completeness ────────────────────────────────
+    if ($Config.protection_policy) {
+        Write-Host '  ── Protection Policy Configuration ─────────────────────────────────────' -ForegroundColor DarkCyan
+        $ppErrors = @()
+        $pp = $Config.protection_policy
+        if (-not $pp.remote_cluster_name) { $ppErrors += 'protection_policy.remote_cluster_name is required' }
+        if (-not $pp.name)                { $ppErrors += 'protection_policy.name is required' }
+        if (-not $pp.rpo_hours)           { $ppErrors += 'protection_policy.rpo_hours is required' }
+        if (-not $pp.local_retention)     { $ppErrors += 'protection_policy.local_retention is required' }
+        if (-not $pp.remote_retention)    { $ppErrors += 'protection_policy.remote_retention is required' }
+        if (-not $pp.category_key)        { $ppErrors += 'protection_policy.category_key is required' }
+        if (-not $pp.category_value)      { $ppErrors += 'protection_policy.category_value is required' }
+        if ($ppErrors.Count -gt 0) {
+            foreach ($err in $ppErrors) {
+                Write-Check "Protection policy config: $err" 'FAIL' $err `
+                    -Suggestion "Fix '$err' in the config file before running the pipeline."
+            }
+        } else {
+            Write-Check 'Protection policy config' 'PASS' "remote_cluster_name='$($pp.remote_cluster_name)', policy='$($pp.name)'"
+        }
+        Write-Host ""
+    }
+
+    # ── 11. Recovery Plan Config Completeness ────────────────────────────────────
+    if ($Config.recovery_plan) {
+        Write-Host '  ── Recovery Plan Configuration ──────────────────────────────────────────' -ForegroundColor DarkCyan
+        $rpErrors = @()
+        $tgtNet   = $Config.recovery_plan.target_network
+        if (-not $tgtNet) {
+            $rpErrors += 'recovery_plan.target_network section is required'
+        } else {
+            if (-not $tgtNet.subnet_name)   { $rpErrors += 'recovery_plan.target_network.subnet_name is required' }
+            if (-not $tgtNet.gateway)        { $rpErrors += 'recovery_plan.target_network.gateway is required' }
+            if (-not $tgtNet.prefix_length)  { $rpErrors += 'recovery_plan.target_network.prefix_length is required' }
+            if (-not $tgtNet.ip_pool_start)  { $rpErrors += 'recovery_plan.target_network.ip_pool_start is required' }
+            if (-not $tgtNet.ip_pool_end)    { $rpErrors += 'recovery_plan.target_network.ip_pool_end is required' }
+        }
+        if ($rpErrors.Count -gt 0) {
+            foreach ($err in $rpErrors) {
+                Write-Check "Recovery plan config: $err" 'FAIL' $err `
+                    -Suggestion "Fix '$err' in the config file before running the pipeline."
+            }
+        } else {
+            Write-Check 'Recovery plan config' 'PASS' "target_network='$($tgtNet.subnet_name)' ($($tgtNet.gateway)/$($tgtNet.prefix_length))"
+        }
+        Write-Host ""
+    }
+
     # ── Summary ─────────────────────────────────────────────────────────────────
     $line = '═' * 72
     $resultColor = if ($script:checkFail -gt 0) { 'Red' } elseif ($script:checkWarn -gt 0) { 'Yellow' } else { 'Green' }
@@ -686,7 +775,6 @@ if (-not $pcSection) {
 }
 
 $clusterVip    = $cfg.network.cluster_vip
-$containerName = if ($cfg.storage_container_name) { $cfg.storage_container_name } else { 'Workload-Container' }
 $pcPassword    = $pcSection.password
 $clusterName   = $cfg.clusterName
 $nodeCount     = if ($cfg.network.nodes) { @($cfg.network.nodes).Count } else { 0 }
@@ -836,6 +924,9 @@ $Pipeline = @(
             ConfigFile = $configPath
         }
         DelaySeconds   = 15
+        Skip           = (-not ($cfg.backup_policy -and $cfg.backup_policy.remote_cluster_name -and
+                          ($cfg.backup_policy.hourly -or $cfg.backup_policy.daily -or $cfg.backup_policy.weekly -or $cfg.backup_policy.monthly)))
+        SkipReason     = 'Backup policies not enabled in config file (backup section absent, remote_cluster_name not set, or no policy selected)'
     },
 
     @{
@@ -846,6 +937,8 @@ $Pipeline = @(
             ConfigFile = $configPath
         }
         DelaySeconds   = 30
+        Skip           = (-not ($cfg.protection_policy -and $cfg.protection_policy.remote_cluster_name -and $cfg.protection_policy.name))
+        SkipReason     = 'Protection policy not enabled in config file (protection_policy section absent or required fields not set)'
     },
 
     @{
@@ -855,6 +948,9 @@ $Pipeline = @(
         Arguments      = @{
             ConfigFile = $configPath
         }
+        Skip           = (-not ($cfg.recovery_plan -and $cfg.recovery_plan.target_network -and
+                          $cfg.recovery_plan.target_network.subnet_name))
+        SkipReason     = 'Recovery plan not enabled in config file (recovery_plan section absent or target_network not configured)'
         DelaySeconds   = 15
     },
 

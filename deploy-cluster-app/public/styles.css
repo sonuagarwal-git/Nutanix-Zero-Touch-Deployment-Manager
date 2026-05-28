@@ -535,28 +535,36 @@ h2 {
    ========================================================= */
 .tab-bar {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0;
     margin-bottom: 18px;
     background: var(--bg-section);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 6px;
+    padding: 5px 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
 }
+.tab-bar::-webkit-scrollbar { height: 4px; }
+.tab-bar::-webkit-scrollbar-track { background: transparent; }
+.tab-bar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
 .tab-btn-main {
-    flex: 1 1 auto;
-    min-width: 80px;
+    flex: 0 0 auto;
     padding: 7px 14px;
     font-size: 0.82rem;
     font-weight: 600;
     border: none;
-    border-radius: 5px;
+    border-right: 1px solid var(--border-color);
+    border-radius: 0;
     background: transparent;
     color: var(--text-label);
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
     white-space: nowrap;
 }
+.tab-btn-main:first-child { border-radius: 5px 0 0 5px; }
+.tab-btn-main:last-child  { border-right: none; border-radius: 0 5px 5px 0; }
 .tab-btn-main:hover {
     background: rgba(255,255,255,0.07);
     color: var(--text-primary);
@@ -564,6 +572,7 @@ h2 {
 .tab-btn-main.active {
     background: var(--accent);
     color: #fff;
+    border-right-color: var(--accent);
 }
 .tab-btn-main.tab-error {
     color: #ef4444;

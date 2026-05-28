@@ -4,7 +4,13 @@
   "_output_level_options": "minimal (only headers), normal (headers + important messages), verbose (all details)",
   "clusterName": "SITE-CLUSTER-01",
   "hypervisor": "AHV",
-  "storage_container_name": "Workload-Container",
+  "storage_container": {
+    "name": "Workload-Container",
+    "replication_factor": "",
+    "compression": "inline",
+    "compression_delay_mins": 60,
+    "deduplication": false
+  },
   "timezone": "Europe/Copenhagen",
   "output_level": "normal",
 
@@ -52,7 +58,7 @@
 
   "witness": {
     "ip": "10.10.10.5",
-    "name": "SITE-CLUSTER-01-Witness",
+    "name": "SITE-1P-CLUSTER-01-Witness",
     "username": "admin",
     "password": "CHANGE_ME"
   },
@@ -73,13 +79,66 @@
     }
   ],
 
-  "hub_production": {
-    "subnet_name": "vLAN-201",
-    "vlan_id": 201,
-    "gateway": "10.20.20.1",
-    "prefix_length": 24,
-    "ip_pool_start": "10.20.20.10",
-    "ip_pool_end": "10.20.20.50"
+  "backup_policy": {
+    "remote_cluster_name": "",
+    "hourly": {
+      "name": "Hourly-Backup-Policy",
+      "rpo_hours": 1,
+      "local_retention": 24,
+      "remote_retention": 24,
+      "app_consistent": false,
+      "category_key": "Backup",
+      "category_value": "Hourly-Backup"
+    },
+    "daily": {
+      "name": "Daily-Backup-Policy",
+      "rpo_hours": 24,
+      "local_retention": 7,
+      "remote_retention": 7,
+      "app_consistent": false,
+      "category_key": "Backup",
+      "category_value": "Daily-Backup"
+    },
+    "weekly": {
+      "name": "Weekly-Backup-Policy",
+      "rpo_days": 7,
+      "local_retention": 4,
+      "remote_retention": 4,
+      "app_consistent": false,
+      "category_key": "Backup",
+      "category_value": "Weekly-Backup"
+    },
+    "monthly": {
+      "name": "Monthly-Backup-Policy",
+      "rpo_days": 30,
+      "local_retention": 1,
+      "remote_retention": 6,
+      "app_consistent": false,
+      "category_key": "Backup",
+      "category_value": "Monthly-Backup"
+    }
+  },
+
+  "protection_policy": {
+    "remote_cluster_name": "",
+    "name": "Failover-Protection-Policy",
+    "rpo_hours": 1,
+    "local_retention": 24,
+    "remote_retention": 24,
+    "app_consistent": false,
+    "category_key": "Failover",
+    "category_value": "Failover"
+  },
+
+  "recovery_plan": {
+    "target_network": {
+      "subnet_name": "vLAN-201",
+      "vlan_id": 201,
+      "gateway": "10.20.20.1",
+      "prefix_length": 24,
+      "ip_pool_start": "10.20.20.10",
+      "ip_pool_end": "10.20.20.50"
+    }
   },
 
   "prism_central": {

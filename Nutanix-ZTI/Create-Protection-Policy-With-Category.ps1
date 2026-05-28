@@ -83,16 +83,43 @@ if (-not $NewClusterName) {
     exit 1
 }
 
-# ── Constants ──────────────────────────────────────────────────────────────────
-$POLICY_NAME     = "Failover-Protection-Policy"
-$CATEGORY_KEY    = "Failover"
-$CATEGORY_VALUE  = "Failover"
+# ── Load protection_policy config section ─────────────────────────────────────
+$ppCfg = if ($config -and $config.protection_policy) { $config.protection_policy } else { $null }
 
-# RPO: 1 hour (3600s) — typical for cross-site replication / failover readiness
-# Adjust as needed for your RTO/RPO requirements
-$POLICY_RPO              = 3600
-$POLICY_LOCAL_RETENTION  = 24
-$POLICY_REMOTE_RETENTION = 24
+if (-not $ppCfg) {
+    Write-Host ""
+    Write-Host "  ► No 'protection_policy' section found in configuration — skipping (Step 11)." -ForegroundColor DarkYellow
+    Write-Host ""
+    exit 0
+}
+
+# Validate all required fields up-front
+$ppErrors = [System.Collections.Generic.List[string]]::new()
+if (-not $ppCfg.remote_cluster_name) { $ppErrors.Add("protection_policy.remote_cluster_name is required") }
+if (-not $ppCfg.name)                { $ppErrors.Add("protection_policy.name is required") }
+if (-not $ppCfg.rpo_hours)           { $ppErrors.Add("protection_policy.rpo_hours is required") }
+if (-not $ppCfg.local_retention)     { $ppErrors.Add("protection_policy.local_retention is required") }
+if (-not $ppCfg.remote_retention)    { $ppErrors.Add("protection_policy.remote_retention is required") }
+if (-not $ppCfg.category_key)        { $ppErrors.Add("protection_policy.category_key is required") }
+if (-not $ppCfg.category_value)      { $ppErrors.Add("protection_policy.category_value is required") }
+
+if ($ppErrors.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  ERROR: Protection policy config validation failed — missing required fields:" -ForegroundColor Red
+    foreach ($err in $ppErrors) { Write-Host "    • $err" -ForegroundColor Red }
+    Write-Host ""
+    exit 1
+}
+
+# ── Policy settings (from config with defaults) ────────────────────────────────
+$POLICY_NAME             = $ppCfg.name
+$POLICY_REMOTE_CLUSTER   = $ppCfg.remote_cluster_name
+$CATEGORY_KEY            = $ppCfg.category_key
+$CATEGORY_VALUE          = $ppCfg.category_value
+$POLICY_RPO              = [int]$ppCfg.rpo_hours * 3600
+$POLICY_LOCAL_RETENTION  = [int]$ppCfg.local_retention
+$POLICY_REMOTE_RETENTION = [int]$ppCfg.remote_retention
+$POLICY_APP_CONSISTENT   = [bool]($ppCfg.app_consistent)
 
 # ── Certificate bypass ─────────────────────────────────────────────────────────
 if ($PSVersionTable.PSVersion.Major -ge 6) {
@@ -174,115 +201,6 @@ function Get-AllClusters {
         Write-LogMessage "  - $($c.spec.name)" -Level Info
     }
     return $response.entities
-}
-
-function Get-PrismCentralCluster {
-    param([array]$Clusters)
-    Write-LogMessage "Identifying cluster hosting Prism Central VM..." -Level Info
-
-    $pcEntry = $Clusters | Where-Object { $_.status.resources.config.service_list -contains "PRISM_CENTRAL" }
-    if (-not $pcEntry) {
-        Write-LogMessage "Could not find PC entry in clusters list" -Level Error
-        Write-LogMessage "Could not determine which cluster hosts Prism Central" -Level Error
-        return $null
-    }
-
-    $pcVMName = $pcEntry.spec.name
-    Write-LogMessage "PC VM name from cluster list: $pcVMName" -Level Info
-
-    # Helper: follow a VM's cluster_reference back to the real cluster entity
-    function Resolve-ClusterFromVM {
-        param([object]$pcVM)
-        Write-LogMessage "  Resolving cluster for VM: $($pcVM.spec.name) (UUID: $($pcVM.metadata.uuid))" -Level Info
-        $detail = Invoke-PrismAPI -Method GET -Endpoint "vms/$($pcVM.metadata.uuid)"
-        $hostClusterUUID = $null
-        if ($detail.spec.cluster_reference)        { $hostClusterUUID = $detail.spec.cluster_reference.uuid }
-        elseif ($detail.status.cluster_reference)  { $hostClusterUUID = $detail.status.cluster_reference.uuid }
-
-        if (-not $hostClusterUUID) {
-            Write-LogMessage "  Could not extract cluster_reference from VM" -Level Warning
-            return $null
-        }
-        $hostCluster = $Clusters | Where-Object {
-            $_.metadata.uuid -eq $hostClusterUUID -and
-            $_.status.resources.config.service_list -notcontains "PRISM_CENTRAL"
-        }
-        if ($hostCluster) {
-            Write-LogMessage "Prism Central is running on cluster: $($hostCluster.spec.name)" -Level Success
-            return $hostCluster
-        }
-        Write-LogMessage "  Cluster UUID $hostClusterUUID not found in cluster list" -Level Warning
-        return $null
-    }
-
-    # ── Primary: subnet match on NTNX-*-PCVM-* VMs ───────────────────────────
-    # PC VIP and PC VM IPs share the same /24 subnet. VM names follow:
-    # NTNX-<vm-ip-dashes>-PCVM-<suffix>  e.g. NTNX-10-0-66-26-PCVM-1778...
-    # Match on the first 3 octets so .26/.27/.28 are all found when VIP is .25
-    try {
-        $pcIp    = $PrismCentralIP
-        $subnet3 = ($pcIp -split '\.')[0..2] -join '-'   # e.g. "10-0-66"
-
-        Write-LogMessage "Searching for PCVM VMs in subnet '$subnet3.*'..." -Level Info
-
-        $body     = @{ kind = "vm"; length = 500 }
-        $allPCVMs = Invoke-PrismAPI -Method POST -Endpoint "vms/list" -Body $body
-
-        Write-LogMessage "  Found $($allPCVMs.entities.Count) total VM(s), filtering for PCVM in subnet '$subnet3'..." -Level Info
-
-        $subnetMatches = $allPCVMs.entities | Where-Object { $_.spec.name -match "PCVM" -and $_.spec.name -match [regex]::Escape($subnet3) }
-
-        if ($subnetMatches) {
-            Write-LogMessage "  $($subnetMatches.Count) VM(s) match subnet '$subnet3'" -Level Info
-            foreach ($vm in $subnetMatches) {
-                $result = Resolve-ClusterFromVM -pcVM $vm
-                if ($result) { return $result }
-            }
-        } else {
-            Write-LogMessage "  No PCVM VMs matched subnet '$subnet3'" -Level Warning
-        }
-    } catch {
-        Write-LogMessage "Subnet-based PCVM search failed: $($_.Exception.Message)" -Level Warning
-    }
-
-    # ── Fallback: exact VM name match ─────────────────────────────────────────
-    try {
-        Write-LogMessage "Falling back to exact name search for '$pcVMName'..." -Level Info
-        $body             = @{ kind = "vm"; filter = "vm_name==$pcVMName"; length = 10 }
-        $vmSearchResponse = Invoke-PrismAPI -Method POST -Endpoint "vms/list" -Body $body
-        if ($vmSearchResponse.entities.Count -gt 0) {
-            $result = Resolve-ClusterFromVM -pcVM $vmSearchResponse.entities[0]
-            if ($result) { return $result }
-        } else {
-            Write-LogMessage "  Exact name search returned no results" -Level Warning
-        }
-    } catch {
-        Write-LogMessage "Exact name search failed: $($_.Exception.Message)" -Level Warning
-    }
-
-    # ── Last resort: description tag 'NutanixPrismCentral' ───────────────────
-    try {
-        Write-LogMessage "Last resort: searching for VM with description 'NutanixPrismCentral'..." -Level Info
-        $body     = @{ kind = "vm"; length = 500 }
-        $allVMs   = Invoke-PrismAPI -Method POST -Endpoint "vms/list" -Body $body
-        $pcByDesc = $allVMs.entities | Where-Object {
-            $_.spec.description   -match "NutanixPrismCentral" -or
-            $_.status.description -match "NutanixPrismCentral"
-        } | Select-Object -First 1
-
-        if ($pcByDesc) {
-            Write-LogMessage "Found PC VM by description: $($pcByDesc.spec.name)" -Level Info
-            $result = Resolve-ClusterFromVM -pcVM $pcByDesc
-            if ($result) { return $result }
-        } else {
-            Write-LogMessage "  No VM found with description 'NutanixPrismCentral'" -Level Warning
-        }
-    } catch {
-        Write-LogMessage "Description-based VM search failed: $($_.Exception.Message)" -Level Warning
-    }
-
-    Write-LogMessage "Could not determine which cluster hosts Prism Central" -Level Error
-    return $null
 }
 
 function Get-AvailabilityZones {
@@ -435,12 +353,14 @@ function New-FailoverProtectionPolicy {
 
     Write-LogMessage "  Target (remote) cluster: $($RemoteCluster.spec.name)" -Level Info
 
+    $snapshotType = if ($POLICY_APP_CONSISTENT) { 'APPLICATION_CONSISTENT' } else { 'CRASH_CONSISTENT' }
+    Write-LogMessage "  Snapshot type: $snapshotType" -Level Info
     $snapshotSchedule = @{
         recovery_point_objective_secs    = $POLICY_RPO
         local_snapshot_retention_policy  = @{ num_snapshots = $POLICY_LOCAL_RETENTION  }
         remote_snapshot_retention_policy = @{ num_snapshots = $POLICY_REMOTE_RETENTION }
         auto_suspend_timeout_secs        = 0
-        snapshot_type                    = "CRASH_CONSISTENT"
+        snapshot_type                    = $snapshotType
     }
 
     $connectivityList = @(
@@ -800,9 +720,18 @@ function Main {
     $clusters = Get-AllClusters
     if ($clusters.Count -eq 0) { Write-LogMessage "No clusters found" -Level Error; return }
 
-    # ── Step 2: Find PC hosting cluster (target/remote) ───────────────────────
-    $pcCluster = Get-PrismCentralCluster -Clusters $clusters
-    if (-not $pcCluster) { Write-LogMessage "Cannot identify PC cluster - stopping" -Level Error; return }
+    # ── Step 2: Resolve remote (target) cluster by name from config ───────────
+    Write-LogMessage "Resolving remote cluster: '$POLICY_REMOTE_CLUSTER'..." -Level Info
+    $pcCluster = $clusters | Where-Object {
+        $_.spec.name -eq $POLICY_REMOTE_CLUSTER -and
+        $_.status.resources.config.service_list -notcontains "PRISM_CENTRAL"
+    } | Select-Object -First 1
+    if (-not $pcCluster) {
+        Write-LogMessage "ERROR: Remote cluster '$POLICY_REMOTE_CLUSTER' not found in Prism Central" -Level Error
+        Write-LogMessage "Available clusters: $(($clusters | Where-Object { $_.status.resources.config.service_list -notcontains 'PRISM_CENTRAL' } | ForEach-Object { $_.spec.name }) -join ', ')" -Level Info
+        return
+    }
+    Write-LogMessage "Remote cluster resolved: $($pcCluster.spec.name) (UUID: $($pcCluster.metadata.uuid))" -Level Success
 
     # ── Step 3: Find source cluster (input), deduplicate stale registrations ──
     $matchingClusters = @($clusters | Where-Object {
@@ -919,11 +848,12 @@ function Main {
     Write-LogMessage "Failover policy management completed!" -Level Success
     Write-LogMessage "========================================" -Level Info
     Write-LogMessage "  Source Cluster : $ClusterName" -Level Info
-    Write-LogMessage "  Target Cluster : $($pcCluster.spec.name) (PC host cluster)" -Level Info
+    Write-LogMessage "  Target Cluster : $($pcCluster.spec.name)" -Level Info
     Write-LogMessage "  Policy         : $POLICY_NAME" -Level Info
     Write-LogMessage "  Category       : $CATEGORY_KEY = $CATEGORY_VALUE" -Level Info
     Write-LogMessage "  RPO            : $($POLICY_RPO / 3600) hour(s)" -Level Info
     Write-LogMessage "  Retention      : $POLICY_LOCAL_RETENTION local / $POLICY_REMOTE_RETENTION remote snapshots" -Level Info
+    Write-LogMessage "  App Consistent : $(if ($POLICY_APP_CONSISTENT) { 'Yes' } else { 'No' })" -Level Info
     Write-Host ""
 }
 

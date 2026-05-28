@@ -38,8 +38,9 @@
     Enable post-process deduplication. Default: disabled.
 
 .PARAMETER ReplicationFactor
-    Replication factor (1 or 2). When using ConfigFile, auto-derived from node count unless
-    explicitly supplied. In standalone mode, defaults to 2.
+    Replication factor (1, 2, or 3). When using ConfigFile, if replication_factor is not set
+    (or is empty), it is auto-derived from node count: RF1 for 1 node, RF2 for 2+ nodes.
+    An explicit value in config or this parameter always takes precedence.
 
 .EXAMPLE
     .\Create-Storage-Container.ps1 -ConfigFile ".\Configs\my-cluster.json"
@@ -104,23 +105,83 @@ param(
 )
 
 # ─── Load config or validate individual params ─────────────────────────────────
-$clusterVip = $null
+$clusterVip       = $null
+$compressionType  = 'inline'   # default: inline compression
+$compressionDelay = 0          # secs; 0 = inline, >0 = post-process
+$dedupValue       = 'OFF'      # default: deduplication off
+
 if ($ConfigFile) {
     $config = Get-Content -Path $ConfigFile -Raw | ConvertFrom-Json
     if (-not $ClusterName)          { $ClusterName          = $config.clusterName }
     if (-not $PrismCentralIP)       { $PrismCentralIP       = $config.prism_central.ip }
     if (-not $PrismCentralUsername) { $PrismCentralUsername = $config.prism_central.username }
     if (-not $PrismCentralPassword) { $PrismCentralPassword = $config.prism_central.password }
+
+    $scCfg = $config.storage_container
+
+    # Container name — prefer storage_container.name, fall back to legacy storage_container_name
     if (-not $PSBoundParameters.ContainsKey('ContainerName')) {
-        $ContainerName = if ($config.storage_container_name) { $config.storage_container_name } else { 'Workload-Container' }
+        $ContainerName = if ($scCfg -and $scCfg.name) { $scCfg.name }
+                         elseif ($config.storage_container_name) { $config.storage_container_name }
+                         else { 'Workload-Container' }
     }
+
     $clusterVip = $config.network.cluster_vip
-    # Auto-derive RF from node count only if -ReplicationFactor was not explicitly supplied
+
+    # Node count — used for RF validation and deduplication guardrails
+    $nodeCount = if ($config.network.nodes) { @($config.network.nodes).Count } else { 3 }
+
+    # Replication Factor — config value overrides default; explicit param wins all
     if (-not $PSBoundParameters.ContainsKey('ReplicationFactor')) {
-        $nodeCount         = if ($config.network.nodes) { @($config.network.nodes).Count } else { 3 }
-        $ReplicationFactor = if ($nodeCount -eq 1) { 1 } else { 2 }
-        Write-Host "  ℹ $nodeCount node(s) detected — Replication Factor set to $ReplicationFactor." -ForegroundColor Cyan
+        $cfgRF = if ($scCfg) { "$($scCfg.replication_factor)".Trim().ToLower() } else { '' }
+        if ($cfgRF -match '^\d+$') {
+            $ReplicationFactor = [int]$cfgRF
+            Write-Host "  ℹ Replication Factor RF$ReplicationFactor from config." -ForegroundColor Cyan
+        } else {
+            # not set — default: RF1 for 1 node, RF2 for 2+ nodes
+            $ReplicationFactor = if ($nodeCount -eq 1) { 1 } else { 2 }
+            Write-Host "  ℹ $nodeCount node(s) detected — Replication Factor defaulted to RF$ReplicationFactor." -ForegroundColor Cyan
+        }
     }
+
+    # Guardrail: validate RF against minimum node requirements (RF1≥1, RF2≥2, RF3≥5)
+    $rfMinNodes  = @{ 1 = 1; 2 = 2; 3 = 5 }
+    $minRequired = $rfMinNodes[[int]$ReplicationFactor]
+    if ($nodeCount -lt $minRequired) {
+        $fallback = if ($nodeCount -eq 1) { 1 } else { 2 }
+        Write-Host "  ⚠ Replication Factor guardrail triggered:" -ForegroundColor Yellow
+        Write-Host "    Reason   : RF$ReplicationFactor requires a minimum of $minRequired node(s); this cluster has $nodeCount node(s)." -ForegroundColor Yellow
+        Write-Host "    Fallback : RF$fallback applied (recommended default — RF1 for 1 node, RF2 for 2+ nodes)." -ForegroundColor Yellow
+        $ReplicationFactor = $fallback
+    }
+
+    # Compression type
+    if ($scCfg -and $scCfg.compression) {
+        $compressionType = "$($scCfg.compression)".Trim().ToLower()
+    }
+    switch ($compressionType) {
+        'none'         { $EnableCompression = $false; $compressionDelay = 0 }
+        'post_process' {
+            $EnableCompression = $true
+            $delayMins = if ($scCfg.compression_delay_mins) { [int]$scCfg.compression_delay_mins } else { 60 }
+            $compressionDelay  = $delayMins * 60   # convert to seconds for API
+        }
+        default        { $EnableCompression = $true; $compressionDelay = 0 }   # inline (default)
+    }
+
+    # Deduplication
+    if ($scCfg -and $null -ne $scCfg.deduplication) {
+        $dedupValue = if ($scCfg.deduplication -eq $true) { 'POST_PROCESS' } else { 'OFF' }
+    }
+
+    # Guardrail: Capacity Deduplication requires minimum 3 nodes
+    if ($dedupValue -eq 'POST_PROCESS' -and $nodeCount -lt 3) {
+        Write-Host "  ⚠ Capacity Deduplication guardrail triggered:" -ForegroundColor Yellow
+        Write-Host "    Reason   : Capacity Deduplication requires a minimum of 3 nodes; this cluster has $nodeCount node(s)." -ForegroundColor Yellow
+        Write-Host "    Fallback : Deduplication disabled (default — cannot be enabled on fewer than 3 nodes)." -ForegroundColor Yellow
+        $dedupValue = 'OFF'
+    }
+
 } elseif (-not $PrismCentralIP -or -not $PrismCentralUsername -or -not $PrismCentralPassword -or -not $ClusterName) {
     Write-Host "ERROR: Provide either -ConfigFile or all of: -PrismCentralIP, -PrismCentralUsername, -PrismCentralPassword, -ClusterName." -ForegroundColor Red
     exit 1
@@ -299,13 +360,13 @@ if ($ReplicationFactor -eq 1) {
     }
 }
 
-# ─── Step 2: List all containers, delete default-container, skip if workload-container exists ──
+# ─── Step 2: Check if workload container already exists ────────────────────────────────────────
 Write-Host "`nStep 2: Checking existing storage containers on cluster..." -ForegroundColor Yellow
 
 $allContainers = @()
 try {
     $encodedFilter = [Uri]::EscapeDataString("clusterExtId eq '$clusterExtId'")
-    $listResult    = Invoke-RestMethod -Uri "$pcBaseUrl/api/storage/v4.0.a3/config/storage-containers?`$filter=$encodedFilter&`$limit=100" `
+    $listResult    = Invoke-RestMethod -Uri "$pcBaseUrl/api/storage/v4.0.a3/config/storage-containers?`$filter=$encodedFilter&`$limit=50" `
                          -Method GET -Headers $storageHeaders -ErrorAction Stop
     $allContainers = @($listResult.data | Where-Object { $_ })
     Write-Host "  Found $($allContainers.Count) container(s) on cluster." -ForegroundColor Gray
@@ -314,64 +375,41 @@ try {
     Write-Host "  ⚠ Could not list containers (HTTP $statusCode) — will attempt creation." -ForegroundColor Yellow
 }
 
-# Delete default-container if it exists
-$defaultContainer = $allContainers | Where-Object { $_.name -eq 'default-container' }
-if ($defaultContainer) {
-    Write-Host "  Found 'default-container' — deleting..." -ForegroundColor Cyan
-    try {
-        # URL-encode the extId — Nutanix container extIds can contain colons or other special chars
-        $encodedCtrId = [Uri]::EscapeDataString($defaultContainer.extId)
-        $deluri = "$pcBaseUrl/api/storage/v4.0.a3/config/storage-containers/$encodedCtrId?ignoreSmallFiles=true"
-        $delResp = Invoke-RestMethod -Uri $deluri -Method DELETE -Headers $storageHeaders -ErrorAction Stop
-        $delTaskId = $delResp.data.extId
-        if ($delTaskId) {
-            Write-Host "  Waiting for delete task to complete..." -ForegroundColor Cyan
-            $delResult = Wait-V4Task -ExtId $delTaskId
-            if ($delResult.Success) {
-                Write-Host "  ✓ 'default-container' deleted successfully." -ForegroundColor Green
-            } else {
-                Write-Host "  ⚠ Delete task ended with status '$($delResult.Status)': $($delResult.Error)" -ForegroundColor Yellow
-            }
-        } else {
-            Write-Host "  ✓ 'default-container' deleted." -ForegroundColor Green
-        }
-    } catch {
-        $statusCode = $_.Exception.Response.StatusCode.value__
-        $errBody    = if ($_.ErrorDetails.Message) { $_.ErrorDetails.Message } else { $_.Exception.Message }
-        Write-Host "  ⚠ Could not delete 'default-container' (HTTP $statusCode): $errBody — continuing." -ForegroundColor Yellow
-    }
-} else {
-    Write-Host "  'default-container' not present — nothing to delete." -ForegroundColor Gray
-}
+$existing = $allContainers | Where-Object { $_.name -eq $ContainerName } | Select-Object -First 1
 
-# Skip creation if workload-container already exists
-$existing = $allContainers | Where-Object { $_.name -eq $ContainerName }
 if ($existing) {
-    Write-Host "  ⚠ Storage container '$ContainerName' already exists — nothing to do." -ForegroundColor Yellow
+    Write-Host "  ⚠ Container '$ContainerName' already exists — skipping creation." -ForegroundColor Yellow
+    Write-Host "    To change compression or deduplication settings, update the container manually in Prism." -ForegroundColor Yellow
     exit 0
 }
 Write-Host "  ✓ Container '$ContainerName' does not exist — will create." -ForegroundColor Green
 
+$compressionLabel = switch ($compressionType) {
+    'none'         { 'Disabled' }
+    'post_process' { "Post-Process (delay: $($compressionDelay / 60) min)" }
+    default        { 'Inline' }
+}
+
 # ─── Step 3: Create the storage container ─────────────────────────────────────
-Write-Host "`nStep 3: Creating storage container '$ContainerName' via storage v4.0.a3 API..." -ForegroundColor Yellow
-
-$dedupValue = if ($EnableDeduplication) { 'POST_PROCESS' } else { 'NONE' }
-
-$body = @{
-    name               = $ContainerName
-    replicationFactor  = $ReplicationFactor
-    compressionEnabled = [bool]$EnableCompression
-    onDiskDedup        = $dedupValue
-} | ConvertTo-Json
+Write-Host "`nStep 3: Creating storage container '$ContainerName'..." -ForegroundColor Yellow
 
 Write-Host ""
 Write-Host "  Container Configuration:" -ForegroundColor Gray
-Write-Host "    Name                : $ContainerName"                                                        -ForegroundColor White
-Write-Host "    Cluster ExtId       : $clusterExtId"                                                        -ForegroundColor White
-Write-Host "    Replication Factor  : $ReplicationFactor"                                                   -ForegroundColor White
-Write-Host "    Compression         : $(if ($EnableCompression) { 'Enabled' } else { 'Disabled' })"        -ForegroundColor White
-Write-Host "    Inline Deduplication: $(if ($EnableDeduplication) { 'Enabled' } else { 'Disabled' })"      -ForegroundColor White
+Write-Host "    Name                : $ContainerName"                                                        -ForegroundColor Cyan
+Write-Host "    Cluster ExtId       : $clusterExtId"                                                        -ForegroundColor Cyan
+Write-Host "    Replication Factor  : RF$ReplicationFactor"                                                  -ForegroundColor Cyan
+Write-Host "    Compression         : $compressionLabel"                                                     -ForegroundColor Cyan
+Write-Host "    Deduplication       : $(if ($dedupValue -eq 'POST_PROCESS') { 'Enabled' } else { 'Disabled' })" -ForegroundColor Cyan
 Write-Host ""
+
+$body = @{
+    name                  = $ContainerName
+    replicationFactor     = $ReplicationFactor
+    isCompressionEnabled  = [bool]$EnableCompression
+    compressionDelaySecs  = $compressionDelay
+    onDiskDedup           = $dedupValue
+} | ConvertTo-Json
+Write-Host "  Request body: $body" -ForegroundColor Gray
 
 try {
     $createResp = Invoke-RestMethod -Uri "$pcBaseUrl/api/storage/v4.0.a3/config/storage-containers" `
@@ -403,15 +441,17 @@ Start-Sleep -Seconds 3
 
 try {
     $encodedFilter = [Uri]::EscapeDataString("clusterExtId eq '$clusterExtId'")
-    $listResult    = Invoke-RestMethod -Uri "$pcBaseUrl/api/storage/v4.0.a3/config/storage-containers?`$filter=$encodedFilter&`$limit=100" `
+    $listResult    = Invoke-RestMethod -Uri "$pcBaseUrl/api/storage/v4.0.a3/config/storage-containers?`$filter=$encodedFilter&`$limit=50" `
                          -Method GET -Headers $storageHeaders -ErrorAction Stop
-    $created       = @($listResult.data) | Where-Object { $_ -and $_.name -eq $ContainerName }
+    $created       = @($listResult.data) | Where-Object { $_ -and $_.name -eq $ContainerName } | Select-Object -First 1
     if ($created) {
+        $verExtId = if ($created.containerExtId) { $created.containerExtId } elseif ($created.extId) { $created.extId } else { 'N/A' }
         Write-Host "  ✓ Storage container is active and ready!" -ForegroundColor Green
-        Write-Host "    Name                : $($created.name)"               -ForegroundColor Cyan
-        Write-Host "    ExtId               : $($created.extId)"              -ForegroundColor Cyan
-        Write-Host "    Replication Factor  : $($created.replicationFactor)"  -ForegroundColor Cyan
-        Write-Host "    Compression         : $($created.compressionEnabled)" -ForegroundColor Cyan
+        Write-Host "    Name                : $($created.name)"                                                           -ForegroundColor Cyan
+        Write-Host "    ExtId               : $verExtId"                                                                  -ForegroundColor Cyan
+        Write-Host "    Replication Factor  : RF$ReplicationFactor"                                                       -ForegroundColor Cyan
+        Write-Host "    Compression         : $compressionLabel"                                                          -ForegroundColor Cyan
+        Write-Host "    Deduplication       : $(if ($dedupValue -eq 'POST_PROCESS') { 'Enabled' } else { 'Disabled' })"  -ForegroundColor Cyan
     } else {
         Write-Host "  ⚠ Container not found in list — may still be provisioning." -ForegroundColor Yellow
     }
