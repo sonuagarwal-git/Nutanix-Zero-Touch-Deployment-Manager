@@ -519,6 +519,15 @@
                             <option value="verbose">Verbose</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="vswitchMode">vSwitch Mode</label>
+                        <select id="vswitchMode" name="vswitch_mode">
+                            <option value="ACTIVE_BACKUP" selected>ACTIVE_BACKUP (default)</option>
+                            <option value="BALANCE_TCP">BALANCE_TCP (Active-Active LACP)</option>
+                            <option value="BALANCE_SLB">BALANCE_SLB</option>
+                        </select>
+                        <p style="margin:4px 0 0;color:#f59e0b;font-size:0.8rem;">&#9888; Make sure network ports are configured in the correct mode before selecting any specific mode.</p>
+                    </div>
                 </div>
 
                 <hr style="border-color:rgba(255,255,255,0.08);margin:24px 0 16px;">
@@ -1232,7 +1241,7 @@
                         <option value="10">Step 10 — Create Backup Policies</option>
                         <option value="11">Step 11 — Create Protection Policy</option>
                         <option value="12">Step 12 — Create Recovery Plan</option>
-                        <option value="13">Step 13 — Set AHV Bond Mode</option>
+                        <option value="13">Step 13 — Set vSwitch Bond Mode</option>
                         <option value="14">Step 14 — Run LCM Inventory</option>
                         <option value="15">Step 15 — Change Passwords &amp; Export CSV</option>
                         <option value="16">Step 16 — Import Secrets to CyberArk</option>
@@ -1267,7 +1276,7 @@
                             <label><input type="checkbox" class="skip-step-cb" value="10">10 — Create Backup Policies</label>
                             <label><input type="checkbox" class="skip-step-cb" value="11">11 — Create Protection Policy</label>
                             <label><input type="checkbox" class="skip-step-cb" value="12">12 — Create Recovery Plan</label>
-                            <label><input type="checkbox" class="skip-step-cb" value="13">13 — Set AHV Bond Mode</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="13">13 — Set vSwitch Bond Mode</label>
                             <label><input type="checkbox" class="skip-step-cb" value="14">14 — Run LCM Inventory</label>
                             <label><input type="checkbox" class="skip-step-cb" value="15">15 — Change Passwords &amp; Export CSV</label>
                             <label><input type="checkbox" class="skip-step-cb" value="16">16 — Import Secrets to CyberArk</label>

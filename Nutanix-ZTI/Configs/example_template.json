@@ -15,6 +15,7 @@
   },
   "timezone": "Europe/Copenhagen",
   "output_level": "normal",
+  "vswitch_mode": "ACTIVE_BACKUP",
 
   "network": {
     "subnet_name": "SITE-MGMT-VLAN",

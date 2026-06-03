@@ -286,7 +286,7 @@ let deploymentSteps = [
     { id: 'step10', title: 'Create Backup Policies',          status: 'pending' },
     { id: 'step11', title: 'Create Protection Policy',        status: 'pending' },
     { id: 'step12', title: 'Create Recovery Plan',            status: 'pending' },
-    { id: 'step13', title: 'Set AHV Bond Mode',               status: 'pending' },
+    { id: 'step13', title: 'Set vSwitch Bond Mode',            status: 'pending' },
     { id: 'step14', title: 'Run LCM Inventory',               status: 'pending' },
     { id: 'step15', title: 'Change Passwords & Export CSV',   status: 'pending' },
     { id: 'step16', title: 'Import Secrets to CyberArk',      status: 'pending' },
@@ -1462,7 +1462,7 @@ function buildConfigObject(formData) {
     // _comments → clusterName → hypervisor → storage_container → timezone → output_level → rest
     const KEY_ORDER = [
         '_comment', '_note', '_output_level_options',
-        'clusterName', 'hypervisor', 'storage_container', 'timezone', 'output_level',
+        'clusterName', 'hypervisor', 'storage_container', 'timezone', 'output_level', 'vswitch_mode',
         'network', 'dns_servers', 'dns_admin', 'ntp_servers', 'witness',
         'aos_version', 'aos_package_url', 'hypervisor_iso_url', 'phoenix_iso_url',
         'production_vlans',

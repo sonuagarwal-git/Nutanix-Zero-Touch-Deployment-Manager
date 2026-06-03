@@ -24,7 +24,7 @@
      10. Manage-PC-Backup-Policies-WithCategories   — Create/update PC backup policies
      11. Manage-Protection-Policy-With-Category     — Create/update failover protection policy
      12. Manage-Recovery-Plan-With-Category         — Create/update failover recovery plan
-     13. Set-AHV-BondMode.ps1                       — Configure OVS bond mode on all AHV nodes
+     13. Set-Nutanix-VSwitch-Bond-Mode.ps1             — Configure OVS bond mode on all AHV nodes
      14. Change-Prism-CVM-AHV-Password-ToCSV.ps1   — Rotate all passwords and export to CSV
      15. Import-Secrets-to-CyberArk.ps1             — Import new passwords into CyberArk SecureVault
 
@@ -959,8 +959,8 @@ $Pipeline = @(
     },
 
     @{
-        Name           = 'Set AHV Bond Mode'
-        Script         = Join-Path $PSScriptRoot 'Set-AHV-BondMode.ps1'
+        Name           = 'Set vSwitch Bond Mode'
+        Script         = Join-Path $PSScriptRoot 'Set-Nutanix-VSwitch-Bond-Mode.ps1'
         SupportsDryRun = $false
         Arguments      = @{
             ConfigFile = $configPath
