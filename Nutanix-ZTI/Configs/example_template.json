@@ -5,11 +5,13 @@
   "clusterName": "SITE-CLUSTER-01",
   "hypervisor": "AHV",
   "storage_container": {
+    "enabled": true,
     "name": "Workload-Container",
     "replication_factor": "",
     "compression": "inline",
     "compression_delay_mins": 60,
-    "deduplication": false
+    "deduplication": false,
+    "delete_default_container": false
   },
   "timezone": "Europe/Copenhagen",
   "output_level": "normal",
@@ -131,6 +133,14 @@
   },
 
   "recovery_plan": {
+    "source_network": {
+      "subnet_name": "Prod-vLAN-200",
+      "vlan_id": 200,
+      "gateway": "10.20.10.1",
+      "prefix_length": 24,
+      "ip_pool_start": "10.20.10.10",
+      "ip_pool_end": "10.20.10.50"
+    },
     "target_network": {
       "subnet_name": "vLAN-201",
       "vlan_id": 201,

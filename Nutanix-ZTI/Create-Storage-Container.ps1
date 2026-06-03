@@ -42,6 +42,13 @@
     (or is empty), it is auto-derived from node count: RF1 for 1 node, RF2 for 2+ nodes.
     An explicit value in config or this parameter always takes precedence.
 
+.PARAMETER DeleteDefaultContainer
+    When enabled, deletes any container named 'default-container-*' (Nutanix creates one
+    automatically on newly imaged clusters) before creating the workload container.
+    Uses the clustermgmt v4.0.b2 DELETE API: DELETE /api/clustermgmt/v4.0.b2/config/storage-containers/{extId}
+    WARNING: Do not enable on clusters where the default container is actively in use.
+    Default: $false (skip deletion).
+
 .EXAMPLE
     .\Create-Storage-Container.ps1 -ConfigFile ".\Configs\my-cluster.json"
 .EXAMPLE
@@ -99,6 +106,9 @@ param(
 
     [Parameter(Mandatory = $false)]
     [int]$TaskTimeoutMinutes = 10,
+
+    [Parameter(Mandatory = $false)]
+    [bool]$DeleteDefaultContainer = $false,
 
     [Parameter(Mandatory = $false)]
     [int]$TaskPollSeconds = 5
@@ -180,6 +190,11 @@ if ($ConfigFile) {
         Write-Host "    Reason   : Capacity Deduplication requires a minimum of 3 nodes; this cluster has $nodeCount node(s)." -ForegroundColor Yellow
         Write-Host "    Fallback : Deduplication disabled (default — cannot be enabled on fewer than 3 nodes)." -ForegroundColor Yellow
         $dedupValue = 'OFF'
+    }
+
+    # Delete default container — read from config if not supplied as parameter
+    if (-not $PSBoundParameters.ContainsKey('DeleteDefaultContainer')) {
+        $DeleteDefaultContainer = ($scCfg -and $scCfg.delete_default_container -eq $true)
     }
 
 } elseif (-not $PrismCentralIP -or -not $PrismCentralUsername -or -not $PrismCentralPassword -or -not $ClusterName) {
@@ -360,7 +375,7 @@ if ($ReplicationFactor -eq 1) {
     }
 }
 
-# ─── Step 2: Check if workload container already exists ────────────────────────────────────────
+# ─── Step 2: Check existing containers; optionally delete default; skip if workload exists ──────
 Write-Host "`nStep 2: Checking existing storage containers on cluster..." -ForegroundColor Yellow
 
 $allContainers = @()
@@ -373,6 +388,46 @@ try {
 } catch {
     $statusCode = $_.Exception.Response.StatusCode.value__
     Write-Host "  ⚠ Could not list containers (HTTP $statusCode) — will attempt creation." -ForegroundColor Yellow
+}
+
+if ($DeleteDefaultContainer) {
+    # Delete any container whose name starts with 'default-container'
+    # (Nutanix names them 'default-container-<numericId>' on newly imaged clusters).
+    # Uses clustermgmt/v4.0.b2 DELETE API — the correct endpoint for container deletion.
+    $defaultContainers = @($allContainers | Where-Object { $_.name -like 'default-container*' })
+    if ($defaultContainers.Count -gt 0) {
+        Write-Host "  Found $($defaultContainers.Count) default container(s) to delete: $($defaultContainers.name -join ', ')" -ForegroundColor Cyan
+        foreach ($defaultContainer in $defaultContainers) {
+            Write-Host "  Deleting '$($defaultContainer.name)'..." -ForegroundColor Cyan
+            try {
+                $ctrExtId   = if ($defaultContainer.containerExtId) { $defaultContainer.containerExtId } else { $defaultContainer.extId }
+                $delUri     = "$pcBaseUrl/api/clustermgmt/v4.0.b2/config/storage-containers/$([Uri]::EscapeDataString($ctrExtId))?ignoreSmallFiles=true"
+                $delHeaders = $headers.Clone()
+                $delHeaders['NTNX-Request-Id'] = [Guid]::NewGuid().ToString()
+                $delResp = Invoke-RestMethod -Uri $delUri -Method DELETE -Headers $delHeaders -ErrorAction Stop
+                $delTaskId = $delResp.data.extId
+                if ($delTaskId) {
+                    Write-Host "  Waiting for delete task to complete..." -ForegroundColor Cyan
+                    $delResult = Wait-V4Task -ExtId $delTaskId
+                    if ($delResult.Success) {
+                        Write-Host "  ✓ '$($defaultContainer.name)' deleted successfully." -ForegroundColor Green
+                    } else {
+                        Write-Host "  ⚠ Delete task ended with status '$($delResult.Status)': $($delResult.Error)" -ForegroundColor Yellow
+                    }
+                } else {
+                    Write-Host "  ✓ '$($defaultContainer.name)' deleted." -ForegroundColor Green
+                }
+            } catch {
+                $statusCode = $_.Exception.Response.StatusCode.value__
+                $errBody    = if ($_.ErrorDetails.Message) { $_.ErrorDetails.Message } else { $_.Exception.Message }
+                Write-Host "  ⚠ Could not delete '$($defaultContainer.name)' (HTTP $statusCode): $errBody — continuing." -ForegroundColor Yellow
+            }
+        }
+    } else {
+        Write-Host "  No default-container* containers found — nothing to delete." -ForegroundColor Gray
+    }
+} else {
+    Write-Host "  Skipping default container deletion — not enabled in configuration." -ForegroundColor Cyan
 }
 
 $existing = $allContainers | Where-Object { $_.name -eq $ContainerName } | Select-Object -First 1

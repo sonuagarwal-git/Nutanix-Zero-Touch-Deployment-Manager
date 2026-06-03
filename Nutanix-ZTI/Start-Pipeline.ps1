@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+﻿#Requires -Version 7.0
 
 <#
 .SYNOPSIS
@@ -904,6 +904,8 @@ $Pipeline = @(
             ConfigFile = $configPath
         }
         DelaySeconds   = 15
+        Skip           = (-not ($cfg.production_vlans -and @($cfg.production_vlans).Count -gt 0))
+        SkipReason     = 'Production VLANs not configured (production_vlans absent or empty in config)'
     },
 
     @{
@@ -914,6 +916,8 @@ $Pipeline = @(
             ConfigFile = $configPath
         }
         DelaySeconds   = 15
+        Skip           = ($cfg.storage_container.enabled -eq $false)
+        SkipReason     = 'Storage container creation disabled in config (storage_container.enabled: false)'
     },
 
     @{
@@ -962,6 +966,16 @@ $Pipeline = @(
             ConfigFile = $configPath
         }
         DelaySeconds   = 30
+    },
+
+    @{
+        Name           = 'Run LCM Inventory'
+        Script         = Join-Path $PSScriptRoot 'Run-LCM-Inventory.ps1'
+        SupportsDryRun = $false
+        Arguments      = @{
+            ConfigFile = $configPath
+        }
+        DelaySeconds   = 5
     },
 
     @{
@@ -1271,16 +1285,68 @@ if ($pipelineAborted) {
 $emailScript = Join-Path $PSScriptRoot 'Send-PipelineEmail.ps1'
 if (Test-Path $emailScript) {
     Write-Host ""
+    # Only include LCM data in the email if the LCM Inventory step actually ran (status OK)
+    $lcmHtmlReport = ''
+    $lcmStepResult = $results | Where-Object { $_.Name -eq 'Run LCM Inventory' } | Select-Object -First 1
+    if ($lcmStepResult -and $lcmStepResult.Status -eq 'OK' -and
+        $script:PipelineLogFile -and (Test-Path $script:PipelineLogFile)) {
+        try {
+            $logLines     = [System.IO.File]::ReadAllLines($script:PipelineLogFile, [System.Text.Encoding]::UTF8)
+            $upgradeRows  = ''
+            $upgradeCount = 0
+            $inLcmSection = $false
+            foreach ($line in $logLines) {
+                # Enter the LCM section at the step INFO marker
+                if ($line -match '\[INFO\]\s+STEP.*Run LCM Inventory') { $inLcmSection = $true; continue }
+                # Exit the section at the timestamped SUCCESS/FAILED line that closes this step
+                if ($inLcmSection -and $line -match '^\[20\d\d-.*\]\s+\[(SUCCESS|FAILED)\]') { break }
+
+                # Only parse → lines while inside the LCM section
+                if ($inLcmSection -and $line.Contains([char]0x2192)) {
+                    $parts = $line -split [char]0x2192
+                    if ($parts.Count -eq 2) {
+                        $left   = $parts[0].Trim()
+                        $target = $parts[1].Trim()
+                        if ($left -match '^(.+?)\s{2,}(\S+)$') {
+                            $comp    = $Matches[1].Trim() -replace '&','&amp;' -replace '<','&lt;' -replace '>','&gt;'
+                            $current = $Matches[2].Trim()
+                            $upgradeRows += "<tr><td style='padding:6px 16px;border-bottom:1px solid #fde8e4'>$comp</td>" +
+                                           "<td style='padding:6px 16px;border-bottom:1px solid #fde8e4;color:#999'>$current</td>" +
+                                           "<td style='padding:6px 8px;border-bottom:1px solid #fde8e4;color:#bbb'>&rarr;</td>" +
+                                           "<td style='padding:6px 16px;border-bottom:1px solid #fde8e4;color:#d84315;font-weight:600'>$target</td></tr>"
+                            $upgradeCount++
+                        }
+                    }
+                }
+            }
+            if ($upgradeCount -gt 0) {
+                $lcmHtmlReport =
+                    "<div style='margin:0 24px 20px;border-left:4px solid #e64a19;background:#fff8f5;padding:14px 16px;border-radius:0 4px 4px 0'>" +
+                    "<p style='margin:0 0 10px;font-family:sans-serif;font-size:14px;font-weight:600;color:#bf360c'>" +
+                    "&#9888;&nbsp; LCM Software Updates Available ($upgradeCount)</p>" +
+                    "<table style='border-collapse:collapse;font-size:13px;width:100%'>" +
+                    "<thead><tr style='background:#fbe9e7'>" +
+                    "<th style='padding:6px 16px;text-align:left;font-family:sans-serif;color:#555;font-weight:600'>Component</th>" +
+                    "<th style='padding:6px 16px;text-align:left;font-family:sans-serif;color:#555;font-weight:600'>Installed</th>" +
+                    "<th style='padding:6px 8px'></th>" +
+                    "<th style='padding:6px 16px;text-align:left;font-family:sans-serif;color:#555;font-weight:600'>Available</th>" +
+                    "</tr></thead><tbody>$upgradeRows</tbody></table>" +
+                    "<p style='margin:10px 0 0;font-size:12px;color:#888;font-family:sans-serif'>" +
+                    "Upgrade order: Foundation &rarr; NCC &rarr; AOS &rarr; AHV</p></div>"
+            }
+        } catch {}
+    }
     $emailArgs = @{
-        ClusterName  = $clusterName
-        Status       = $overallStatus
-        Duration     = $totalDurStr
-        StepResults  = $results
-        LogFile      = $script:PipelineLogFile
-        StartTime    = $pipelineStart
-        EndTime      = (Get-Date)
-        ClusterVip   = $clusterVip
-        NodeCount    = @($cfg.network.nodes).Count
+        ClusterName    = $clusterName
+        Status         = $overallStatus
+        Duration       = $totalDurStr
+        StepResults    = $results
+        LogFile        = $script:PipelineLogFile
+        StartTime      = $pipelineStart
+        EndTime        = (Get-Date)
+        ClusterVip     = $clusterVip
+        NodeCount      = @($cfg.network.nodes).Count
+        LcmReportHtml  = $lcmHtmlReport
     }
     if ($failedStepName) { $emailArgs['FailedStep'] = $failedStepName }
     if ($TriggeredBy)    { $emailArgs['To'] = $TriggeredBy }

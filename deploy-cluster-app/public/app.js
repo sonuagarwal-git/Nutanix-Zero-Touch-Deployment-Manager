@@ -17,7 +17,68 @@ document.addEventListener('DOMContentLoaded', () => {
     initProtectionPolicyToggle();
     initRecoveryPlanToggle();
     initStorageCompressionToggle();
+    initStorageContainerToggle();
+    initProductionNetworkToggle();
 });
+
+/* ── Production Network: enable/disable VLANs step ─────── */
+function initProductionNetworkToggle() {
+    const enabledCb   = document.getElementById('prod-network-enabled');
+    const configPanel = document.getElementById('prod-network-config-panel');
+    if (enabledCb && configPanel) {
+        enabledCb.addEventListener('change', () => {
+            configPanel.style.display = enabledCb.checked ? '' : 'none';
+        });
+    }
+}
+
+function restoreProductionNetworkState(cfg) {
+    const enabledCb   = document.getElementById('prod-network-enabled');
+    const configPanel = document.getElementById('prod-network-config-panel');
+    const hasVlans    = !!(cfg && Array.isArray(cfg.production_vlans) && cfg.production_vlans.length > 0);
+    if (enabledCb)   enabledCb.checked         = hasVlans;
+    if (configPanel) configPanel.style.display  = hasVlans ? '' : 'none';
+    if (hasVlans) renderVlanRows(cfg.production_vlans.length, cfg.production_vlans);
+}
+
+function resetProductionNetworkState() {
+    const enabledCb   = document.getElementById('prod-network-enabled');
+    const configPanel = document.getElementById('prod-network-config-panel');
+    if (enabledCb)   enabledCb.checked         = false;
+    if (configPanel) configPanel.style.display  = 'none';
+}
+
+/* ── Storage container: enable/disable the whole step ────── */
+function initStorageContainerToggle() {
+    const enabledCb    = document.getElementById('storage-enabled');
+    const configPanel  = document.getElementById('storage-config-panel');
+    const nameInput    = document.getElementById('storageContainerName');
+    const nameMark     = document.getElementById('storageNameRequiredMark');
+    function applyState() {
+        const on = enabledCb ? enabledCb.checked : true;
+        if (configPanel) configPanel.style.display = on ? '' : 'none';
+        if (nameInput)   nameInput.required         = on;
+        if (nameMark)    nameMark.style.display      = on ? '' : 'none';
+    }
+    if (enabledCb) enabledCb.addEventListener('change', applyState);
+    applyState();
+}
+
+function restoreStorageContainerState(cfg) {
+    const enabledCb   = document.getElementById('storage-enabled');
+    const configPanel = document.getElementById('storage-config-panel');
+    // enabled when storage_container.enabled is absent (old configs) OR explicitly true
+    const isEnabled   = !(cfg && cfg.storage_container && cfg.storage_container.enabled === false);
+    if (enabledCb)   enabledCb.checked         = isEnabled;
+    if (configPanel) configPanel.style.display  = isEnabled ? '' : 'none';
+}
+
+function resetStorageContainerState() {
+    const enabledCb   = document.getElementById('storage-enabled');
+    const configPanel = document.getElementById('storage-config-panel');
+    if (enabledCb)   enabledCb.checked         = true;
+    if (configPanel) configPanel.style.display  = '';
+}
 
 /* ── Storage container: show/hide compression delay field ─── */
 function initStorageCompressionToggle() {
@@ -117,8 +178,9 @@ function initRecoveryPlanToggle() {
 function restoreRecoveryPlanState(cfg) {
     const enabledCb   = document.getElementById('recovery-plan-enabled');
     const configPanel = document.getElementById('recovery-plan-config-panel');
-    const hasRP = !!(cfg && cfg.recovery_plan && cfg.recovery_plan.target_network &&
-                    cfg.recovery_plan.target_network.subnet_name);
+    const hasRP = !!(cfg && cfg.recovery_plan &&
+                    cfg.recovery_plan.source_network && cfg.recovery_plan.source_network.subnet_name &&
+                    cfg.recovery_plan.target_network  && cfg.recovery_plan.target_network.subnet_name);
     if (enabledCb)   enabledCb.checked        = hasRP;
     if (configPanel) configPanel.style.display = hasRP ? '' : 'none';
 }
@@ -216,9 +278,10 @@ let deploymentSteps = [
     { id: 'step11', title: 'Create Protection Policy',        status: 'pending' },
     { id: 'step12', title: 'Create Recovery Plan',            status: 'pending' },
     { id: 'step13', title: 'Set AHV Bond Mode',               status: 'pending' },
-    { id: 'step14', title: 'Change Passwords & Export CSV',   status: 'pending' },
-    { id: 'step15', title: 'Import Secrets to CyberArk',      status: 'pending' },
-    { id: 'step16', title: 'Add DNS Records',                  status: 'pending' }
+    { id: 'step14', title: 'Run LCM Inventory',               status: 'pending' },
+    { id: 'step15', title: 'Change Passwords & Export CSV',   status: 'pending' },
+    { id: 'step16', title: 'Import Secrets to CyberArk',      status: 'pending' },
+    { id: 'step17', title: 'Add DNS Records',                  status: 'pending' }
 ];
 
 /* =========================================================
@@ -258,8 +321,11 @@ function togglePasswordField(fieldId, buttonElement) {
 function buildVlanTile(n, values) {
     const vals = values || {};
     const div = document.createElement('div');
-    div.className = 'form-row-grid';
+    div.className = 'vlan-tile form-row-grid';
+    div.style.cssText = 'position:relative;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:14px 40px 14px 14px;margin-bottom:4px;';
     div.innerHTML = `
+        <button type="button" class="vlan-remove-btn" title="Remove this VLAN"
+            style="position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:50%;border:1px solid rgba(255,80,80,0.5);background:rgba(255,80,80,0.12);color:#ff6b6b;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;">&#x2715;</button>
         <div class="form-group">
             <label>Subnet Name <span class="required-mark">*</span></label>
             <input type="text" name="production_vlans.${n}.subnet_name" value="${escHtml(vals.subnet_name || '')}" placeholder="e.g. vLAN-201">
@@ -285,6 +351,12 @@ function buildVlanTile(n, values) {
             <input type="text" name="production_vlans.${n}.ip_pool_end" value="${escHtml(vals.ip_pool_end || '')}" placeholder="e.g. 10.0.201.50">
         </div>
     `;
+    div.querySelector('.vlan-remove-btn').addEventListener('click', () => {
+        const container = document.getElementById('vlanRowsContainer');
+        const tiles = Array.from(container.querySelectorAll('.vlan-tile'));
+        const idx = tiles.indexOf(div);
+        if (idx !== -1) removeVlanTile(idx);
+    });
     return div;
 }
 
@@ -313,6 +385,18 @@ function renderVlanRows(count, forcedValues) {
     for (let n = 0; n < count; n++) {
         container.appendChild(buildVlanTile(n, existing[n] || {}));
     }
+    updateVlanRemoveBtns();
+}
+
+function updateVlanRemoveBtns() {
+    const container = document.getElementById('vlanRowsContainer');
+    if (!container) return;
+    const tiles = container.querySelectorAll('.vlan-tile');
+    const onlyOne = tiles.length <= 1;
+    tiles.forEach(tile => {
+        const btn = tile.querySelector('.vlan-remove-btn');
+        if (btn) btn.style.display = onlyOne ? 'none' : 'flex';
+    });
 }
 
 function removeVlanTile(n) {
@@ -710,7 +794,10 @@ function validateRequiredSections() {
 
     // 1. Basic Configuration
     chk('clusterName',       'Cluster Name',          'Basic Configuration');
-    chk('storageContainerName', 'Container Name', 'Storage Container');
+    const storageEnabledCb = document.getElementById('storage-enabled');
+    if (!storageEnabledCb || storageEnabledCb.checked) {
+        chk('storageContainerName', 'Container Name', 'Storage Container');
+    }
     chk('timezone',          'Timezone',               'Basic Configuration');
 
     // 2. Management Network
@@ -747,22 +834,30 @@ function validateRequiredSections() {
     chk('hypervisorIsoUrl', 'Hypervisor ISO URL', 'AOS & AHV Selection');
     chk('phoenixIsoUrl',    'Phoenix ISO URL',    'AOS & AHV Selection');
 
-    // 7. Production Network — at least one VLAN row with a subnet name
-    const vlanInputs = Array.from(document.querySelectorAll('[name^="production_vlans."][name$=".subnet_name"]'));
-    const hasVlan    = vlanInputs.some(el => el.value.trim());
-    if (!hasVlan) {
-        errors.push('At least one VLAN entry with a Subnet Name is required (Production Network)');
-        if (vlanInputs[0]) {
-            allEls.push(vlanInputs[0]);
-            if (!firstEl) firstEl = vlanInputs[0];
-            const panel = vlanInputs[0].closest('.tab-panel');
-            if (panel) tabIds.add(panel.id);
+    // 7. Production Network — only validated when the toggle is on
+    const prodNetEnabledCb = document.getElementById('prod-network-enabled');
+    if (prodNetEnabledCb && prodNetEnabledCb.checked) {
+        const vlanInputs = Array.from(document.querySelectorAll('[name^="production_vlans."][name$=".subnet_name"]'));
+        const hasVlan    = vlanInputs.some(el => el.value.trim());
+        if (!hasVlan) {
+            errors.push('At least one VLAN entry with a Subnet Name is required (Production Network)');
+            if (vlanInputs[0]) {
+                allEls.push(vlanInputs[0]);
+                if (!firstEl) firstEl = vlanInputs[0];
+                const panel = vlanInputs[0].closest('.tab-panel');
+                if (panel) tabIds.add(panel.id);
+            }
         }
     }
 
-    // 8. Recovery Plan Target Network — only validated when recovery-plan-enabled is checked
+    // 8. Recovery Plan Networks — only validated when recovery-plan-enabled is checked
     const recoveryPlanEnabled = document.getElementById('recovery-plan-enabled');
     if (recoveryPlanEnabled && recoveryPlanEnabled.checked) {
+        chk('rpSrcSubnetName',   'Subnet Name',   'Recovery Plan — Source Network');
+        chk('rpSrcGateway',      'Gateway',       'Recovery Plan — Source Network');
+        chk('rpSrcPrefixLength', 'Prefix Length', 'Recovery Plan — Source Network');
+        chk('rpSrcIpPoolStart',  'IP Pool Start', 'Recovery Plan — Source Network');
+        chk('rpSrcIpPoolEnd',    'IP Pool End',   'Recovery Plan — Source Network');
         chk('rpSubnetName',   'Subnet Name',   'Recovery Plan — Target Network');
         chk('rpGateway',      'Gateway',       'Recovery Plan — Target Network');
         chk('rpPrefixLength', 'Prefix Length', 'Recovery Plan — Target Network');
@@ -1169,6 +1264,8 @@ document.getElementById('loadConfigBtn').addEventListener('click', async () => {
             restoreBackupPolicyState(config);
             restoreProtectionPolicyState(config);
             restoreRecoveryPlanState(config);
+            restoreStorageContainerState(config);
+            restoreProductionNetworkState(config);
             loadedConfigFile = filename;  // remember for deployment (no date-stamp)
             // Pre-select in the resume panel too
             const resumeSel = document.getElementById('resumeConfigSelect');
@@ -1309,6 +1406,12 @@ function buildConfigObject(formData) {
         }
     });
 
+    // Production VLANs: omit entirely if toggle is off
+    const prodNetEnabledCb2 = document.getElementById('prod-network-enabled');
+    if (!prodNetEnabledCb2 || !prodNetEnabledCb2.checked) {
+        delete config.production_vlans;
+    }
+
     // Backup section: omit entirely if not enabled; otherwise drop unchecked policies and remove mode field.
     const backupEnabledCb = document.getElementById('backup-enabled');
     if (!backupEnabledCb || !backupEnabledCb.checked) {
@@ -1337,9 +1440,13 @@ function buildConfigObject(formData) {
     // the FormData loop (unchecked checkboxes are absent; empty values are filtered).
     // Write them explicitly so the JSON always reflects the current UI state.
     if (!config.storage_container) config.storage_container = {};
+    const scEnabledEl = document.getElementById('storage-enabled');
     const scDedupEl   = document.getElementById('storageDedup');
+    const scDeleteEl  = document.getElementById('storageDeleteDefault');
     const scRfEl      = document.getElementById('storageRf');
+    if (scEnabledEl) config.storage_container.enabled                  = scEnabledEl.checked;
     if (scDedupEl)  config.storage_container.deduplication             = scDedupEl.checked;
+    if (scDeleteEl) config.storage_container.delete_default_container  = scDeleteEl.checked;
     if (scRfEl)     config.storage_container.replication_factor        = scRfEl.value;  // '' = node-count default
 
     // Reorder top-level keys to match template structure:
@@ -1382,6 +1489,8 @@ document.getElementById('resetBtn').addEventListener('click', () => {
     resetBackupPolicyState();
     resetProtectionPolicyState();
     resetRecoveryPlanState();
+    resetStorageContainerState();
+    resetProductionNetworkState();
 });
 
 document.getElementById('loadBtn').addEventListener('click', () => {
@@ -1493,6 +1602,8 @@ function handleFileLoad(event) {
             restoreBackupPolicyState(config);
             restoreProtectionPolicyState(config);
             restoreRecoveryPlanState(config);
+            restoreStorageContainerState(config);
+            restoreProductionNetworkState(config);
         } catch (err) {
             alert('Error loading file: ' + err.message);
         }

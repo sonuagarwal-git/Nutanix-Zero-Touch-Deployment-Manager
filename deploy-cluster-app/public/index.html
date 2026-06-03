@@ -48,18 +48,15 @@
         <!-- ── Tab Bar ── -->
         <div class="tab-bar">
             <button type="button" class="tab-btn-main active" data-tab-target="tab-basic">Basic</button>
-            <button type="button" class="tab-btn-main" data-tab-target="tab-network">Mgmt Network</button>
             <button type="button" class="tab-btn-main" data-tab-target="tab-nodes">Nodes</button>
-            <button type="button" class="tab-btn-main" data-tab-target="tab-dns">DNS</button>
-            <button type="button" class="tab-btn-main" data-tab-target="tab-ntp">NTP</button>
-            <button type="button" class="tab-btn-main" data-tab-target="tab-witness">Witness</button>
             <button type="button" class="tab-btn-main" data-tab-target="tab-aos">AOS &amp; AHV</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-network">Subnets</button>
             <button type="button" class="tab-btn-main" data-tab-target="tab-storage">Storage Container</button>
-            <button type="button" class="tab-btn-main" data-tab-target="tab-vlans">Prod Network</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-eula">EULA</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-witness">Witness</button>
+            <button type="button" class="tab-btn-main" data-tab-target="tab-pc">Prism Central</button>
             <button type="button" class="tab-btn-main" data-tab-target="tab-backup">Backup Policies</button>
             <button type="button" class="tab-btn-main" data-tab-target="tab-protection">Protection</button>
-            <button type="button" class="tab-btn-main" data-tab-target="tab-pc">Prism Central</button>
-            <button type="button" class="tab-btn-main" data-tab-target="tab-eula">EULA</button>
             <button type="button" class="tab-btn-main" data-tab-target="tab-cyberark">CyberArk</button>
             <button type="button" class="tab-btn-main" data-tab-target="tab-notify">Notify</button>
         </div>
@@ -523,11 +520,67 @@
                         </select>
                     </div>
                 </div>
+
+                <hr style="border-color:rgba(255,255,255,0.08);margin:24px 0 16px;">
+                <h3 style="margin:0 0 14px;">DNS <span class="required-mark">*</span></h3>
+                <div class="form-row-grid">
+                    <div class="form-group">
+                        <label for="dnsServer1">DNS Server 1 <span class="required-mark">*</span></label>
+                        <input type="text" id="dnsServer1" name="dns_servers.0" placeholder="e.g. 10.0.1.10" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dnsServer2">DNS Server 2</label>
+                        <input type="text" id="dnsServer2" name="dns_servers.1" placeholder="e.g. 10.0.1.11">
+                    </div>
+                    <div class="form-group">
+                        <label for="dnsServer3">DNS Server 3</label>
+                        <input type="text" id="dnsServer3" name="dns_servers.2" value="">
+                    </div>
+                </div>
+                <div class="form-row-grid" style="margin-top:10px;">
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <p style="margin:0;font-weight:700;color:var(--accent);">&#9432; DNS Admin Account (Optional) — used by Step 16 to create DNS A records (ilo, nodes &amp; cluster) under the service account identity. <strong>Step 16 is automatically skipped if these fields are left empty.</strong></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="dnsAdminDomain">Domain</label>
+                        <input type="text" id="dnsAdminDomain" name="dns_admin.domain" placeholder="e.g. CORP">
+                    </div>
+                    <div class="form-group">
+                        <label for="dnsAdminUsername">Username</label>
+                        <input type="text" id="dnsAdminUsername" name="dns_admin.username" placeholder="e.g. SVC-NTX-AUTO">
+                    </div>
+                    <div class="form-group">
+                        <label for="dnsAdminPassword">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="dnsAdminPassword" name="dns_admin.password" value="">
+                            <button type="button" class="password-toggle" onclick="togglePasswordField('dnsAdminPassword', this)" aria-label="Toggle password visibility"><span>&#128065;&#65039;</span></button>
+                        </div>
+                    </div>
+                </div>
+
+                <hr style="border-color:rgba(255,255,255,0.08);margin:24px 0 16px;">
+                <h3 style="margin:0 0 14px;">NTP <span class="required-mark">*</span></h3>
+                <div class="form-row-grid">
+                    <div class="form-group">
+                        <label for="ntpServer1">NTP Server 1 <span class="required-mark">*</span></label>
+                        <input type="text" id="ntpServer1" name="ntp_servers.0" placeholder="e.g. ntp1.example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="ntpServer2">NTP Server 2</label>
+                        <input type="text" id="ntpServer2" name="ntp_servers.1" placeholder="e.g. ntp2.example.com">
+                    </div>
+                </div>
             </section>
 
-            <!-- 2. Management Network -->
+            <!-- 2. Subnets — Management (required) + Production VLANs (optional) -->
             <section class="config-section tab-panel" id="tab-network">
-                <h2>Management Network <span class="required-mark">*</span></h2>
+                <h2>Subnets</h2>
+
+                <!-- Management Network — always required -->
+                <h3 style="margin:0 0 14px;font-size:0.95rem;font-weight:700;letter-spacing:0.04em;opacity:0.85;">
+                    Management Network <span class="required-mark">*</span>
+                    <span style="font-weight:400;font-size:0.8rem;opacity:0.6;margin-left:6px;">(Hypervisor vLAN)</span>
+                </h3>
                 <div class="form-row-grid">
                     <div class="form-group">
                         <label for="mgmtSubnetName">Subnet Name <span class="required-mark">*</span></label>
@@ -562,6 +615,24 @@
                         <input type="text" id="ipPoolEnd" name="network.ip_pool_end" placeholder="e.g. 10.0.100.20" required>
                     </div>
                 </div>
+
+                <hr style="margin:24px 0;border:none;border-top:1px solid rgba(255,255,255,0.1);">
+
+                <!-- Production Network — optional -->
+                <div class="form-row-grid">
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:1rem;">
+                            <input type="checkbox" id="prod-network-enabled" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">
+                            Production Network (Workload vLAN)
+                            <span class="optional-badge">Optional</span>
+                        </label>
+                        <p style="margin:6px 0 0 28px;font-weight:400;font-size:0.85rem;opacity:0.65;">When enabled, at least one VLAN with a Subnet Name is required.</p>
+                    </div>
+                    <div id="prod-network-config-panel" style="display:none;grid-column:1/-1;">
+                        <div id="vlanRowsContainer" style="display:flex;flex-direction:column;gap:16px;"></div>
+                        <button type="button" id="addVlanBtn" style="margin-top:12px;padding:6px 16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:6px;color:inherit;cursor:pointer;font-size:0.875rem;">+ Add VLAN</button>
+                    </div>
+                </div>
             </section>
 
             <!-- 3. Node Details -->
@@ -590,60 +661,6 @@
                     <span style="font-size:0.78rem;opacity:0.55;">Select the number of nodes and the tiles below will update automatically.</span>
                 </div>
                 <div id="nodeTilesContainer" class="config-grid nodes-grid"></div>
-            </section>
-
-            <!-- 4. DNS -->
-            <section class="config-section tab-panel" id="tab-dns">
-                <h2>DNS <span class="required-mark">*</span></h2>
-                <div class="form-row-grid">
-                    <div class="form-group">
-                        <label for="dnsServer1">DNS Server 1 <span class="required-mark">*</span></label>
-                        <input type="text" id="dnsServer1" name="dns_servers.0" placeholder="e.g. 10.0.1.10" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="dnsServer2">DNS Server 2</label>
-                        <input type="text" id="dnsServer2" name="dns_servers.1" placeholder="e.g. 10.0.1.11">
-                    </div>
-                    <div class="form-group">
-                        <label for="dnsServer3">DNS Server 3</label>
-                        <input type="text" id="dnsServer3" name="dns_servers.2" value="">
-                    </div>
-                </div>
-                <div class="form-row-grid" style="margin-top:10px;">
-                    <div class="form-group" style="grid-column:1/-1;">
-                        <p style="margin:0;font-weight:700;color:var(--accent);">&#9432; DNS Admin Account (Optional) — used by Step 16 to create DNS A records (ilo, nodes & cluster) under the service account identity. <strong>Step 16 is automatically skipped if these fields are left empty.</strong></p>
-                    </div>
-                    <div class="form-group">
-                        <label for="dnsAdminDomain">Domain</label>
-                        <input type="text" id="dnsAdminDomain" name="dns_admin.domain" placeholder="e.g. CORP">
-                    </div>
-                    <div class="form-group">
-                        <label for="dnsAdminUsername">Username</label>
-                        <input type="text" id="dnsAdminUsername" name="dns_admin.username" placeholder="e.g. SVC-NTX-AUTO">
-                    </div>
-                    <div class="form-group">
-                        <label for="dnsAdminPassword">Password</label>
-                        <div class="password-wrapper">
-                            <input type="password" id="dnsAdminPassword" name="dns_admin.password" value="">
-                            <button type="button" class="password-toggle" onclick="togglePasswordField('dnsAdminPassword', this)" aria-label="Toggle password visibility"><span>👁️</span></button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 6. NTP -->
-            <section class="config-section tab-panel" id="tab-ntp">
-                <h2>NTP <span class="required-mark">*</span></h2>
-                <div class="form-row-grid">
-                    <div class="form-group">
-                        <label for="ntpServer1">NTP Server 1 <span class="required-mark">*</span></label>
-                        <input type="text" id="ntpServer1" name="ntp_servers.0" placeholder="e.g. ntp1.example.com" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="ntpServer2">NTP Server 2</label>
-                        <input type="text" id="ntpServer2" name="ntp_servers.1" placeholder="e.g. ntp2.example.com">
-                    </div>
-                </div>
             </section>
 
             <!-- 7. Witness Configuration -->
@@ -700,49 +717,64 @@
 
             <!-- 8b. Storage Container -->
             <section class="config-section tab-panel" id="tab-storage">
-                <h2>Storage Container <span class="required-mark">*</span></h2>
+                <h2>Storage Container <span class="optional-badge">Optional</span></h2>
                 <div class="form-row-grid">
-                    <div class="form-group">
-                        <label for="storageContainerName">Container Name <span class="required-mark">*</span></label>
-                        <input type="text" id="storageContainerName" name="storage_container.name" placeholder="e.g. Workload-Container">
+
+                    <!-- Enable toggle -->
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:1rem;">
+                            <input type="checkbox" id="storage-enabled" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;" checked>
+                            Create Storage Container (Step 9)
+                        </label>
+                        <p style="margin:6px 0 0 28px;font-weight:400;font-size:0.85rem;opacity:0.65;">When disabled, the pipeline will skip storage container creation entirely.</p>
                     </div>
-                    <div class="form-group">
-                        <label for="storageRf">Replication Factor</label>
-                        <select id="storageRf" name="storage_container.replication_factor">
-                            <option value="" selected>Default (RF1 for 1 node, RF2 for 2+ nodes)</option>
-                            <option value="1">RF1 &mdash; minimum 1 node</option>
-                            <option value="2">RF2 &mdash; minimum 2 nodes</option>
-                            <option value="3">RF3 &mdash; minimum 5 nodes</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="storageCompression">Compression</label>
-                        <select id="storageCompression" name="storage_container.compression">
-                            <option value="inline" selected>Inline Compression (default)</option>
-                            <option value="none">None</option>
-                            <option value="post_process">Post Process Compression</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="storageCompressionDelayGroup" style="display:none;">
-                        <label for="storageCompressionDelay">Compression Delay (minutes)</label>
-                        <input type="number" id="storageCompressionDelay" name="storage_container.compression_delay_mins" value="60" min="0">
-                    </div>
-                    <div class="form-group" style="grid-column: 1 / -1;">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <input type="checkbox" id="storageDedup" name="storage_container.deduplication" style="width:auto;margin:0;">
-                            <label for="storageDedup" style="margin:0;" title="Deduplication is not supported with fewer than 3 nodes">Capacity Deduplication &#9432;</label>
+
+                    <!-- Config panel — hidden when disabled -->
+                    <div id="storage-config-panel" style="grid-column:1/-1;">
+                        <div class="form-row-grid" style="margin:0;">
+                            <div class="form-group">
+                                <label for="storageContainerName">Container Name <span id="storageNameRequiredMark" class="required-mark">*</span></label>
+                                <input type="text" id="storageContainerName" name="storage_container.name" placeholder="e.g. Workload-Container" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="storageRf">Replication Factor</label>
+                                <select id="storageRf" name="storage_container.replication_factor">
+                                    <option value="" selected>Default (RF1 for 1 node, RF2 for 2+ nodes)</option>
+                                    <option value="1">RF1 &mdash; minimum 1 node</option>
+                                    <option value="2">RF2 &mdash; minimum 2 nodes</option>
+                                    <option value="3">RF3 &mdash; minimum 5 nodes</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="storageCompression">Compression</label>
+                                <select id="storageCompression" name="storage_container.compression">
+                                    <option value="inline" selected>Inline Compression (default)</option>
+                                    <option value="none">None</option>
+                                    <option value="post_process">Post Process Compression</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="storageCompressionDelayGroup" style="display:none;">
+                                <label for="storageCompressionDelay">Compression Delay (minutes)</label>
+                                <input type="number" id="storageCompressionDelay" name="storage_container.compression_delay_mins" value="60" min="0">
+                            </div>
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <input type="checkbox" id="storageDedup" name="storage_container.deduplication" style="width:auto;margin:0;">
+                                    <label for="storageDedup" style="margin:0;" title="Deduplication is not supported with fewer than 3 nodes">Capacity Deduplication &#9432;</label>
+                                </div>
+                                <small style="opacity:0.6;">Default: disabled. Requires minimum 3 nodes.</small>
+                            </div>
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <input type="checkbox" id="storageDeleteDefault" name="storage_container.delete_default_container" style="width:auto;margin:0;">
+                                    <label for="storageDeleteDefault" style="margin:0;">Delete default storage container (<code>default-container-####</code>)</label>
+                                </div>
+                                <small style="color:#f5a623;opacity:0.9;">&#9888; Warning: Only enable on freshly imaged clusters. Do not use on active production clusters.</small>
+                            </div>
                         </div>
-                        <small style="opacity:0.6;">Default: disabled. Requires minimum 3 nodes.</small>
                     </div>
+
                 </div>
-            </section>
-
-            <!-- 9. Production Network (Source Cluster) -->
-            <section class="config-section tab-panel" id="tab-vlans">
-                <h2>Production Network <span class="required-mark">*</span> <span style="font-weight:400;opacity:0.55;text-transform:none;letter-spacing:0;">(Source Cluster)</span>
-                </h2>
-                <div id="vlanRowsContainer"></div>
-
             </section>
 
             <!-- Backup Policies -->
@@ -948,7 +980,7 @@
 
             <!-- 10b. Protection (Protection Policy + Recovery Plan) -->
             <section class="config-section tab-panel" id="tab-protection">
-                <h2>Protection</h2>
+                <h2>Protection <span class="optional-badge">Optional</span></h2>
                 <p style="margin:0 0 16px;color:rgba(255,255,255,0.55);font-size:0.85rem;">
                     Cross-site failover replication policy. If not needed, leave this tab empty — the step will be skipped automatically.
                 </p>
@@ -1009,12 +1041,40 @@
                     <input type="checkbox" id="recovery-plan-enabled" style="width:auto;margin:4px 0 0;">
                     <div>
                         <label for="recovery-plan-enabled" style="margin:0;font-weight:600;">Create Recovery Plan</label>
-                        <p style="margin:4px 0 0;font-size:0.82rem;color:rgba(255,255,255,0.5);">When enabled, the target network fields below are required.</p>
+                        <p style="margin:4px 0 0;font-size:0.82rem;color:rgba(255,255,255,0.5);">When enabled, all source and target network fields below are required.</p>
                     </div>
                 </div>
 
                 <div id="recovery-plan-config-panel" style="display:none;">
-                    <h4 style="margin:0 0 14px;font-size:0.85rem;font-weight:600;opacity:0.75;">Target Network (Hub / Recovery Site) <span class="required-mark">*</span></h4>
+                    <h4 style="margin:0 0 14px;font-size:0.85rem;font-weight:600;opacity:0.75;">Source Network (Production / Source Cluster) <span class="required-mark">*</span></h4>
+                    <div class="form-row-grid">
+                        <div class="form-group">
+                            <label for="rpSrcSubnetName">Subnet Name <span class="required-mark">*</span></label>
+                            <input type="text" id="rpSrcSubnetName" name="recovery_plan.source_network.subnet_name" placeholder="e.g. Prod-vLAN-488">
+                        </div>
+                        <div class="form-group">
+                            <label for="rpSrcVlanId">VLAN ID</label>
+                            <input type="number" id="rpSrcVlanId" name="recovery_plan.source_network.vlan_id" placeholder="e.g. 488">
+                        </div>
+                        <div class="form-group">
+                            <label for="rpSrcGateway">Gateway <span class="required-mark">*</span></label>
+                            <input type="text" id="rpSrcGateway" name="recovery_plan.source_network.gateway" placeholder="e.g. 10.0.56.97">
+                        </div>
+                        <div class="form-group">
+                            <label for="rpSrcPrefixLength">Prefix Length <span class="required-mark">*</span></label>
+                            <input type="number" id="rpSrcPrefixLength" name="recovery_plan.source_network.prefix_length" placeholder="e.g. 28">
+                        </div>
+                        <div class="form-group">
+                            <label for="rpSrcIpPoolStart">IP Pool Start <span class="required-mark">*</span></label>
+                            <input type="text" id="rpSrcIpPoolStart" name="recovery_plan.source_network.ip_pool_start" placeholder="e.g. 10.0.56.98">
+                        </div>
+                        <div class="form-group">
+                            <label for="rpSrcIpPoolEnd">IP Pool End <span class="required-mark">*</span></label>
+                            <input type="text" id="rpSrcIpPoolEnd" name="recovery_plan.source_network.ip_pool_end" placeholder="e.g. 10.0.56.111">
+                        </div>
+                    </div>
+
+                    <h4 style="margin:18px 0 14px;font-size:0.85rem;font-weight:600;opacity:0.75;">Target Network (Hub / Recovery Site) <span class="required-mark">*</span></h4>
                     <div class="form-row-grid">
                         <div class="form-group">
                             <label for="rpSubnetName">Subnet Name <span class="required-mark">*</span></label>
@@ -1173,9 +1233,10 @@
                         <option value="11">Step 11 — Create Protection Policy</option>
                         <option value="12">Step 12 — Create Recovery Plan</option>
                         <option value="13">Step 13 — Set AHV Bond Mode</option>
-                        <option value="14">Step 14 — Change Passwords &amp; Export CSV</option>
-                        <option value="15">Step 15 — Import Secrets to CyberArk</option>
-                        <option value="16">Step 16 — Add DNS Records</option>
+                        <option value="14">Step 14 — Run LCM Inventory</option>
+                        <option value="15">Step 15 — Change Passwords &amp; Export CSV</option>
+                        <option value="16">Step 16 — Import Secrets to CyberArk</option>
+                        <option value="17">Step 17 — Add DNS Records</option>
                     </select>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08);">
@@ -1207,9 +1268,10 @@
                             <label><input type="checkbox" class="skip-step-cb" value="11">11 — Create Protection Policy</label>
                             <label><input type="checkbox" class="skip-step-cb" value="12">12 — Create Recovery Plan</label>
                             <label><input type="checkbox" class="skip-step-cb" value="13">13 — Set AHV Bond Mode</label>
-                            <label><input type="checkbox" class="skip-step-cb" value="14">14 — Change Passwords &amp; Export CSV</label>
-                            <label><input type="checkbox" class="skip-step-cb" value="15">15 — Import Secrets to CyberArk</label>
-                            <label><input type="checkbox" class="skip-step-cb" value="16">16 — Add DNS Records</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="14">14 — Run LCM Inventory</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="15">15 — Change Passwords &amp; Export CSV</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="16">16 — Import Secrets to CyberArk</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="17">17 — Add DNS Records</label>
                         </div>
                     </div>
                 </div>

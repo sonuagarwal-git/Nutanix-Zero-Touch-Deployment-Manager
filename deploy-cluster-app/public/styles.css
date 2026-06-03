@@ -535,36 +535,29 @@ h2 {
    ========================================================= */
 .tab-bar {
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 0;
+    flex-wrap: wrap;
+    gap: 4px;
     margin-bottom: 18px;
     background: var(--bg-section);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 5px 6px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-color) transparent;
+    padding: 6px;
 }
-.tab-bar::-webkit-scrollbar { height: 4px; }
-.tab-bar::-webkit-scrollbar-track { background: transparent; }
-.tab-bar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
 .tab-btn-main {
     flex: 0 0 auto;
     padding: 7px 14px;
     font-size: 0.82rem;
     font-weight: 600;
-    border: none;
-    border-right: 1px solid var(--border-color);
-    border-radius: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
     background: transparent;
     color: var(--text-label);
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
     white-space: nowrap;
 }
-.tab-btn-main:first-child { border-radius: 5px 0 0 5px; }
-.tab-btn-main:last-child  { border-right: none; border-radius: 0 5px 5px 0; }
+.tab-btn-main:first-child { border-radius: 6px; }
+.tab-btn-main:last-child  { border-radius: 6px; }
 .tab-btn-main:hover {
     background: rgba(255,255,255,0.07);
     color: var(--text-primary);
@@ -796,7 +789,7 @@ h2 {
 
 .deployment-steps {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(9, 1fr);
     gap: 10px;
     margin-bottom: 22px;
 }
@@ -1128,12 +1121,12 @@ h2 {
     .button-group { flex-direction: column; }
     .btn { width: 100%; justify-content: center; }
 
-    .deployment-steps { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+    .deployment-steps { grid-template-columns: repeat(5, 1fr); gap: 8px; }
     .deployment-info  { flex-direction: column; gap: 6px; }
 }
 
 @media (max-width: 480px) {
-    .deployment-steps { grid-template-columns: repeat(2, 1fr); }
+    .deployment-steps { grid-template-columns: repeat(3, 1fr); }
     .nodes-grid { grid-template-columns: 1fr; }
 }
 

@@ -8,8 +8,9 @@
 .DESCRIPTION
     Reverses everything start.ps1 did so you can run a clean end-to-end test again.
     Stops and uninstalls the service, removes packages, uninstalls Node.js and
-    Posh-SSH, deletes generated files (.env, certs\, node_modules\), and resets
-    all deployment history and log files to an empty state.
+    optionally uninstalls Posh-SSH and PowerShell 7, deletes generated files
+    (.env, certs\, node_modules\), and resets all deployment history and log files
+    to an empty state.
 #>
 
 $ErrorActionPreference = 'Continue'
@@ -20,6 +21,17 @@ function Write-Step { param([string]$msg) Write-Host "" ; Write-Host "==> $msg" 
 function Write-OK   { param([string]$msg) Write-Host "    OK  : $msg" -ForegroundColor Green }
 function Write-Skip { param([string]$msg) Write-Host "    SKIP: $msg" -ForegroundColor Gray }
 function Write-Warn { param([string]$msg) Write-Host "    WARN: $msg" -ForegroundColor Yellow }
+
+function Confirm-YesNo {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    $answer = Read-Host "$Message [Y/N]"
+
+    return ($answer -match '^(Y|y)$')
+}
 
 # Step 1 - Stop and uninstall Windows service
 Write-Step "Step 1 -- Stopping and uninstalling Windows service"
@@ -61,17 +73,8 @@ if (Test-Path $nmPath) {
     Write-Skip "node_modules not found"
 }
 
-# Step 3 - Uninstall Posh-SSH
-Write-Step "Step 3 -- Uninstalling Posh-SSH"
-if (Get-Module -ListAvailable -Name Posh-SSH -ErrorAction SilentlyContinue) {
-    Uninstall-Module -Name Posh-SSH -AllVersions -Force -ErrorAction SilentlyContinue
-    Write-OK "Posh-SSH uninstalled"
-} else {
-    Write-Skip "Posh-SSH not installed"
-}
-
-# Step 4 - Uninstall Node.js
-Write-Step "Step 4 -- Uninstalling Node.js"
+# Step 3 - Uninstall Node.js
+Write-Step "Step 3 -- Uninstalling Node.js"
 $nodeCheck = Get-Command node -ErrorAction SilentlyContinue
 if ($nodeCheck) {
     winget uninstall OpenJS.NodeJS.LTS --accept-source-agreements
@@ -80,21 +83,8 @@ if ($nodeCheck) {
     Write-Skip "Node.js not installed"
 }
 
-# Step 5 - Uninstall PowerShell 7
-Write-Step "Step 5 -- Uninstalling PowerShell 7"
-$pwshCheck = Get-Command pwsh -ErrorAction SilentlyContinue
-if ($pwshCheck) {
-    # --all-versions handles the case where both an MSI (machine-wide) and an
-    # MSIX/winget (per-user) install exist simultaneously — winget errors if it
-    # finds multiple versions without an explicit selector.
-    winget uninstall Microsoft.PowerShell --all-versions --accept-source-agreements
-    Write-OK "PowerShell 7 uninstalled"
-} else {
-    Write-Skip "PowerShell 7 not installed"
-}
-
-# Step 6 - Delete .env
-Write-Step "Step 6 -- Deleting .env"
+# Step 4 - Delete .env
+Write-Step "Step 4 -- Deleting .env"
 $envFile = Join-Path $scriptDir '.env'
 if (Test-Path $envFile) {
     Remove-Item $envFile -Force
@@ -103,8 +93,8 @@ if (Test-Path $envFile) {
     Write-Skip ".env not found"
 }
 
-# Step 7 - Delete SSL certificates
-Write-Step "Step 7 -- Deleting SSL certificates"
+# Step 5 - Delete SSL certificates
+Write-Step "Step 5 -- Deleting SSL certificates"
 $certsDir = Join-Path $scriptDir 'certs'
 if (Test-Path $certsDir) {
     Remove-Item $certsDir -Recurse -Force
@@ -113,8 +103,8 @@ if (Test-Path $certsDir) {
     Write-Skip "certs\ not found"
 }
 
-# Step 8 - Reset deployment data and log files
-Write-Step "Step 8 -- Resetting deployment data and logs"
+# Step 6 - Reset deployment data and log files
+Write-Step "Step 6 -- Resetting deployment data and logs"
 $dataFiles = @(
     @{ Path = Join-Path $scriptDir 'deployments.json';    Empty = '{ "deployments": [] }' }
     @{ Path = Join-Path $scriptDir 'audit-logs.json';     Empty = '{ "logs": [] }' }
@@ -128,6 +118,36 @@ foreach ($f in $dataFiles) {
     } else {
         Write-Skip "Not found: $($f.Path)"
     }
+}
+
+# Step 7 - Uninstall Posh-SSH
+Write-Step "Step 7 -- Uninstalling Posh-SSH"
+if (Get-Module -ListAvailable -Name Posh-SSH -ErrorAction SilentlyContinue) {
+    if (Confirm-YesNo "Do you want to uninstall Posh-SSH?") {
+        Uninstall-Module -Name Posh-SSH -AllVersions -Force -ErrorAction SilentlyContinue
+        Write-OK "Posh-SSH uninstalled"
+    } else {
+        Write-Skip "User chose not to uninstall Posh-SSH"
+    }
+} else {
+    Write-Skip "Posh-SSH not installed"
+}
+
+# Step 8 - Uninstall PowerShell 7
+Write-Step "Step 8 -- Uninstalling PowerShell 7"
+$pwshCheck = Get-Command pwsh -ErrorAction SilentlyContinue
+if ($pwshCheck) {
+    if (Confirm-YesNo "Do you want to uninstall PowerShell 7?") {
+        # --all-versions handles the case where both an MSI machine-wide and an
+        # MSIX/winget per-user install exist simultaneously — winget errors if it
+        # finds multiple versions without an explicit selector.
+        winget uninstall Microsoft.PowerShell --all-versions --accept-source-agreements
+        Write-OK "PowerShell 7 uninstalled"
+    } else {
+        Write-Skip "User chose not to uninstall PowerShell 7"
+    }
+} else {
+    Write-Skip "PowerShell 7 not installed"
 }
 
 # Done

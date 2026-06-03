@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Manage Prism Central Failover Recovery Plan for cross-site replication
 
@@ -146,7 +146,16 @@ if ($ConfigFile) {
     # ── Validate required fields ──────────────────────────────────────────────
     $rpErrors = [System.Collections.Generic.List[string]]::new()
     $rpCfg    = $config.recovery_plan
+    $srcNet   = $rpCfg.source_network
     $tgtNet   = $rpCfg.target_network
+    if (-not $srcNet)                    { $rpErrors.Add("recovery_plan.source_network section is required") }
+    else {
+        if (-not $srcNet.subnet_name)    { $rpErrors.Add("recovery_plan.source_network.subnet_name is required") }
+        if (-not $srcNet.gateway)        { $rpErrors.Add("recovery_plan.source_network.gateway is required") }
+        if (-not $srcNet.prefix_length)  { $rpErrors.Add("recovery_plan.source_network.prefix_length is required") }
+        if (-not $srcNet.ip_pool_start)  { $rpErrors.Add("recovery_plan.source_network.ip_pool_start is required") }
+        if (-not $srcNet.ip_pool_end)    { $rpErrors.Add("recovery_plan.source_network.ip_pool_end is required") }
+    }
     if (-not $tgtNet)                    { $rpErrors.Add("recovery_plan.target_network section is required") }
     else {
         if (-not $tgtNet.subnet_name)    { $rpErrors.Add("recovery_plan.target_network.subnet_name is required") }
@@ -162,17 +171,18 @@ if ($ConfigFile) {
     }
 
     # ── Map config values to script variables ─────────────────────────────────
-    $srcVlan = $config.production_vlans[0]
-    if (-not $SourceNetworkName)   { $SourceNetworkName   = $srcVlan.subnet_name }
-    if (-not $SourceGateway)       { $SourceGateway       = $srcVlan.gateway }
-    if (-not $SourcePrefixLength)  { $SourcePrefixLength  = [int]$srcVlan.prefix_length }
-    if (-not $SourceStartIP)       { $SourceStartIP       = $srcVlan.ip_pool_start }
-    if (-not $SourceEndIP)         { $SourceEndIP         = $srcVlan.ip_pool_end }
+    if (-not $SourceNetworkName)   { $SourceNetworkName   = $srcNet.subnet_name }
+    if (-not $SourceGateway)       { $SourceGateway       = $srcNet.gateway }
+    if (-not $SourcePrefixLength)  { $SourcePrefixLength  = [int]$srcNet.prefix_length }
+    if (-not $SourceStartIP)       { $SourceStartIP       = $srcNet.ip_pool_start }
+    if (-not $SourceEndIP)         { $SourceEndIP         = $srcNet.ip_pool_end }
+    $SourceVlanId                  = if ($srcNet.vlan_id) { [int]$srcNet.vlan_id } else { $null }
     if (-not $RecoveryNetworkName) { $RecoveryNetworkName = $tgtNet.subnet_name }
     if (-not $RecoveryGateway)     { $RecoveryGateway     = $tgtNet.gateway }
     if (-not $RecoveryPrefixLength){ $RecoveryPrefixLength= [int]$tgtNet.prefix_length }
     if (-not $RecoveryStartIP)     { $RecoveryStartIP     = $tgtNet.ip_pool_start }
     if (-not $RecoveryEndIP)       { $RecoveryEndIP       = $tgtNet.ip_pool_end }
+    $RecoveryVlanId                = if ($tgtNet.vlan_id) { [int]$tgtNet.vlan_id } else { $null }
 } elseif (-not $PrismCentralIP -or -not $Username -or -not $Password -or -not $ClusterName) {
     Write-Host "ERROR: Provide either -ConfigFile or all of: -PrismCentralIP, -Username, -Password, -ClusterName (plus network params)." -ForegroundColor Red
     exit 1
@@ -189,7 +199,7 @@ if (-not $NewClusterName) {
     exit 1
 }
 if (-not $SourceNetworkName) {
-    Write-Host "ERROR: 'production_vlans[0].subnet_name' not found in config file: $ConfigFile" -ForegroundColor Red
+    Write-Host "ERROR: 'recovery_plan.source_network.subnet_name' not found in config file: $ConfigFile" -ForegroundColor Red
     exit 1
 }
 
@@ -217,6 +227,7 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
 
 # ── Script-level variables ─────────────────────────────────────────────────────
 $script:PrismCentralBaseURL = ""
+$script:PrismCentralV4Host  = ""
 $script:Headers             = @{}
 
 #region Helper Functions
@@ -719,6 +730,81 @@ function Wait-ForRecoveryPlanComplete {
     }
 }
 
+# ── V4.2 VLAN helper: Ensure a subnet exists on the given cluster ─────────────
+function Ensure-VlanExists {
+    param(
+        [string]$ClusterExtId,
+        [string]$ClusterLabel,
+        [string]$SubnetName,
+        [int]   $VlanId,
+        [string]$Gateway,
+        [int]   $PrefixLength,
+        [string]$IpPoolStart,
+        [string]$IpPoolEnd
+    )
+
+    $v4Base  = "https://$($script:PrismCentralV4Host):9440"
+    $authHdr = $script:Headers.Authorization
+    $hdrs    = @{ "Content-Type" = "application/json"; "Authorization" = $authHdr }
+
+    function Invoke-V4 {
+        param([string]$Method, [string]$Path, [object]$Body = $null)
+        $uri = "$v4Base$Path"
+        $p = @{ Uri = $uri; Method = $Method; Headers = $hdrs; ContentType = "application/json" }
+        if ($null -ne $Body) { $p.Body = ($Body | ConvertTo-Json -Depth 15 -Compress) }
+        if ($PSVersionTable.PSVersion.Major -ge 6) { $p.SkipCertificateCheck = $true }
+        return Invoke-RestMethod @p
+    }
+
+    Write-LogMessage "  Checking VLANs on $ClusterLabel (ExtId: $ClusterExtId)..." -Level Info
+
+    # Paginate all subnets, filter client-side by clusterReference
+    $page = 0; $limit = 50; $existing = $null
+    do {
+        $r = Invoke-V4 -Method GET -Path "/api/networking/v4.2/config/subnets?`$page=$page&`$limit=$limit"
+        $items = if ($r.data) { $r.data } else { @() }
+        $onCluster     = $items | Where-Object { $_.clusterReference -eq $ClusterExtId }
+        $matchByName   = $onCluster | Where-Object { $_.name -eq $SubnetName } | Select-Object -First 1
+        $matchByVlanId = if ($VlanId -gt 0) { $onCluster | Where-Object { $_.networkId -eq $VlanId } | Select-Object -First 1 } else { $null }
+        if ($matchByName)   { $existing = $matchByName;   break }
+        if ($matchByVlanId) { $existing = $matchByVlanId; break }
+        $total = if ($r.metadata.totalAvailableResults) { $r.metadata.totalAvailableResults } else { $items.Count }
+        $page++
+    } while (($page * $limit) -lt $total)
+
+    if ($existing) {
+        $reason = if ($existing.name -eq $SubnetName) { "name '$SubnetName'" } else { "VLAN ID $VlanId" }
+        Write-LogMessage "  ✓ Subnet already exists on $ClusterLabel (matched by $reason — '$($existing.name)' ID=$($existing.networkId)) — skipping" -Level Success
+        return
+    }
+
+    Write-LogMessage "  Subnet '$SubnetName' (VLAN $VlanId) not found on $ClusterLabel — creating..." -Level Info
+
+    $ipCfg = @{
+        ipv4 = @{
+            ipSubnet         = @{ ip = @{ value = $Gateway; prefixLength = $PrefixLength } }
+            defaultGatewayIp = @{ value = $Gateway }
+            poolList         = @( @{ startIp = @{ value = $IpPoolStart }; endIp = @{ value = $IpPoolEnd } } )
+        }
+    }
+    $body = @{
+        name             = $SubnetName
+        subnetType       = "VLAN"
+        networkId        = $VlanId
+        clusterReference = $ClusterExtId
+        ipConfig         = $ipCfg
+    }
+
+    try {
+        $result = Invoke-V4 -Method POST -Path "/api/networking/v4.2/config/subnets" -Body $body
+        Write-LogMessage "  ✓ Subnet '$SubnetName' created on $ClusterLabel (task: $($result.data.extId))" -Level Success
+    } catch {
+        $detail = if ($_.ErrorDetails) { $_.ErrorDetails.Message } else { $_.Exception.Message }
+        Write-LogMessage "  ✗ Failed to create subnet '$SubnetName' on ${ClusterLabel}: $detail" -Level Error
+        throw
+    }
+}
+
 #endregion
 
 #region Main Script
@@ -728,14 +814,15 @@ function Main {
         [string]$PCAddress, [string]$PCUsername, [string]$PCPassword,
         [string]$ClusterName,
         [string]$ClusterVip = "",
-        [string]$SrcNetName, [string]$SrcGateway, [int]$SrcPrefix, [string]$SrcStart, [string]$SrcEnd,
-        [string]$RecNetName, [string]$RecGateway, [int]$RecPrefix, [string]$RecStart, [string]$RecEnd
+        [string]$SrcNetName, [int]$SrcVlanId = 0, [string]$SrcGateway, [int]$SrcPrefix, [string]$SrcStart, [string]$SrcEnd,
+        [string]$RecNetName, [int]$RecVlanId = 0, [string]$RecGateway, [int]$RecPrefix, [string]$RecStart, [string]$RecEnd
     )
 
     # Plan name is always per-cluster
     $PlanName = "$ClusterName-Recovery-Plan"
 
     $script:PrismCentralBaseURL = "https://${PCAddress}:9440/api/nutanix/v3"
+    $script:PrismCentralV4Host  = $PCAddress
     $script:Headers = @{
         "Content-Type"  = "application/json"
         "Authorization" = "Basic " + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("${PCUsername}:${PCPassword}"))
@@ -807,6 +894,28 @@ function Main {
 
     Write-LogMessage "Source cluster   : $ClusterName (UUID: $($srcCluster.metadata.uuid))" -Level Success
     Write-LogMessage "Recovery cluster : $($pcCluster.spec.name) (UUID: $($pcCluster.metadata.uuid))" -Level Info
+
+    # ── Step 3b: Ensure VLANs exist on both clusters ──────────────────────────
+    Write-Host ""
+    Write-LogMessage "========================================" -Level Info
+    Write-LogMessage "Step 3b: Ensuring VLANs exist..." -Level Info
+    Write-LogMessage "========================================" -Level Info
+
+    $srcExtId = $srcCluster.metadata.uuid
+    $rcvExtId = $pcCluster.metadata.uuid
+
+    Write-LogMessage "Source Network — '$SrcNetName' (VLAN $SrcVlanId) on '$ClusterName'" -Level Info
+    Ensure-VlanExists -ClusterExtId $srcExtId -ClusterLabel $ClusterName `
+        -SubnetName $SrcNetName -VlanId $SrcVlanId `
+        -Gateway $SrcGateway -PrefixLength $SrcPrefix `
+        -IpPoolStart $SrcStart -IpPoolEnd $SrcEnd
+
+    Write-Host ""
+    Write-LogMessage "Target Network — '$RecNetName' (VLAN $RecVlanId) on '$($pcCluster.spec.name)'" -Level Info
+    Ensure-VlanExists -ClusterExtId $rcvExtId -ClusterLabel $pcCluster.spec.name `
+        -SubnetName $RecNetName -VlanId $RecVlanId `
+        -Gateway $RecGateway -PrefixLength $RecPrefix `
+        -IpPoolStart $RecStart -IpPoolEnd $RecEnd
 
     # ── Step 4: Get local AZ UUID ─────────────────────────────────────────────
     Write-Host ""
@@ -894,8 +1003,8 @@ try {
         -PCPassword  $Password `
         -ClusterName $NewClusterName `
         -ClusterVip  $config.network.cluster_vip `
-        -SrcNetName  $SourceNetworkName  -SrcGateway $SourceGateway  -SrcPrefix $SourcePrefixLength  -SrcStart $SourceStartIP  -SrcEnd $SourceEndIP `
-        -RecNetName  $RecoveryNetworkName -RecGateway $RecoveryGateway -RecPrefix $RecoveryPrefixLength -RecStart $RecoveryStartIP -RecEnd $RecoveryEndIP
+        -SrcNetName $SourceNetworkName -SrcVlanId ($SourceVlanId ?? 0) -SrcGateway $SourceGateway -SrcPrefix $SourcePrefixLength -SrcStart $SourceStartIP -SrcEnd $SourceEndIP `
+        -RecNetName $RecoveryNetworkName -RecVlanId ($RecoveryVlanId ?? 0) -RecGateway $RecoveryGateway -RecPrefix $RecoveryPrefixLength -RecStart $RecoveryStartIP -RecEnd $RecoveryEndIP
 }
 catch {
     Write-LogMessage "Script execution failed: $($_.Exception.Message)" -Level Error

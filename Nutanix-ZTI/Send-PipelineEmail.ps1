@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+﻿#Requires -Version 7.0
 
 <#
 .SYNOPSIS
@@ -103,7 +103,11 @@ param(
     [string]$ClusterVip = '',
 
     [Parameter()]
-    [int]$NodeCount = 0
+    [int]$NodeCount = 0,
+
+    # Optional LCM inventory HTML snippet -- extracted from the run log, injected after the step table.
+    [Parameter()]
+    [string]$LcmReportHtml = ''
 )
 
 #region ── Resolve SMTP settings from .env ────────────────────────────────────
@@ -291,6 +295,9 @@ $htmlBody = @"
 $stepRowsHtml        </tbody>
       </table>
     </div>
+
+    <!-- LCM Inventory Report (if available) -->
+    $(if ($LcmReportHtml) { $LcmReportHtml })
 
     <!-- Footer -->
     <div style="padding:12px 24px 20px;border-top:1px solid #eee;">

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Create one or more VLANs on a Nutanix cluster via Prism Central networking v4.2 API.
 .DESCRIPTION
@@ -182,12 +182,24 @@ if (-not $SkipExistingCheck) {
 
     # Re-issue with a fresh request ID
     $headers['NTNX-Request-Id'] = [Guid]::NewGuid().ToString()
-    $encodedClusterFilter = [Uri]::EscapeDataString("clusterReference eq '$clusterExtId'")
+    # clusterReference is not an OData-filterable field — fetch all subnets and
+    # filter client-side by clusterReference matching our target cluster extId.
     try {
-        $subnetResp      = Invoke-RestMethod -Uri "$pcBaseUrl/api/networking/v4.2/config/subnets?`$filter=$encodedClusterFilter&`$limit=500" `
-                               -Method GET -Headers $headers -TimeoutSec 30
-        $existingSubnets = @($subnetResp.data) | Where-Object { $_ }
-        Write-Host "  ✓ Retrieved $($existingSubnets.Count) existing subnets" -ForegroundColor Green
+        $page = 0; $pageSize = 50; $allSubnets = @()
+        do {
+            $headers['NTNX-Request-Id'] = [Guid]::NewGuid().ToString()
+            $subnetResp = Invoke-RestMethod `
+                -Uri "$pcBaseUrl/api/networking/v4.2/config/subnets?`$page=$page&`$limit=$pageSize" `
+                -Method GET -Headers $headers -TimeoutSec 30
+            $batch      = @($subnetResp.data) | Where-Object { $_ }
+            $allSubnets += $batch
+            $total      = $subnetResp.metadata.totalAvailableResults
+            $page++
+        } while ($allSubnets.Count -lt $total)
+
+        # Keep only subnets belonging to this cluster
+        $existingSubnets = $allSubnets | Where-Object { $_.clusterReference -eq $clusterExtId }
+        Write-Host "  ✓ Retrieved $($allSubnets.Count) / $total subnet(s) total; $($existingSubnets.Count) on this cluster" -ForegroundColor Green
     } catch {
         Write-Host "  ⚠ Could not fetch existing subnets (will skip duplicate check): $($_.Exception.Message)" -ForegroundColor Yellow
     }
@@ -207,12 +219,20 @@ foreach ($vlan in $vlans) {
     Write-Host "`nStep ${stepNum}: Creating VLAN '$subnetName' (ID: $vlanId)..." -ForegroundColor Yellow
     $stepNum++
 
-    # Duplicate check
+    # Duplicate check — skip if same name OR same VLAN ID already exists on this cluster.
+    # $existingSubnets is already pre-filtered to this cluster only (Step 2).
     if (-not $SkipExistingCheck -and $existingSubnets.Count -gt 0) {
-        $dup = $existingSubnets | Where-Object { $_.name -eq $subnetName -and $_.clusterReference -eq $clusterExtId }
-        if ($dup) {
-            Write-Host "  ⚠ VLAN '$subnetName' already exists on this cluster — skipping." -ForegroundColor Yellow
-            $results += [PSCustomObject]@{ Name = $subnetName; VLANID = $vlanId; Status = 'Skipped (exists)' }
+        $dupByName = $existingSubnets | Where-Object { $_.name -eq $subnetName } | Select-Object -First 1
+        $dupById   = $existingSubnets | Where-Object { [int]$_.networkId -eq $vlanId } | Select-Object -First 1
+
+        if ($dupByName) {
+            Write-Host "  ⚠ VLAN '$subnetName' already exists on this cluster (extId: $($dupByName.extId)) — skipping." -ForegroundColor Yellow
+            $results += [PSCustomObject]@{ Name = $subnetName; VLANID = $vlanId; Status = 'Skipped (name exists)' }
+            continue
+        }
+        if ($dupById) {
+            Write-Host "  ⚠ VLAN ID $vlanId already exists on this cluster as '$($dupById.name)' (extId: $($dupById.extId)) — skipping." -ForegroundColor Yellow
+            $results += [PSCustomObject]@{ Name = $subnetName; VLANID = $vlanId; Status = "Skipped (VLAN ID $vlanId exists as '$($dupById.name)')" }
             continue
         }
     }
