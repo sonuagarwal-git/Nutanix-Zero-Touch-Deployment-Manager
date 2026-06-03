@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Manage Prism Central Cross-Site Replication (Failover) Protection Policy for Nutanix Clusters
     
@@ -153,14 +153,19 @@ function Write-LogMessage {
         [ValidateSet('Info', 'Success', 'Warning', 'Error')]
         [string]$Level = 'Info'
     )
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $symbol = switch ($Level) {
+        'Info'    { 'ℹ' }
+        'Success' { '✓' }
+        'Warning' { '⚠' }
+        'Error'   { '✗' }
+    }
     $color = switch ($Level) {
         'Info'    { 'Cyan'   }
         'Success' { 'Green'  }
         'Warning' { 'Yellow' }
         'Error'   { 'Red'    }
     }
-    Write-Host "[$timestamp] [$Level] $Message" -ForegroundColor $color
+    Write-Host "  $symbol $Message" -ForegroundColor $color
 }
 
 function Invoke-PrismAPI {
@@ -717,10 +722,18 @@ function Main {
     Write-Host ""
 
     # ── Step 1: Get all clusters ───────────────────────────────────────────────
+    Write-Host ""
+    Write-LogMessage "========================================" -Level Info
+    Write-LogMessage "Step 1: Retrieving all clusters from Prism Central" -Level Info
+    Write-LogMessage "========================================" -Level Info
     $clusters = Get-AllClusters
     if ($clusters.Count -eq 0) { Write-LogMessage "No clusters found" -Level Error; return }
 
     # ── Step 2: Resolve remote (target) cluster by name from config ───────────
+    Write-Host ""
+    Write-LogMessage "========================================" -Level Info
+    Write-LogMessage "Step 2: Resolving remote (replication target) cluster" -Level Info
+    Write-LogMessage "========================================" -Level Info
     Write-LogMessage "Resolving remote cluster: '$POLICY_REMOTE_CLUSTER'..." -Level Info
     $pcCluster = $clusters | Where-Object {
         $_.spec.name -eq $POLICY_REMOTE_CLUSTER -and
@@ -734,6 +747,10 @@ function Main {
     Write-LogMessage "Remote cluster resolved: $($pcCluster.spec.name) (UUID: $($pcCluster.metadata.uuid))" -Level Success
 
     # ── Step 3: Find source cluster (input), deduplicate stale registrations ──
+    Write-Host ""
+    Write-LogMessage "========================================" -Level Info
+    Write-LogMessage "Step 3: Locating source cluster '$ClusterName'" -Level Info
+    Write-LogMessage "========================================" -Level Info
     $matchingClusters = @($clusters | Where-Object {
         $_.spec.name -eq $ClusterName -and
         $_.status.resources.config.service_list -notcontains "PRISM_CENTRAL"
@@ -766,6 +783,9 @@ function Main {
 
     # ── Step 4: Get Availability Zones ────────────────────────────────────────
     Write-Host ""
+    Write-LogMessage "========================================" -Level Info
+    Write-LogMessage "Step 4: Retrieving Availability Zones" -Level Info
+    Write-LogMessage "========================================" -Level Info
     $availabilityZones = Get-AvailabilityZones
     if ($availabilityZones.Count -eq 0) {
         Write-LogMessage "No Availability Zones found - clusters must be registered as AZs" -Level Error

@@ -1,4 +1,4 @@
-/* =========================================================
+﻿/* =========================================================
    app.js — Nutanix Cluster Deployment Manager
    ========================================================= */
 
@@ -246,6 +246,15 @@ function colorizeOutput(raw) {
 
         // ── Pipeline step headers  STEP N/15 ─────────────────────────────────
         if (/\bSTEP\s+\d+\/\d+\b/.test(t)) return `<span class="cl-step cl-bold">${h}</span>`;
+
+        // ── Sub-script step headers  Step N: ──────────────────────────────────
+        if (/^\s*Step\s+\d+[a-z]?\s*:/i.test(t)) return `<span class="cl-step cl-bold">${h}</span>`;
+
+        // ── Timestamped [Level] lines from sub-scripts ─────────────────────────
+        if (/\[(?:SUCCESS|SUCCEEDED)\]/i.test(t)) return `<span class="cl-pass">${h}</span>`;
+        if (/\[(?:ERROR|FAILED?|FAIL)\]/i.test(t)) return `<span class="cl-fail">${h}</span>`;
+        if (/\[(?:WARNING|WARN)\]/i.test(t))       return `<span class="cl-warn">${h}</span>`;
+        if (/\[INFO?\]/i.test(t))                   return `<span class="cl-info">${h}</span>`;
 
         // ── Step result lines ────────────────────────────────────────────────
         if (/\bSUCCEEDED\b/.test(t))                        return `<span class="cl-pass">${h}</span>`;

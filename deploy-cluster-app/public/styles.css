@@ -901,9 +901,10 @@ h2 {
 .log-info    { color: #94a3b8; }
 
 /* ── Content-pattern log colours (cl-*) — VS Code terminal palette ── */
-.cl-pass    { color: #4ade80; }          /* green  — ✓ PASS lines              */
-.cl-fail    { color: #f87171; }          /* red    — ✗ FAIL lines              */
-.cl-warn    { color: #fde68a; }          /* yellow — ⚠ WARN lines              */
+.cl-pass    { color: #4ade80; }          /* green  — ✓ PASS / [Success] lines  */
+.cl-fail    { color: #f87171; }          /* red    — ✗ FAIL / [Error] lines    */
+.cl-warn    { color: #fde68a; }          /* yellow — ⚠ WARN / [Warning] lines  */
+.cl-info    { color: #38bdf8; }          /* sky    — [Info] sub-step lines     */
 .cl-section { color: #22d3ee; }          /* cyan   — ── section headers        */
 .cl-banner  { color: #818cf8; }          /* indigo — ════ banners              */
 .cl-step    { color: #60a5fa; }          /* blue   — STEP N/15                 */

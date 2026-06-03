@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Create a Storage Container on a Nutanix cluster via Prism Central REST API v4.
 .DESCRIPTION
@@ -278,7 +278,10 @@ Write-Host "  Cluster Name   : $clusterName" -ForegroundColor Gray
 Write-Host "  Container Name : $ContainerName" -ForegroundColor Gray
 
 # ─── Step 1: Resolve cluster extId from PC ────────────────────────────────────
-Write-Host "`nStep 1: Locating cluster '$clusterName' on Prism Central..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  ========================================" -ForegroundColor Cyan
+Write-Host "  Step 1: Locating cluster '$clusterName' on Prism Central" -ForegroundColor Cyan
+Write-Host "  ========================================" -ForegroundColor Cyan
 
 $encodedName = [Uri]::EscapeDataString("name eq '$clusterName'")
 $clusterUrl  = "$pcBaseUrl/api/clustermgmt/v4.2/config/clusters?`$filter=$encodedName"
@@ -323,7 +326,10 @@ $storageHeaders['X-Cluster-Id'] = $clusterExtId
 
 # ─── Step 1b: Enable RF1 support on cluster if this is a 1-node deployment ───────────────
 if ($ReplicationFactor -eq 1) {
-    Write-Host "`nStep 1b: Enabling RF1 container support via Prism Central..." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  ========================================" -ForegroundColor Cyan
+    Write-Host "  Step 1b: Enabling RF1 container support via Prism Central" -ForegroundColor Cyan
+    Write-Host "  ========================================" -ForegroundColor Cyan
     try {
         # GET cluster detail — use Invoke-RestMethod with -ResponseHeadersVariable so we
         # get the ETag without needing Invoke-WebRequest (which has separate SSL handling).
@@ -376,7 +382,10 @@ if ($ReplicationFactor -eq 1) {
 }
 
 # ─── Step 2: Check existing containers; optionally delete default; skip if workload exists ──────
-Write-Host "`nStep 2: Checking existing storage containers on cluster..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  ========================================" -ForegroundColor Cyan
+Write-Host "  Step 2: Checking existing storage containers on cluster" -ForegroundColor Cyan
+Write-Host "  ========================================" -ForegroundColor Cyan
 
 $allContainers = @()
 try {
@@ -446,7 +455,10 @@ $compressionLabel = switch ($compressionType) {
 }
 
 # ─── Step 3: Create the storage container ─────────────────────────────────────
-Write-Host "`nStep 3: Creating storage container '$ContainerName'..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  ========================================" -ForegroundColor Cyan
+Write-Host "  Step 3: Creating storage container '$ContainerName'" -ForegroundColor Cyan
+Write-Host "  ========================================" -ForegroundColor Cyan
 
 Write-Host ""
 Write-Host "  Container Configuration:" -ForegroundColor Gray
@@ -491,7 +503,10 @@ try {
 }
 
 # ─── Step 4: Verify ───────────────────────────────────────────────────────────
-Write-Host "`nStep 4: Verifying storage container..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  ========================================" -ForegroundColor Cyan
+Write-Host "  Step 4: Verifying storage container" -ForegroundColor Cyan
+Write-Host "  ========================================" -ForegroundColor Cyan
 Start-Sleep -Seconds 3
 
 try {

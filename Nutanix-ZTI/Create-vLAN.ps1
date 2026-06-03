@@ -140,7 +140,10 @@ Write-Host "  VLANs to create: $($vlans.Count)" -ForegroundColor Gray
 Write-Host ""
 
 # ─── Step 1: Resolve cluster extId (VIP-aware, stale-safe) ────────────────────
-Write-Host "Step 1: Finding cluster '$clusterName' in Prism Central..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  ========================================" -ForegroundColor Cyan
+Write-Host "  Step 1: Finding cluster '$clusterName' in Prism Central" -ForegroundColor Cyan
+Write-Host "  ========================================" -ForegroundColor Cyan
 
 $encodedName = [Uri]::EscapeDataString("name eq '$clusterName'")
 try {
@@ -178,7 +181,10 @@ try {
 # ─── Step 2: Fetch existing subnets for duplicate check ───────────────────────
 $existingSubnets = @()
 if (-not $SkipExistingCheck) {
-    Write-Host "`nStep 2: Fetching existing subnets..." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  ========================================" -ForegroundColor Cyan
+    Write-Host "  Step 2: Fetching existing subnets for duplicate check" -ForegroundColor Cyan
+    Write-Host "  ========================================" -ForegroundColor Cyan
 
     # Re-issue with a fresh request ID
     $headers['NTNX-Request-Id'] = [Guid]::NewGuid().ToString()
@@ -216,7 +222,10 @@ foreach ($vlan in $vlans) {
     $gateway      = $vlan.gateway
     $prefixLength = [int]$vlan.prefix_length
 
-    Write-Host "`nStep ${stepNum}: Creating VLAN '$subnetName' (ID: $vlanId)..." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  ========================================" -ForegroundColor Cyan
+    Write-Host "  Step ${stepNum}: Creating VLAN '$subnetName' (ID: $vlanId)" -ForegroundColor Cyan
+    Write-Host "  ========================================" -ForegroundColor Cyan
     $stepNum++
 
     # Duplicate check — skip if same name OR same VLAN ID already exists on this cluster.

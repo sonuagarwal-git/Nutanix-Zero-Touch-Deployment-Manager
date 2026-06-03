@@ -148,6 +148,9 @@ if ($ConfigFile) {
     $rpCfg    = $config.recovery_plan
     $srcNet   = $rpCfg.source_network
     $tgtNet   = $rpCfg.target_network
+    if (-not $config.protection_policy -or -not $config.protection_policy.remote_cluster_name) {
+        $rpErrors.Add("protection_policy.remote_cluster_name is required (recovery plan uses the same remote cluster as the protection policy)")
+    }
     if (-not $srcNet)                    { $rpErrors.Add("recovery_plan.source_network section is required") }
     else {
         if (-not $srcNet.subnet_name)    { $rpErrors.Add("recovery_plan.source_network.subnet_name is required") }
@@ -171,6 +174,8 @@ if ($ConfigFile) {
     }
 
     # ── Map config values to script variables ─────────────────────────────────
+    # Remote cluster comes from protection_policy — recovery plan always targets the same site
+    $RemoteClusterName = $config.protection_policy.remote_cluster_name
     if (-not $SourceNetworkName)   { $SourceNetworkName   = $srcNet.subnet_name }
     if (-not $SourceGateway)       { $SourceGateway       = $srcNet.gateway }
     if (-not $SourcePrefixLength)  { $SourcePrefixLength  = [int]$srcNet.prefix_length }
@@ -238,14 +243,19 @@ function Write-LogMessage {
         [ValidateSet('Info', 'Success', 'Warning', 'Error')]
         [string]$Level = 'Info'
     )
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $symbol = switch ($Level) {
+        'Info'    { 'ℹ' }
+        'Success' { '✓' }
+        'Warning' { '⚠' }
+        'Error'   { '✗' }
+    }
     $color = switch ($Level) {
         'Info'    { 'Cyan'   }
         'Success' { 'Green'  }
         'Warning' { 'Yellow' }
         'Error'   { 'Red'    }
     }
-    Write-Host "[$timestamp] [$Level] $Message" -ForegroundColor $color
+    Write-Host "  $symbol $Message" -ForegroundColor $color
 }
 
 function Invoke-PrismAPI {
@@ -282,117 +292,6 @@ function Get-AllClusters {
     Write-LogMessage "Found $($realClusters.Count) Nutanix cluster(s)" -Level Success
     foreach ($c in $realClusters) { Write-LogMessage "  - $($c.spec.name)" -Level Info }
     return $response.entities
-}
-
-function Get-PrismCentralCluster {
-    param([array]$Clusters)
-    Write-LogMessage "Identifying cluster hosting Prism Central VM..." -Level Info
-
-    $pcEntry = $Clusters | Where-Object { $_.status.resources.config.service_list -contains "PRISM_CENTRAL" }
-    if (-not $pcEntry) {
-        Write-LogMessage "Could not find PC entry in clusters list" -Level Error
-        Write-LogMessage "Could not determine which cluster hosts Prism Central" -Level Error
-        return $null
-    }
-
-    $pcVMName = $pcEntry.spec.name
-    Write-LogMessage "PC VM name from cluster list: $pcVMName" -Level Info
-
-    # Helper: follow a VM's cluster_reference back to the real cluster entity
-    function Resolve-ClusterFromVM {
-        param([object]$pcVM)
-        Write-LogMessage "  Resolving cluster for VM: $($pcVM.spec.name) (UUID: $($pcVM.metadata.uuid))" -Level Info
-        $detail = Invoke-PrismAPI -Method GET -Endpoint "vms/$($pcVM.metadata.uuid)"
-        $hostClusterUUID = $null
-        if ($detail.spec.cluster_reference)        { $hostClusterUUID = $detail.spec.cluster_reference.uuid }
-        elseif ($detail.status.cluster_reference)  { $hostClusterUUID = $detail.status.cluster_reference.uuid }
-
-        if (-not $hostClusterUUID) {
-            Write-LogMessage "  Could not extract cluster_reference from VM" -Level Warning
-            return $null
-        }
-        $hostCluster = $Clusters | Where-Object {
-            $_.metadata.uuid -eq $hostClusterUUID -and
-            $_.status.resources.config.service_list -notcontains "PRISM_CENTRAL"
-        }
-        if ($hostCluster) {
-            Write-LogMessage "Prism Central is running on cluster: $($hostCluster.spec.name)" -Level Success
-            return $hostCluster
-        }
-        Write-LogMessage "  Cluster UUID $hostClusterUUID not found in cluster list" -Level Warning
-        return $null
-    }
-
-    # ── Primary: subnet match on NTNX-*-PCVM-* VMs ───────────────────────────
-    # PC VIP and PC VM IPs share the same /24 subnet. VM names follow:
-    # NTNX-<vm-ip-dashes>-PCVM-<suffix>  e.g. NTNX-10-0-66-26-PCVM-1778...
-    # Match on first 3 octets so .26/.27/.28 are all found when VIP is .25
-    try {
-        $pcIp    = $PrismCentralIP
-        $subnet3 = ($pcIp -split '\.')[0..2] -join '-'   # e.g. "10-0-66"
-
-        Write-LogMessage "Searching for PCVM VMs in subnet '$subnet3.*'..." -Level Info
-
-        $body     = @{ kind = "vm"; length = 500 }
-        $allPCVMs = Invoke-PrismAPI -Method POST -Endpoint "vms/list" -Body $body
-
-        Write-LogMessage "  Found $($allPCVMs.entities.Count) total VM(s), filtering for PCVM in subnet '$subnet3'..." -Level Info
-
-        $subnetMatches = $allPCVMs.entities | Where-Object {
-            $_.spec.name -match "PCVM" -and $_.spec.name -match [regex]::Escape($subnet3)
-        }
-
-        if ($subnetMatches) {
-            Write-LogMessage "  $($subnetMatches.Count) VM(s) match subnet '$subnet3'" -Level Info
-            foreach ($vm in $subnetMatches) {
-                $result = Resolve-ClusterFromVM -pcVM $vm
-                if ($result) { return $result }
-            }
-        } else {
-            Write-LogMessage "  No PCVM VMs matched subnet '$subnet3'" -Level Warning
-        }
-    } catch {
-        Write-LogMessage "Subnet-based PCVM search failed: $($_.Exception.Message)" -Level Warning
-    }
-
-    # ── Fallback: exact VM name match ─────────────────────────────────────────
-    try {
-        Write-LogMessage "Falling back to exact name search for '$pcVMName'..." -Level Info
-        $body             = @{ kind = "vm"; filter = "vm_name==$pcVMName"; length = 10 }
-        $vmSearchResponse = Invoke-PrismAPI -Method POST -Endpoint "vms/list" -Body $body
-        if ($vmSearchResponse.entities.Count -gt 0) {
-            $result = Resolve-ClusterFromVM -pcVM $vmSearchResponse.entities[0]
-            if ($result) { return $result }
-        } else {
-            Write-LogMessage "  Exact name search returned no results" -Level Warning
-        }
-    } catch {
-        Write-LogMessage "Exact name search failed: $($_.Exception.Message)" -Level Warning
-    }
-
-    # ── Last resort: description tag 'NutanixPrismCentral' ───────────────────
-    try {
-        Write-LogMessage "Last resort: searching for VM with description 'NutanixPrismCentral'..." -Level Info
-        $body     = @{ kind = "vm"; length = 500 }
-        $allVMs   = Invoke-PrismAPI -Method POST -Endpoint "vms/list" -Body $body
-        $pcByDesc = $allVMs.entities | Where-Object {
-            $_.spec.description   -match "NutanixPrismCentral" -or
-            $_.status.description -match "NutanixPrismCentral"
-        } | Select-Object -First 1
-
-        if ($pcByDesc) {
-            Write-LogMessage "Found PC VM by description: $($pcByDesc.spec.name)" -Level Info
-            $result = Resolve-ClusterFromVM -pcVM $pcByDesc
-            if ($result) { return $result }
-        } else {
-            Write-LogMessage "  No VM found with description 'NutanixPrismCentral'" -Level Warning
-        }
-    } catch {
-        Write-LogMessage "Description-based VM search failed: $($_.Exception.Message)" -Level Warning
-    }
-
-    Write-LogMessage "Could not determine which cluster hosts Prism Central" -Level Error
-    return $null
 }
 
 function Get-LocalAvailabilityZoneUUID {
@@ -813,6 +712,7 @@ function Main {
     param(
         [string]$PCAddress, [string]$PCUsername, [string]$PCPassword,
         [string]$ClusterName,
+        [string]$RemoteClusterName,
         [string]$ClusterVip = "",
         [string]$SrcNetName, [int]$SrcVlanId = 0, [string]$SrcGateway, [int]$SrcPrefix, [string]$SrcStart, [string]$SrcEnd,
         [string]$RecNetName, [int]$RecVlanId = 0, [string]$RecGateway, [int]$RecPrefix, [string]$RecStart, [string]$RecEnd
@@ -857,14 +757,35 @@ function Main {
     Write-Host ""
 
     # ── Step 1: Get all clusters ───────────────────────────────────────────────
+    Write-Host ""
+    Write-LogMessage "========================================" -Level Info
+    Write-LogMessage "Step 1: Retrieving all clusters from Prism Central" -Level Info
+    Write-LogMessage "========================================" -Level Info
     $clusters = Get-AllClusters
     if ($clusters.Count -eq 0) { Write-LogMessage "No clusters found" -Level Error; return }
 
-    # ── Step 2: Find recovery/target cluster (hosts PC VM) ────────────────────
-    $pcCluster = Get-PrismCentralCluster -Clusters $clusters
-    if (-not $pcCluster) { Write-LogMessage "Cannot identify PC cluster - stopping" -Level Error; return }
+    # ── Step 2: Resolve remote (recovery) cluster by name from config ─────────
+    Write-Host ""
+    Write-LogMessage "========================================" -Level Info
+    Write-LogMessage "Step 2: Resolving remote cluster '$RemoteClusterName'" -Level Info
+    Write-LogMessage "========================================" -Level Info
+    $pcCluster = $clusters | Where-Object {
+        $_.spec.name -eq $RemoteClusterName -and
+        $_.status.resources.config.service_list -notcontains "PRISM_CENTRAL"
+    } | Select-Object -First 1
+    if (-not $pcCluster) {
+        $available = ($clusters | Where-Object { $_.status.resources.config.service_list -notcontains "PRISM_CENTRAL" }).spec.name -join ", "
+        Write-LogMessage "Remote cluster '$RemoteClusterName' not found in Prism Central" -Level Error
+        Write-LogMessage "Available clusters: $available" -Level Info
+        return
+    }
+    Write-LogMessage "Remote cluster resolved: $($pcCluster.spec.name) (UUID: $($pcCluster.metadata.uuid))" -Level Success
 
     # ── Step 3: Find source cluster, deduplicate stale registrations ─────────────
+    Write-Host ""
+    Write-LogMessage "========================================" -Level Info
+    Write-LogMessage "Step 3: Locating source cluster '$ClusterName'" -Level Info
+    Write-LogMessage "========================================" -Level Info
     $matchingClusters = @($clusters | Where-Object {
         $_.spec.name -eq $ClusterName -and
         $_.status.resources.config.service_list -notcontains "PRISM_CENTRAL"
@@ -919,6 +840,9 @@ function Main {
 
     # ── Step 4: Get local AZ UUID ─────────────────────────────────────────────
     Write-Host ""
+    Write-LogMessage "========================================" -Level Info
+    Write-LogMessage "Step 4: Retrieving local Availability Zone UUID" -Level Info
+    Write-LogMessage "========================================" -Level Info
     $azUuid = Get-LocalAvailabilityZoneUUID
     if (-not $azUuid) { Write-LogMessage "No AZ found - ensure clusters are registered in Prism Central" -Level Error; return }
     Write-LogMessage "AZ URL to use in plan bodies: $azUuid" -Level Info
@@ -985,7 +909,7 @@ function Main {
     Write-LogMessage "Recovery plan management completed!" -Level Success
     Write-LogMessage "========================================" -Level Info
     Write-LogMessage "  Source Cluster   : $ClusterName" -Level Info
-    Write-LogMessage "  Recovery Cluster : $($pcCluster.spec.name) (PC host)" -Level Info
+    Write-LogMessage "  Recovery Cluster : $($pcCluster.spec.name)" -Level Info
     Write-LogMessage "  Recovery Plan    : $PlanName" -Level Info
     Write-LogMessage "  Category Filter  : $CATEGORY_KEY = $CATEGORY_VALUE (in stage)" -Level Info
     Write-LogMessage "  Source Network   : $SrcNetName ($SrcGateway/$SrcPrefix  $SrcStart – $SrcEnd)" -Level Info
@@ -1002,6 +926,7 @@ try {
         -PCUsername  $Username `
         -PCPassword  $Password `
         -ClusterName $NewClusterName `
+        -RemoteClusterName $RemoteClusterName `
         -ClusterVip  $config.network.cluster_vip `
         -SrcNetName $SourceNetworkName -SrcVlanId ($SourceVlanId ?? 0) -SrcGateway $SourceGateway -SrcPrefix $SourcePrefixLength -SrcStart $SourceStartIP -SrcEnd $SourceEndIP `
         -RecNetName $RecoveryNetworkName -RecVlanId ($RecoveryVlanId ?? 0) -RecGateway $RecoveryGateway -RecPrefix $RecoveryPrefixLength -RecStart $RecoveryStartIP -RecEnd $RecoveryEndIP
