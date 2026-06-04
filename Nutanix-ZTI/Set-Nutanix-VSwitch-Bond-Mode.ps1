@@ -8,7 +8,7 @@
     1. Resolves the cluster UUID from the cluster name.
     2. Retrieves the virtual switch configuration for that cluster.
     3. If bondMode already matches the target mode, reports success with no change.
-    4. If not, issues a PUT call to change bondMode using isQuickMode
+    4. If not, issues a PUT call to change bondMode with a rolling maintenance-mode restart.
        to avoid a rolling maintenance-mode restart.
     5. Polls the resulting task until SUCCEEDED or FAILED.
     6. Verifies the bond mode was correctly applied.
@@ -33,7 +33,8 @@
     Port for Prism Central API (default: 9440).
 
 .PARAMETER TaskTimeoutMinutes
-    Maximum time to wait for the bond-mode change task (default: 15 minutes).
+    Maximum time to wait for the bond-mode change task.
+    Defaults to 0 (auto: 10 minutes per node). Set explicitly to override.
 
 .PARAMETER TaskPollSeconds
     Polling interval for task status checks (default: 15 seconds).
@@ -69,7 +70,7 @@ param(
     [int]$Port = 9440,
 
     [Parameter(Mandatory = $false)]
-    [int]$TaskTimeoutMinutes = 15,
+    [int]$TaskTimeoutMinutes = 0,
 
     [Parameter(Mandatory = $false)]
     [int]$TaskPollSeconds = 15
@@ -180,7 +181,7 @@ function Wait-V4Task {
         }
         Start-Sleep -Seconds $TaskPollSeconds
     }
-    return @{ Success = $false; Error = "Timed out after $TaskTimeoutMinutes minutes" }
+    return @{ Success = $false; Timeout = $true; Error = "Timed out after $TaskTimeoutMinutes minutes" }
 }
 #endregion
 
@@ -247,8 +248,19 @@ if (-not $targetVSwitch) {
 $vswitchExtId    = $targetVSwitch.extId
 $currentBondMode = $targetVSwitch.bondMode
 
+# Derive node count from the vswitch cluster hosts list (already in the response)
+$clusterInVSwitch = $targetVSwitch.clusters | Where-Object { $_.extId -eq $clusterUuid }
+$nodeCount        = if ($clusterInVSwitch -and $clusterInVSwitch.hosts) { @($clusterInVSwitch.hosts).Count } else { 3 }
+if ($TaskTimeoutMinutes -le 0) {
+    $TaskTimeoutMinutes = $nodeCount * 10
+    Write-LogMessage "Timeout set dynamically: $nodeCount node(s) x 10 min = ${TaskTimeoutMinutes} min" -Level Info
+} else {
+    Write-LogMessage "Timeout override: ${TaskTimeoutMinutes} min (${nodeCount} node(s) detected)" -Level Info
+}
+
 Write-LogMessage "Switch       : $($targetVSwitch.name)" -Level Success
 Write-LogMessage "UUID         : $vswitchExtId" -Level Success
+Write-LogMessage "Nodes        : $nodeCount" -Level Info
 Write-LogMessage "Current mode : $currentBondMode" -Level Info
 Write-LogMessage "Target mode  : $TargetBondMode" -Level Info
 #endregion
@@ -309,11 +321,11 @@ foreach ($f in @('extId','$reserved','$objectType','hasDeploymentError','hasUpda
 }
 $vswitchClean.bondMode = $TargetBondMode
 
-# isQuickMode = true: apply without rolling maintenance-mode restart
+# isQuickMode = false: apply with rolling maintenance-mode restart for full consistency
 if ($vswitchClean.PSObject.Properties['isQuickMode']) {
-    $vswitchClean.isQuickMode = $true
+    $vswitchClean.isQuickMode = $false
 } else {
-    $vswitchClean | Add-Member -MemberType NoteProperty -Name 'isQuickMode' -Value $true
+    $vswitchClean | Add-Member -MemberType NoteProperty -Name 'isQuickMode' -Value $false
 }
 
 # Strip read-only fields from nested cluster/host objects
@@ -369,7 +381,24 @@ try {
             $taskResult = Wait-V4Task -ExtId $taskExtId
 
             if (-not $taskResult.Success) {
-                Write-LogMessage "Task FAILED: $($taskResult.Error)" -Level Error
+                if ($taskResult.Timeout) {
+                    Write-Host ""
+                    Write-LogMessage "========================================" -Level Warning
+                    Write-LogMessage "Step timed out after ${TaskTimeoutMinutes} minutes." -Level Warning
+                    Write-LogMessage "This does NOT necessarily mean the job has failed." -Level Warning
+                    Write-LogMessage "The bond mode change may still be running on the cluster." -Level Warning
+                    Write-LogMessage "" -Level Warning
+                    Write-LogMessage "What to do next:" -Level Info
+                    Write-LogMessage "  1. Log in to Prism Central or Prism Element for cluster '$ClusterName'" -Level Info
+                    Write-LogMessage "  2. Go to Tasks and check the latest bond mode change task status" -Level Info
+                    Write-LogMessage "  3. If the task SUCCEEDED  -> continue from the next pipeline step" -Level Info
+                    Write-LogMessage "  4. If the task is RUNNING  -> wait and re-check before proceeding" -Level Info
+                    Write-LogMessage "  5. If the task FAILED      -> fix the issue and re-run this step" -Level Info
+                    Write-LogMessage "========================================" -Level Warning
+                    Write-Host ""
+                } else {
+                    Write-LogMessage "Task FAILED: $($taskResult.Error)" -Level Error
+                }
                 exit 1
             }
             Write-LogMessage "Task completed successfully." -Level Success

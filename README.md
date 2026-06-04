@@ -1,6 +1,6 @@
 # Nutanix Zero-Touch Deployment Manager
 
-Nutanix Zero-Touch Deployment Manager (NZTD) is an end-to-end automation solution for deploying Nutanix clusters from bare metal to a fully operational state, without manual intervention. It consists of a web-based management portal and a PowerShell automation pipeline that together orchestrate the complete cluster deployment lifecycle.
+Nutanix Zero-Touch Deployment Manager (ZTDM) is an end-to-end automation solution for deploying Nutanix clusters from bare metal to a fully operational state, without manual intervention. It consists of a web-based management portal and a PowerShell automation pipeline that together orchestrate the complete cluster deployment lifecycle.
 
 ---
 
@@ -19,12 +19,12 @@ Operator (Browser)
     │
     │  HTTPS
     ▼
-Cluster Deployment Manager          ← Windows jump server
+Zero Touch Deployment Manager       ← Windows jump server
 (Node.js web app)
     │
     │  SSH — triggers pipeline with config
     ▼
-ZTI Automation Pipeline             ← PowerShell on jump server
+ZTD Automation Pipeline             ← PowerShell on jump server
     │
     ├──► iLO / BMC (Redfish API)    ← Remote site bare-metal nodes
     ├──► Foundation Central         ← HUB site — node discovery & OS imaging
@@ -39,7 +39,7 @@ Real-time pipeline output is streamed back to the browser via WebSocket, and an 
 
 ## Components
 
-### Cluster Deployment Manager
+### Zero Touch Deployment Manager
 
 A secure, HTTPS web portal that serves as the operator interface for the solution. Engineers log in, provide cluster configuration details through a structured form, and trigger deployments. The portal handles authentication, authorisation, and audit logging centrally.
 
@@ -55,7 +55,7 @@ A secure, HTTPS web portal that serves as the operator interface for the solutio
 
 ---
 
-### ZTI Automation Pipeline
+### ZTD Automation Pipeline
 
 A PowerShell pipeline (`Start-Pipeline.ps1`) that executes all deployment operations in a defined sequence — from booting nodes via iLO virtual media through OS imaging, cluster formation, and post-deployment configuration. It can be triggered from the web portal or run directly from PowerShell on the jump server.
 

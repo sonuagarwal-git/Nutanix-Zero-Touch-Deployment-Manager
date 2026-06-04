@@ -1,6 +1,6 @@
-# Nutanix Cluster Deployment Manager
+# Nutanix Zero Touch Deployment Manager
 
-A secure, web-based portal for deploying and managing Nutanix clusters via Zero-Touch Infrastructure (ZTI). The application provides a rich configuration UI, real-time deployment progress via WebSocket, role-based access control, Active Directory integration, audit logging, and email notifications — all served over HTTPS.
+A secure, web-based portal for deploying and managing Nutanix clusters via Zero-Touch Deployment (ZTD).
 
 ---
 
@@ -125,7 +125,7 @@ The deployment pipeline requires the `Posh-SSH` PowerShell module for SSH operat
 pwsh -Command "Install-Module Posh-SSH -Scope CurrentUser -Force"
 ```
 
-> **Note:** If you used `start.ps1`, this was already done automatically. Individual pipeline scripts (`Set-AHV-BondMode.ps1`, `Change-Prism-CVM-AHV-Password.ps1`) also auto-install Posh-SSH the first time they run, so this step is a belt-and-braces fallback.
+> **Note:** If you used `start.ps1`, this was already done automatically. The pipeline script `Change-Prism-CVM-AHV-Password.ps1` also auto-installs Posh-SSH the first time it runs, so this step is a belt-and-braces fallback.
 
 ### Step 8 — Install and start as a Windows Service
 
@@ -215,7 +215,7 @@ What it removes (in order):
 | 7 | Deletes `certs\` |
 | 8 | Resets `deployments.json`, `audit-logs.json`, `last-deployment.json`, and `Nutanix-ZTI/historical-timings.json` to empty |
 
-> **Warning:** `delete.ps1` is intended for test/lab environments only. It does **not** delete `users.json` or any `Nutanix-ZTI/Configs/` data.
+> **Warning:** `delete.ps1` is intended for test/lab environments only. It will prompt for confirmation before uninstalling PowerShell 7 and the Posh-SSH module (as these may be used by other tools on the server). It does **not** delete `users.json` or any `Nutanix-ZTI/Configs/` data.
 
 ---
 
@@ -228,7 +228,7 @@ What it removes (in order):
 - **Real-time deployment progress** via WebSocket
 - **Dry-run mode** — validate a configuration without triggering an actual deployment
 - **Save / load JSON configuration files** for reuse across deployments
-- **16-step automated pipeline** — Phoenix boot through DNS record creation, fully orchestrated
+- **17-step automated pipeline** — Phoenix boot through DNS record creation, fully orchestrated
 - **Resume from any step** (`Start At Step`) and **skip individual steps** after partial failures
 - **Dashboard** — deployment statistics, history, and audit log viewer
 - **Audit logging** — every login, config change, and deployment is recorded
@@ -432,7 +432,7 @@ Installed automatically by `npm install`:
 
 | Module | How it's installed | Used by |
 |---|---|---|
-| `Posh-SSH` | Installed automatically by `start.ps1` (Step 7) **or** on first use by `Set-AHV-BondMode.ps1` / `Change-Prism-CVM-AHV-Password.ps1`. Can also be installed manually — see Quick Start Step 7. | CVM SSH operations (password change, bond mode) |
+| `Posh-SSH` | Installed automatically by `start.ps1` (Step 7) **or** on first use by `Change-Prism-CVM-AHV-Password.ps1`. Can also be installed manually — see Quick Start Step 7. | CVM SSH operations (password change) |
 
 ---
 
@@ -566,18 +566,19 @@ flowchart LR
     S10["10\nBackup Policies"]
     S11["11\nProtection\nPolicy"]
     S12["12\nRecovery Plan"]
-    S13["13\nAHV Bond\nMode"]
-    S14["14\nChange Passwords\n→ CSV"]
-    S15["15\nImport to\nCyberArk"]
-    S16["16\nAdd DNS Records\nnodes + VIP\nA records"]
+    S13["13\nSet vSwitch\nBond Mode"]
+    S14["14\nRun LCM\nInventory"]
+    S15["15\nChange Passwords\n→ CSV"]
+    S16["16\nImport to\nCyberArk"]
+    S17["17\nAdd DNS Records\nnodes + VIP\nA records"]
 
-    S1-->S2-->S3-->S4-->S5-->S6-->S7-->S8-->S9-->S10-->S11-->S12-->S13-->S14-->S15-->S16
+    S1-->S2-->S3-->S4-->S5-->S6-->S7-->S8-->S9-->S10-->S11-->S12-->S13-->S14-->S15-->S16-->S17
 ```
 
 Each step writes real-time output to the browser via WebSocket. A step failure stops the pipeline and can be resumed at any step number using **Start At Step**.
 
-> Step 15 (CyberArk) is auto-skipped when the `cyberark` section is absent from the config.  
-> Step 16 (DNS Records) requires the `dns_admin` section in the config with valid service account credentials.
+> Step 16 (CyberArk) is auto-skipped when the `cyberark` section is absent from the config.  
+> Step 17 (DNS Records) requires the `dns_admin` section in the config with valid service account credentials.
 
 ---
 

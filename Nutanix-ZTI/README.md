@@ -1,6 +1,6 @@
-# Nutanix ZTI â€” Zero-Touch Infrastructure Pipeline
+﻿# Nutanix ZTD — Zero-Touch Deployment Pipeline
 
-## ðŸ“‹ Table of Contents
+## 📋 Table of Contents
 - [Overview](#overview)
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
@@ -10,11 +10,11 @@
   - [4. Prism Central](#4-prism-central--already-installed-and-running)
   - [5. Witness VM](#5-witness-vm)
   - [6. Software Image Files](#6-software-image-files)
-  - [7. CyberArk](#7-cyberark-step-15)
+  - [7. CyberArk](#7-cyberark-step-16)
   - [8. Jump Server PowerShell Environment](#8-jump-server-powershell-environment)
   - [9. Network Reachability from PC/FC to Remote Site](#9-network-reachability-from-prism-central--foundation-central-to-remote-site)
-  - [10. Custom Phoenix Image â€” Per Region](#10-custom-phoenix-image--per-region-requirement)
-  - [11. DNS Service Account (Step 16)](#11-dns-service-account-step-16)
+  - [10. Custom Phoenix Image — Per Region](#10-custom-phoenix-image--per-region-requirement)
+  - [11. DNS Service Account (Step 17)](#11-dns-service-account-step-17)
 - [Quick Start](#quick-start)
 - [Pipeline Steps](#pipeline-steps)
 - [Parameters](#parameters)
@@ -30,17 +30,17 @@
 
 ## Overview
 
-The Nutanix ZTI pipeline (`Start-Pipeline.ps1`) automates the full end-to-end lifecycle of deploying a Nutanix cluster â€” from bare-metal iLO boot through Phoenix OS imaging, cluster creation, and all post-deployment configuration steps. It is designed to be triggered from the [Nutanix Cluster Deployment Manager](../deploy-cluster-app/README.md) web app or run directly from PowerShell on the jump server.
+The Nutanix ZTD pipeline (`Start-Pipeline.ps1`) automates the full end-to-end lifecycle of deploying a Nutanix cluster — from bare-metal iLO boot through Phoenix OS imaging, cluster creation, and all post-deployment configuration steps. It is designed to be triggered from the [Nutanix Zero Touch Deployment Manager](../deploy-cluster-app/README.md) web app or run directly from PowerShell on the jump server.
 
 **Key Features:**
-- âœ… Fully automated 16-step pipeline â€” no manual intervention required
-- âœ… Pre-flight validation checks before any destructive actions
-- âœ… Dry-run mode for configuration validation
-- âœ… Resume from any step after a partial failure (`-StartAtStep`)
-- âœ… Individual step skip support (`-SkipSteps`)
-- âœ… Real-time streaming output to the web UI via WebSocket
-- âœ… Pipeline log with rotation (last 5 runs kept)
-- âœ… All steps use the same single config JSON file
+- ✅ Fully automated 17-step pipeline — no manual intervention required
+- ✅ Pre-flight validation checks before any destructive actions
+- ✅ Dry-run mode for configuration validation
+- ✅ Resume from any step after a partial failure (`-StartAtStep`)
+- ✅ Individual step skip support (`-SkipSteps`)
+- ✅ Real-time streaming output to the web UI via WebSocket
+- ✅ Pipeline log with rotation (last 5 runs kept)
+- ✅ All steps use the same single config JSON file
 
 ---
 
@@ -50,51 +50,51 @@ The diagram below shows where each component runs, how the jump server orchestra
 
 ```mermaid
 graph TB
-    subgraph JUMP["ðŸ–¥ï¸ Jump Server (your server)"]
-        WEB["Cluster Deployment Manager\n(Node.js web app â€” port 3443)"]
-        PS["Start-Pipeline.ps1\n(PowerShell 7 â€” 16 steps)"]
+    subgraph JUMP["🖥️ Jump Server (your server)"]
+        WEB["Zero Touch Deployment Manager\n(Node.js web app — port 3443)"]
+        PS["Start-Pipeline.ps1\n(PowerShell 7 — 17 steps)"]
         WEB -- "spawns & streams output" --> PS
     end
 
-    subgraph AZURE["â˜ï¸ Azure Blob Storage â€” your-fileserver/images"]
+    subgraph AZURE["☁️ Azure Blob Storage — your-fileserver/images"]
         IMGS["Phoenix ISO\nAOS Package (.tar.gz)\nAHV DVD ISO"]
     end
 
-    subgraph HUB["ðŸ¢ HUB Site â€” Existing Nutanix Cluster"]
-        PC["Prism Central VM\n(All post-config steps 5â€“15)"]
-        FC["Foundation Central VM\n(Node imaging steps 3â€“4)"]
-        WIT["Witness VM\n(2-node clusters only â€” step 6)"]
+    subgraph HUB["🏢 HUB Site — Existing Nutanix Cluster"]
+        PC["Prism Central VM\n(All post-config steps 5–15)"]
+        FC["Foundation Central VM\n(Node imaging steps 3–4)"]
+        WIT["Witness VM\n(2-node clusters only — step 6)"]
     end
 
-    subgraph REMOTE["ðŸ—ï¸ Remote Site â€” New Site Being Deployed"]
+    subgraph REMOTE["🏗️ Remote Site — New Site Being Deployed"]
         direction TB
-        ILO["iLO / BMC\n(Redfish API â€” step 1)"]
+        ILO["iLO / BMC\n(Redfish API — step 1)"]
         NODE["Bare Metal Nodes\n(AHV + CVM after imaging)"]
-        ILO -- "virtual media boot\nâ†’ Phoenix OS" --> NODE
+        ILO -- "virtual media boot\n→ Phoenix OS" --> NODE
     end
 
-    subgraph CORP["ðŸ¢ Corporate Infrastructure"]
-        DNS["DNS Servers\n(Windows DNS â€” step 16)\nA records: nodes + VIP"]
+    subgraph CORP["🏢 Corporate Infrastructure"]
+        DNS["DNS Servers\n(Windows DNS — step 17)\nA records: nodes + VIP"]
     end
 
     %% Operator flow
-    OPS(["ðŸ‘¤ Operator\n(Browser)"])
+    OPS(["👤 Operator\n(Browser)"])
     OPS -- "HTTPS :3443" --> WEB
 
-    %% Jump server â†’ remote site
+    %% Jump server → remote site
     PS -- "Step 1: mount Phoenix ISO\n(iLO VLAN)" --> ILO
-    PS -- "Steps 5â€“15: REST API\n(Cluster VIP)" --> NODE
-    PS -- "Steps 5â€“15: REST API\n(port 9440)" --> PC
+    PS -- "Steps 5–15: REST API\n(Cluster VIP)" --> NODE
+    PS -- "Steps 5–15: REST API\n(port 9440)" --> PC
 
-    %% Foundation Central â†” remote site
-    FC -- "Step 3: node discovery\n(AHV VLAN â€” DHCP API key)" --> NODE
+    %% Foundation Central ↔ remote site
+    FC -- "Step 3: node discovery\n(AHV VLAN — DHCP API key)" --> NODE
     FC -- "Step 4: push imaging job\nAOS + AHV install" --> NODE
 
-    %% Jump server â†’ FC
-    PS -- "Step 3â€“4: trigger &\nmonitor via REST" --> FC
+    %% Jump server → FC
+    PS -- "Step 3–4: trigger &\nmonitor via REST" --> FC
 
-    %% Jump server â†’ DNS
-    PS -- "Step 16: create A records\n(RPC/WinRM â€” dns_admin creds)" --> DNS
+    %% Jump server → DNS
+    PS -- "Step 17: create A records\n(RPC/WinRM — dns_admin creds)" --> DNS
 
     %% Image downloads from Azure Blob
     ILO -- "Step 1: iLO mounts ISO\nfrom URL" --> IMGS
@@ -115,21 +115,21 @@ graph TB
 
 | From | To | Port | Used in |
 |---|---|---|---|
-| Jump server | iLO IPs (remote site) | TCP 443 | Step 1 â€” Phoenix ISO mount |
-| Jump server | FC VM (HUB) | TCP 9440 | Steps 3â€“4 â€” imaging trigger |
-| Jump server | PC VM (HUB) | TCP 9440 | Steps 5â€“15 â€” post-config |
-| Jump server | Cluster VIP (remote) | TCP 9440 | Steps 5â€“15 â€” PE REST |
-| Jump server | DNS Servers | TCP/UDP 53 | Step 16 â€” DNS A record creation (via RPC) |
-| Foundation Central | AHV VLAN (remote site) | TCP/UDP | Steps 3â€“4 â€” node discovery + imaging |
-| Foundation Central | iLO VLAN (remote site) | TCP 443 | Step 4 â€” imaging control |
-| iLO (remote nodes) | Azure Blob Storage | TCP 443 | Step 1 â€” Phoenix ISO download |
-| Foundation Central | Azure Blob Storage | TCP 443 | Step 4 â€” AOS + AHV download |
+| Jump server | iLO IPs (remote site) | TCP 443 | Step 1 — Phoenix ISO mount |
+| Jump server | FC VM (HUB) | TCP 9440 | Steps 3–4 — imaging trigger |
+| Jump server | PC VM (HUB) | TCP 9440 | Steps 5–15 — post-config |
+| Jump server | Cluster VIP (remote) | TCP 9440 | Steps 5–15 — PE REST |
+| Jump server | DNS Servers | TCP/UDP 53 | Step 17 — DNS A record creation (via RPC) |
+| Foundation Central | AHV VLAN (remote site) | TCP/UDP | Steps 3–4 — node discovery + imaging |
+| Foundation Central | iLO VLAN (remote site) | TCP 443 | Step 4 — imaging control |
+| iLO (remote nodes) | Azure Blob Storage | TCP 443 | Step 1 — Phoenix ISO download |
+| Foundation Central | Azure Blob Storage | TCP 443 | Step 4 — AOS + AHV download |
 
 ---
 
 ## Prerequisites
 
-### âš  Infrastructure Must Be Ready Before Running the Pipeline
+### ⚠ Infrastructure Must Be Ready Before Running the Pipeline
 
 The pipeline does **not** install or configure infrastructure-level components. The following must be in place before starting a deployment.
 
@@ -148,8 +148,8 @@ The pipeline does **not** install or configure infrastructure-level components. 
 
 ### 2. DHCP and IP Planning
 
-- **The AHV/CVM management VLAN subnet must have a DHCP scope** (full or partial range) active. Foundation Central uses DHCP to discover nodes after Phoenix boot â€” static IPs are only assigned during imaging (Step 4).
-- All per-node IPs (hypervisor IP, CVM IP), Cluster VIP, and IP pool range must be **planned and free** â€” the pre-flight check will fail if any of these IPs respond to ping.
+- **The AHV/CVM management VLAN subnet must have a DHCP scope** (full or partial range) active. Foundation Central uses DHCP to discover nodes after Phoenix boot — static IPs are only assigned during imaging (Step 4).
+- All per-node IPs (hypervisor IP, CVM IP), Cluster VIP, and IP pool range must be **planned and free** — the pre-flight check will fail if any of these IPs respond to ping.
 - **iLO IPs** must be statically assigned or reserved in DHCP before deploying.
 
 ---
@@ -158,24 +158,24 @@ The pipeline does **not** install or configure infrastructure-level components. 
 
 Foundation Central auto-discovers nodes only when the **FC API key is embedded in DHCP vendor-specific options** on the management subnet. Without this, nodes boot Phoenix OS but never appear in Foundation Central.
 
-> ðŸ“– **Follow this guide to configure the DHCP vendor option:**  
+> 📖 **Follow this guide to configure the DHCP vendor option:**  
 > [Foundation Central DHCP Vendor-Specific Options](https://portal.nutanix.com/page/documents/details?targetId=Foundation-Central-v1_2:v12-dhcp-vendor-specific-options-for-nodes-c.html)
 
 Steps summary:
-1. Log into Foundation Central â†’ **Settings â†’ API Keys** â†’ create or copy the API key.
+1. Log into Foundation Central → **Settings → API Keys** → create or copy the API key.
 2. On your DHCP server, add a vendor-specific option (option 43 / vendor class `NutanixNode`) containing the FC IP and API key.
-3. Verify: after Phoenix boot, wait ~5 minutes â€” nodes should appear in FC â†’ **Nodes**.
+3. Verify: after Phoenix boot, wait ~5 minutes — nodes should appear in FC → **Nodes**.
 
 ---
 
-### 4. Prism Central â€” Already Installed and Running
+### 4. Prism Central — Already Installed and Running
 
 The pipeline registers the new cluster into an **existing Prism Central** (Step 7). PC must be:
 - Deployed and accessible at the IP in the config (`prism_central.ip`)
 - Running with valid admin credentials
-- All **production VLANs** already configured as networks in PC (they are assigned as tagged VLANs to the cluster in Steps 8 and 11â€“12)
+- All **production VLANs** already configured as networks in PC (they are assigned as tagged VLANs to the cluster in Steps 8 and 11–12)
 - **Foundation Central** VM deployed and accessible from PC and from the jump server (port 9440)
-- Protection and recovery policies, backup policies, and categories configured in PC that the config references (Steps 10â€“12 create/update these using the PC API)
+- Protection and recovery policies, backup policies, and categories configured in PC that the config references (Steps 10–12 create/update these using the PC API)
 
 ---
 
@@ -191,7 +191,7 @@ Required for 2-node clusters (Metro Availability). The Witness VM must be:
 
 ### 6. Software Image Files
 
-All Phoenix, AOS, and AHV image files must be hosted on an HTTP/HTTPS server reachable from the jump server and from the Foundation Central VM. This can be any web-accessible file server â€” Azure Blob Storage, an internal HTTP server, or any CDN.
+All Phoenix, AOS, and AHV image files must be hosted on an HTTP/HTTPS server reachable from the jump server and from the Foundation Central VM. This can be any web-accessible file server — Azure Blob Storage, an internal HTTP server, or any CDN.
 
 The direct download URL for each file must be used in the config. Example URLs:
 
@@ -209,13 +209,13 @@ AHV ISO     : https://your-fileserver/images/AHV-DVD-x86_64-10.3.1.5-20.iso
 
 Files must be hosted on an HTTP/HTTPS server reachable from the jump server and from the Foundation Central VM.
 
-> âš ï¸ **Phoenix image is region- and site-specific â€” see Section 9 below.**
+> ⚠️ **Phoenix image is region- and site-specific — see Section 9 below.**
 
 ---
 
-### 7. CyberArk (Step 15)
+### 7. CyberArk (Step 16)
 
-If Step 15 (Import Secrets) is included:
+If Step 16 (Import Secrets) is included:
 - CyberArk tenant URL, tenant ID, service account username, password, and security answer must be in the config under `cyberark`.
 - The service account must have permission to create/update accounts in CyberArk.
 
@@ -227,53 +227,53 @@ If Step 15 (Import Secrets) is included:
 |---|---|---|
 | PowerShell | 7.0+ | `$PSVersionTable.PSVersion` |
 | Posh-SSH module | Any | Auto-installed by pipeline if missing. Manual: `Install-Module Posh-SSH -Scope AllUsers` |
-| Network access to iLO IPs | â€” | `Test-NetConnection <iLO_IP> -Port 443` |
-| Network access to FC (port 9440) | â€” | `Test-NetConnection <FC_IP> -Port 9440` |
-| Network access to PC (port 9440) | â€” | `Test-NetConnection <PC_IP> -Port 9440` |
-| Network access to Witness (port 2009) | â€” | `Test-NetConnection <WIT_IP> -Port 2009` |
-| Network access to Cluster VIP (post Step 4) | â€” | Used by Steps 5+ |
+| Network access to iLO IPs | — | `Test-NetConnection <iLO_IP> -Port 443` |
+| Network access to FC (port 9440) | — | `Test-NetConnection <FC_IP> -Port 9440` |
+| Network access to PC (port 9440) | — | `Test-NetConnection <PC_IP> -Port 9440` |
+| Network access to Witness (port 2009) | — | `Test-NetConnection <WIT_IP> -Port 2009` |
+| Network access to Cluster VIP (post Step 4) | — | Used by Steps 5+ |
 
 ---
 
 ### 9. Network Reachability from Prism Central / Foundation Central to Remote Site
 
-> âš ï¸ **This is a common cause of deployment failure that is easy to overlook.**
+> ⚠️ **This is a common cause of deployment failure that is easy to overlook.**
 
 From the **Prism Central VM** and the **Foundation Central VM** (which typically run on the HUB site cluster), the following VLANs at the **target (remote) site** must be routable and accessible **before** starting the pipeline:
 
-- **iLO / BMC VLAN** â€” required for Step 1 (Phoenix ISO mount via iLO Redfish). Foundation Central must be able to reach the iLO IPs.
-- **AHV / CVM Management VLAN** â€” required for Steps 3â€“4. Foundation Central discovers nodes and pushes imaging jobs over this network.
+- **iLO / BMC VLAN** — required for Step 1 (Phoenix ISO mount via iLO Redfish). Foundation Central must be able to reach the iLO IPs.
+- **AHV / CVM Management VLAN** — required for Steps 3–4. Foundation Central discovers nodes and pushes imaging jobs over this network.
 
 If routing/firewall rules between HUB and the remote site do not permit these, the pipeline will fail at Step 1 or Step 3 with unreachable host errors. Engage the network team to verify inter-site routing before running the pipeline.
 
 ---
 
-### 10. Custom Phoenix Image â€” Per Region Requirement
+### 10. Custom Phoenix Image — Per Region Requirement
 
 Nutanix Phoenix ISO images are **site- and region-specific** when using Foundation Central with API key authentication. A generic upstream Phoenix ISO will not carry the correct FC API key for node auto-discovery.
 
 **Process to generate a custom Phoenix image:**
 
-1. On the **HUB site's Foundation Central**, go to **Settings â†’ API Keys** and create (or locate) the API key for the region.
+1. On the **HUB site's Foundation Central**, go to **Settings → API Keys** and create (or locate) the API key for the region.
 2. Use the official guide to create the Phoenix image using the HUB cluster CVM:  
-   ðŸ“– [Generating ISO URL â€” Foundation Central v1.10](https://portal.nutanix.com/page/documents/details?targetId=Foundation-Central-v1_10:v1-generating-iso-url-t.html)
+   📖 [Generating ISO URL — Foundation Central v1.10](https://portal.nutanix.com/page/documents/details?targetId=Foundation-Central-v1_10:v1-generating-iso-url-t.html)
 3. Upload the generated ISO to Azure Blob Storage (`your-fileserver/images`) and note the blob URL.
 4. Use that URL as `phoenix_iso_url` in the config for all sites in that region.
 
-> ðŸ“Œ **Each region requires its own custom Phoenix ISO.** A Phoenix image generated for one region's HUB will not work for a different region's sites.
+> 📌 **Each region requires its own custom Phoenix ISO.** A Phoenix image generated for one region's HUB will not work for a different region's sites.
 
 ---
 
-### 11. DNS Service Account (Step 16)
+### 11. DNS Service Account (Step 17)
 
-Step 16 (`Add-DNS-Record.ps1`) creates DNS A records for all node hostnames (AHV + iLO) and the cluster VIP. It uses `dnscmd.exe` with impersonation â€” the pipeline runs as `SYSTEM` and delegates DNS write operations to a domain service account.
+Step 17 (`Add-DNS-Record.ps1`) creates DNS A records for all node hostnames (AHV + iLO) and the cluster VIP. It uses `dnscmd.exe` with impersonation — the pipeline runs as `SYSTEM` and delegates DNS write operations to a domain service account.
 
 **Requirements:**
 
 - A **domain service account** (e.g. `DOMAIN\SVC-NTX-AUTO`) must exist in Active Directory.
 - The account must have **Create/Delete DNS records** permission on the following zones:
-  - `company.net` â€” for AHV host A records and cluster VIP
-  - `company.ilo` â€” for iLO A records
+  - `company.net` — for AHV host A records and cluster VIP
+  - `company.ilo` — for iLO A records
 - **`dnscmd.exe`** must be available on the jump server. It is part of Windows DNS RSAT tools:  
   ```powershell
   # Install DNS RSAT (run as admin)
@@ -290,7 +290,7 @@ Step 16 (`Add-DNS-Record.ps1`) creates DNS A records for all node hostnames (AHV
   }
   ```
 
-> âš ï¸ **Step 16 is automatically skipped** if `dns_admin.username` or `dns_admin.password` are absent from the config â€” no error is raised.
+> ⚠️ **Step 17 is automatically skipped** if `dns_admin.username` or `dns_admin.password` are absent from the config — no error is raised.
 
 ---
 
@@ -313,7 +313,7 @@ This runs all pre-flight checks (iLO access, PC access, IP availability, URL acc
 ```powershell
 .\Start-Pipeline.ps1 -ConfigFile .\Configs\MY-CLUSTER-01.json -WhatIf
 ```
-Prints each step with its arguments â€” nothing is executed.
+Prints each step with its arguments — nothing is executed.
 
 ### Step 4: Run the full pipeline
 ```powershell
@@ -324,28 +324,29 @@ Prints each step with its arguments â€” nothing is executed.
 
 ## Pipeline Steps
 
-`Start-Pipeline.ps1` runs up to 15 sequential steps. A step failure stops the pipeline immediately. Use `-StartAtStep` to resume.
+`Start-Pipeline.ps1` runs up to 17 sequential steps. A step failure stops the pipeline immediately. Use `-StartAtStep` to resume.
 
 | Step | Name | Script | Target | DryRun support |
 |---|---|---|---|---|
-| 1 | Phoenix Boot | `Phonix-Boot.ps1` | iLO / Redfish API | âœ… |
-| 2 | Phoenix Boot Check | `Phoonix-Boot-Check.ps1` | iLO / Redfish API | âœ… |
-| 3 | Node Discovery | `Node-Discovery-Check.ps1` | Foundation Central | âœ… |
-| 4 | Image & Create Cluster | `Image-And-Deploy-Cluster.ps1` | Foundation Central | âœ… |
-| 5 | Accept EULA | `Accept-EULA.ps1` | Prism Element | âŒ |
-| 6 | Register to Witness | `Register-NewCluster-To-Witness.ps1` | Prism Element | âŒ |
-| 7 | Register to Prism Central | `Register-NewCluster-To-PC.ps1` | Prism Element â†’ PC | âŒ |
-| 8 | Create VLANs | `Create-vLAN.ps1` | Prism Central | âŒ |
-| 9 | Create Storage Container | `Create-Storage-Container.ps1` | Prism Element | âŒ |
-| 10 | Backup Policies | `Create-Backup-Policies-With-Categories.ps1` | Prism Central | âŒ |
-| 11 | Protection Policy | `Create-Protection-Policy-With-Category.ps1` | Prism Central | âŒ |
-| 12 | Recovery Plan | `Create-Recovery-Plan-With-Category.ps1` | Prism Central | âŒ |
-| 13 | AHV Bond Mode | `Set-AHV-BondMode.ps1` | AHV host (SSH) | âŒ |
-| 14 | Change Passwords â†’ CSV | `Change-Prism-CVM-AHV-Password.ps1` | PE / CVM / AHV (SSH) | âŒ |
-| 15 | Import to CyberArk | `Import-Secrets-to-CyberArk.ps1` | CyberArk | âŒ |
-| 16 | Add DNS Records | `Add-DNS-Record.ps1` | DNS Servers (RPC/WinRM) | âŒ |
+| 1 | Phoenix Boot | `Phonix-Boot.ps1` | iLO / Redfish API | ✅ |
+| 2 | Phoenix Boot Check | `Phoonix-Boot-Check.ps1` | iLO / Redfish API | ✅ |
+| 3 | Node Discovery | `Node-Discovery-Check.ps1` | Foundation Central | ✅ |
+| 4 | Image & Create Cluster | `Image-And-Deploy-Cluster.ps1` | Foundation Central | ✅ |
+| 5 | Accept EULA | `Accept-EULA.ps1` | Prism Element | ❌ |
+| 6 | Register to Witness | `Register-NewCluster-To-Witness.ps1` | Prism Element | ❌ |
+| 7 | Register to Prism Central | `Register-NewCluster-To-PC.ps1` | Prism Element → PC | ❌ |
+| 8 | Create VLANs | `Create-vLAN.ps1` | Prism Central | ❌ |
+| 9 | Create Storage Container | `Create-Storage-Container.ps1` | Prism Element | ❌ |
+| 10 | Backup Policies | `Create-Backup-Policies-With-Categories.ps1` | Prism Central | ❌ |
+| 11 | Protection Policy | `Create-Protection-Policy-With-Category.ps1` | Prism Central | ❌ |
+| 12 | Recovery Plan | `Create-Recovery-Plan-With-Category.ps1` | Prism Central | ❌ |
+| 13 | Set vSwitch Bond Mode | `Set-Nutanix-VSwitch-Bond-Mode.ps1` | Prism Central (OVS) | ❌ |
+| 14 | Run LCM Inventory | `Run-LCM-Inventory.ps1` | Prism Central | ❌ |
+| 15 | Change Passwords → CSV | `Change-Prism-CVM-AHV-Password.ps1` | PE / CVM / AHV (SSH) | ❌ |
+| 16 | Import to CyberArk | `Import-Secrets-to-CyberArk.ps1` | CyberArk | ❌ |
+| 17 | Add DNS Records | `Add-DNS-Record.ps1` | DNS Servers (RPC/WinRM) | ❌ |
 
-> Steps 1â€“4 are gated by the pre-flight check. Step 16 is always executed when `dns_admin` is configured in the config file. Steps 5+ are skipped by pre-flight if `-StartAtStep â‰¥ 5` (cluster already deployed).
+> Steps 1–4 are gated by the pre-flight check. Step 17 is always executed when `dns_admin` is configured in the config file. Steps 5+ are skipped by pre-flight if `-StartAtStep ≥ 5` (cluster already deployed).
 
 ---
 
@@ -353,12 +354,12 @@ Prints each step with its arguments â€” nothing is executed.
 
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `-ConfigFile` | `string` | **Yes** | â€” | Path to the cluster JSON config |
-| `-DryRun` | `switch` | No | `$false` | Run pre-flight checks only â€” no pipeline steps execute |
-| `-StartAtStep` | `int` 1â€“99 | No | `1` | Resume from this step â€” all earlier steps are skipped |
+| `-ConfigFile` | `string` | **Yes** | — | Path to the cluster JSON config |
+| `-DryRun` | `switch` | No | `$false` | Run pre-flight checks only — no pipeline steps execute |
+| `-StartAtStep` | `int` 1–99 | No | `1` | Resume from this step — all earlier steps are skipped |
 | `-SkipSteps` | `string` | No | `''` | Comma-separated step numbers to skip, e.g. `"7,9"` |
 | `-WhatIf` | `switch` | No | `$false` | Preview the full pipeline plan (step names + arguments) without executing |
-| `-SkipPreCheck` | `switch` | No | `$false` | Bypass pre-flight connectivity gate â€” use when IPs are known-good stale entries |
+| `-SkipPreCheck` | `switch` | No | `$false` | Bypass pre-flight connectivity gate — use when IPs are known-good stale entries |
 | `-TriggeredBy` | `string` | No | `''` | Recipient email for the pipeline result notification. If empty, email is skipped. Normally set automatically from the cluster config `notify.to` field by the web app. |
 | `-Cc` | `string` | No | `''` | CC recipient(s) for the pipeline result email, comma-separated. Normally set from `notify.cc`. |
 
@@ -366,13 +367,13 @@ Prints each step with its arguments â€” nothing is executed.
 
 ## Configuration File
 
-All config files live in `Configs/`. The same JSON file is passed to every pipeline step â€” each step reads only the fields it needs.
+All config files live in `Configs/`. The same JSON file is passed to every pipeline step — each step reads only the fields it needs.
 
 ### Full annotated example
 
 ```json
 {
-  "_comment": "Nutanix ZTI Deployment Configuration",
+  "_comment": "Nutanix ZTD Deployment Configuration",
   "_note": "IPMI netmask and gateway are auto-detected from Foundation Central. You can override by specifying them here.",
   "_output_level_options": "minimal (only headers), normal (headers + important messages), verbose (all details)",
   "clusterName": "SITE-1P-CLUSTER-01",
@@ -380,6 +381,7 @@ All config files live in `Configs/`. The same JSON file is passed to every pipel
   "storage_container_name": "Workload-Container",
   "timezone": "Europe/Copenhagen",
   "output_level": "normal",
+  "vswitch_mode": "ACTIVE_BACKUP"
 
   "network": {
     "subnet_name": "SITE-MGMT-VLAN",
@@ -488,44 +490,45 @@ All config files live in `Configs/`. The same JSON file is passed to every pipel
 
 | Field | Required | Description |
 |---|---|---|
-| `clusterName` | âœ… | Cluster display name â€” used in PC, logs, and file names |
-| `hypervisor` | âœ… | `AHV` (ESXi not currently tested) |
-| `storage_container_name` | âœ… | Created in Step 9 |
-| `timezone` | âœ… | e.g. `Europe/Copenhagen` |
+| `clusterName` | ✅ | Cluster display name — used in PC, logs, and file names |
+| `hypervisor` | ✅ | `AHV` (ESXi not currently tested) |
+| `storage_container_name` | ✅ | Created in Step 9 |
+| `timezone` | ✅ | e.g. `Europe/Copenhagen` |
 | `output_level` | No | `minimal` / `normal` / `verbose` (default: `normal`) |
-| `network.subnet_name` | âœ… | Management VLAN name in PC |
-| `network.vlan_id` | âœ… | Management VLAN tag ID |
-| `network.gateway` | âœ… | Management VLAN gateway IP |
-| `network.prefix_length` | âœ… | Subnet prefix length, e.g. `24` |
-| `network.cluster_vip` | âœ… | Prism Element virtual IP â€” must be free |
-| `network.data_service_ip` | âœ… | Data services IP (iSCSI/NFS) â€” must be free |
-| `network.ip_pool_start/end` | âœ… | VM IP pool range assigned to the management subnet |
-| `network.nodes[].hostname` | âœ… | AHV hostname for this node |
-| `network.nodes[].serial` | âœ… | Node serial number â€” used to match nodes discovered by FC |
-| `network.nodes[].iLO_ip` | âœ… | iLO/BMC management IP (Steps 1â€“2) |
-| `network.nodes[].iLO_username` | âœ… | iLO admin username |
-| `network.nodes[].iLO_password` | âœ… | iLO admin password |
-| `network.nodes[].hypervisor_ip` | âœ… | Static IP assigned to AHV host after imaging |
-| `network.nodes[].cvm_ip` | âœ… | Static IP assigned to CVM after imaging |
-| `dns_servers` | âœ… | Array â€” up to 3 DNS server IPs |
+| `vswitch_mode` | No | OVS bond mode for Step 13: `ACTIVE_BACKUP` (default), `BALANCE_TCP` (LACP Active-Active), `BALANCE_SLB` |
+| `network.subnet_name` | ✅ | Management VLAN name in PC |
+| `network.vlan_id` | ✅ | Management VLAN tag ID |
+| `network.gateway` | ✅ | Management VLAN gateway IP |
+| `network.prefix_length` | ✅ | Subnet prefix length, e.g. `24` |
+| `network.cluster_vip` | ✅ | Prism Element virtual IP — must be free |
+| `network.data_service_ip` | ✅ | Data services IP (iSCSI/NFS) — must be free |
+| `network.ip_pool_start/end` | ✅ | VM IP pool range assigned to the management subnet |
+| `network.nodes[].hostname` | ✅ | AHV hostname for this node |
+| `network.nodes[].serial` | ✅ | Node serial number — used to match nodes discovered by FC |
+| `network.nodes[].iLO_ip` | ✅ | iLO/BMC management IP (Steps 1–2) |
+| `network.nodes[].iLO_username` | ✅ | iLO admin username |
+| `network.nodes[].iLO_password` | ✅ | iLO admin password |
+| `network.nodes[].hypervisor_ip` | ✅ | Static IP assigned to AHV host after imaging |
+| `network.nodes[].cvm_ip` | ✅ | Static IP assigned to CVM after imaging |
+| `dns_servers` | ✅ | Array — up to 3 DNS server IPs |
 | `dns_admin.domain` | No | Active Directory domain for DNS credentials, e.g. `CORP` |
 | `dns_admin.username` | No | Service account username for DNS RPC operations |
-| `dns_admin.password` | No | Service account password â€” Step 16 delegates DNS changes via this account |
-| `ntp_servers` | âœ… | Array â€” up to 2 NTP server IPs or hostnames |
-| `witness.ip` | âœ… | Witness VM IP |
-| `witness.name` | âœ… | Witness VM display name |
-| `witness.username/password` | âœ… | Witness admin credentials |
-| `aos_version` | âœ… | AOS version string, e.g. `7.3.1` |
-| `aos_package_url` | âœ… | Direct download URL to AOS tar.gz |
-| `hypervisor_iso_url` | âœ… | Direct download URL to AHV DVD ISO |
-| `phoenix_iso_url` | âœ… | Direct download URL to Phoenix ISO (Steps 1â€“2) |
+| `dns_admin.password` | No | Service account password — Step 16 delegates DNS changes via this account |
+| `ntp_servers` | ✅ | Array — up to 2 NTP server IPs or hostnames |
+| `witness.ip` | ✅ | Witness VM IP |
+| `witness.name` | ✅ | Witness VM display name |
+| `witness.username/password` | ✅ | Witness admin credentials |
+| `aos_version` | ✅ | AOS version string, e.g. `7.3.1` |
+| `aos_package_url` | ✅ | Direct download URL to AOS tar.gz |
+| `hypervisor_iso_url` | ✅ | Direct download URL to AHV DVD ISO |
+| `phoenix_iso_url` | ✅ | Direct download URL to Phoenix ISO (Steps 1–2) |
 | `production_vlans[]` | No | VLANs created in PC in Step 8 (remote site production VLANs) |
-| `hub_production` | No | Hub site production VLAN â€” created in PC and assigned to the new cluster |
-| `prism_central.ip/url/username/password` | âœ… | PC connection details (Steps 7â€“15) |
-| `eula.username` | âœ… | Full name submitted when accepting the EULA in Step 5 |
-| `eula.job_title` | âœ… | Job title submitted with the EULA |
-| `eula.company_name` | âœ… | Company name submitted with the EULA |
-| `cyberark.*` | Step 15 | CyberArk tenant details â€” Step 15 auto-skipped if absent |
+| `hub_production` | No | Hub site production VLAN — created in PC and assigned to the new cluster |
+| `prism_central.ip/url/username/password` | ✅ | PC connection details (Steps 7–15) |
+| `eula.username` | ✅ | Full name submitted when accepting the EULA in Step 5 |
+| `eula.job_title` | ✅ | Job title submitted with the EULA |
+| `eula.company_name` | ✅ | Company name submitted with the EULA |
+| `cyberark.*` | Step 16 | CyberArk tenant details — Step 16 auto-skipped if absent |
 | `notify.to` | No | Recipient email for the pipeline result notification email. Leave empty to skip. |
 | `notify.cc` | No | Comma-separated CC list for the pipeline result email (optional). |
 
@@ -546,34 +549,35 @@ flowchart TD
     Start([Start Pipeline]) --> LoadConfig[Load & parse config JSON]
     LoadConfig --> PreFlight{StartAtStep < 5\nand not SkipPreCheck?}
 
-    PreFlight -->|Yes| Checks["Pre-Flight Gate\nâœ“ iLO reachability per node\nâœ“ PC credentials & connectivity\nâœ“ FC credentials & connectivity\nâœ“ DNS reachability\nâœ“ NTP reachability\nâœ“ IP addresses are FREE (VIP, HV, CVM)\nâœ“ Phoenix/AOS/AHV URL accessibility\nâœ“ Witness reachability\nâœ“ CyberArk API access"]
+    PreFlight -->|Yes| Checks["Pre-Flight Gate\n✓ iLO reachability per node\n✓ PC credentials & connectivity\n✓ FC credentials & connectivity\n✓ DNS reachability\n✓ NTP reachability\n✓ IP addresses are FREE (VIP, HV, CVM)\n✓ Phoenix/AOS/AHV URL accessibility\n✓ Witness reachability\n✓ CyberArk API access"]
     PreFlight -->|No / SkipPreCheck| Pipeline
 
-    Checks -->|Any FAIL| Abort[âŒ Pipeline aborted\nFix issues and retry]
+    Checks -->|Any FAIL| Abort[❌ Pipeline aborted\nFix issues and retry]
     Checks -->|All PASS| Pipeline
 
-    subgraph Pipeline["Pipeline Execution (Steps 1â€“15)"]
-        S1["1 Â· Phoenix Boot\nMount ISO via iLO Redfish, reboot"]
-        S2["2 Â· Phoenix Boot Check\nPoll iLO until nodes in Phoenix OS"]
-        S3["3 Â· Node Discovery\nWait for nodes to appear in FC"]
-        S4["4 Â· Image & Create Cluster\nFC images AHV+AOS, creates cluster"]
-        S5["5 Â· Accept EULA\nPrism Element REST"]
-        S6["6 Â· Register to Witness\nPE â†’ Witness VM"]
-        S7["7 Â· Register to Prism Central\nPE REST â†’ PC registration"]
-        S8["8 Â· Create VLANs\nProduction VLANs in PC"]
-        S9["9 Â· Create Storage Container\nPE API"]
-        S10["10 Â· Backup Policies\nPC API"]
-        S11["11 Â· Protection Policy\nPC API"]
-        S12["12 Â· Recovery Plan\nPC API"]
-        S13["13 Â· AHV Bond Mode\nSSH to all AHV hosts"]
-        S14["14 Â· Change Passwords\nPE/CVM/AHV SSH â†’ CSV export"]
-        S15["15 Â· Import to CyberArk\nREST API"]
-        S16["16 Â· Add DNS Records\nA records for nodes + VIP\n(company.net / company.ilo)"]
-        S1-->S2-->S3-->S4-->S5-->S6-->S7-->S8-->S9-->S10-->S11-->S12-->S13-->S14-->S15-->S16
+    subgraph Pipeline["Pipeline Execution (Steps 1–17)"]
+        S1["1 · Phoenix Boot\nMount ISO via iLO Redfish, reboot"]
+        S2["2 · Phoenix Boot Check\nPoll iLO until nodes in Phoenix OS"]
+        S3["3 · Node Discovery\nWait for nodes to appear in FC"]
+        S4["4 · Image & Create Cluster\nFC images AHV+AOS, creates cluster"]
+        S5["5 · Accept EULA\nPrism Element REST"]
+        S6["6 · Register to Witness\nPE → Witness VM"]
+        S7["7 · Register to Prism Central\nPE REST → PC registration"]
+        S8["8 · Create VLANs\nProduction VLANs in PC"]
+        S9["9 · Create Storage Container\nPE API"]
+        S10["10 · Backup Policies\nPC API"]
+        S11["11 · Protection Policy\nPC API"]
+        S12["12 · Recovery Plan\nPC API"]
+        S13["13 · Set vSwitch Bond Mode\nPC API (OVS) — rolling node restart"]
+        S14["14 · Run LCM Inventory\nPC API — software version report"]
+        S15["15 · Change Passwords\nPE/CVM/AHV SSH → CSV export"]
+        S16["16 · Import to CyberArk\nREST API"]
+        S17["17 · Add DNS Records\nA records for nodes + VIP\n(company.net / company.ilo)"]
+        S1-->S2-->S3-->S4-->S5-->S6-->S7-->S8-->S9-->S10-->S11-->S12-->S13-->S14-->S15-->S16-->S17
     end
 
-    Pipeline --> Done([âœ… Deployment Complete])
-    Pipeline -->|Step exits non-zero| Fail[âŒ Pipeline halted at step N\nUse -StartAtStep N to resume]
+    Pipeline --> Done([✅ Deployment Complete])
+    Pipeline -->|Step exits non-zero| Fail[❌ Pipeline halted at step N\nUse -StartAtStep N to resume]
 ```
 
 ---
@@ -625,7 +629,7 @@ Each step script can be executed standalone for testing, re-running a single ste
 
 ---
 
-### Step 1 â€” Phoenix Boot (`Phonix-Boot.ps1`)
+### Step 1 — Phoenix Boot (`Phonix-Boot.ps1`)
 Mounts the Phoenix ISO via iLO Redfish and reboots nodes.
 
 ```powershell
@@ -650,7 +654,7 @@ Mounts the Phoenix ISO via iLO Redfish and reboots nodes.
 
 ---
 
-### Step 2 â€” Phoenix Boot Check (`Phoonix-Boot-Check.ps1`)
+### Step 2 — Phoenix Boot Check (`Phoonix-Boot-Check.ps1`)
 Polls iLO until all nodes report Phoenix OS running.
 
 ```powershell
@@ -659,7 +663,7 @@ Polls iLO until all nodes report Phoenix OS running.
 
 ---
 
-### Step 3 â€” Node Discovery (`Node-Discovery-Check.ps1`)
+### Step 3 — Node Discovery (`Node-Discovery-Check.ps1`)
 Waits until all nodes are visible and available in Foundation Central, then ejects the ISO via iLO.
 
 ```powershell
@@ -679,7 +683,7 @@ Waits until all nodes are visible and available in Foundation Central, then ejec
 
 ---
 
-### Step 4 â€” Image & Create Cluster (`Image-And-Deploy-Cluster.ps1`)
+### Step 4 — Image & Create Cluster (`Image-And-Deploy-Cluster.ps1`)
 Triggers Foundation Central to image all nodes and create the cluster.
 
 ```powershell
@@ -688,7 +692,7 @@ Triggers Foundation Central to image all nodes and create the cluster.
 
 ---
 
-### Step 5 â€” Accept EULA (`Accept-EULA.ps1`)
+### Step 5 — Accept EULA (`Accept-EULA.ps1`)
 
 ```powershell
 .\Accept-EULA.ps1 -ConfigFile .\Configs\my-cluster.json
@@ -696,7 +700,7 @@ Triggers Foundation Central to image all nodes and create the cluster.
 
 ---
 
-### Step 6 â€” Register to Witness (`Register-NewCluster-To-Witness.ps1`)
+### Step 6 — Register to Witness (`Register-NewCluster-To-Witness.ps1`)
 
 ```powershell
 .\Register-NewCluster-To-Witness.ps1 -ConfigFile .\Configs\my-cluster.json
@@ -704,7 +708,7 @@ Triggers Foundation Central to image all nodes and create the cluster.
 
 ---
 
-### Step 7 â€” Register to Prism Central (`Register-NewCluster-To-PC.ps1`)
+### Step 7 — Register to Prism Central (`Register-NewCluster-To-PC.ps1`)
 
 ```powershell
 .\Register-NewCluster-To-PC.ps1 -ConfigFile .\Configs\my-cluster.json
@@ -712,7 +716,7 @@ Triggers Foundation Central to image all nodes and create the cluster.
 
 ---
 
-### Step 8 â€” Create VLANs (`Create-vLAN.ps1`)
+### Step 8 — Create VLANs (`Create-vLAN.ps1`)
 Creates production VLANs in Prism Central from the `production_vlans` array in the config.
 
 ```powershell
@@ -721,7 +725,7 @@ Creates production VLANs in Prism Central from the `production_vlans` array in t
 
 ---
 
-### Step 9 â€” Create Storage Container (`Create-Storage-Container.ps1`)
+### Step 9 — Create Storage Container (`Create-Storage-Container.ps1`)
 
 ```powershell
 .\Create-Storage-Container.ps1 -ConfigFile .\Configs\my-cluster.json
@@ -729,7 +733,7 @@ Creates production VLANs in Prism Central from the `production_vlans` array in t
 
 ---
 
-### Step 10 â€” Backup Policies (`Create-Backup-Policies-With-Categories.ps1`)
+### Step 10 — Backup Policies (`Create-Backup-Policies-With-Categories.ps1`)
 
 ```powershell
 .\Create-Backup-Policies-With-Categories.ps1 -ConfigFile .\Configs\my-cluster.json
@@ -737,7 +741,7 @@ Creates production VLANs in Prism Central from the `production_vlans` array in t
 
 ---
 
-### Step 11 â€” Protection Policy (`Create-Protection-Policy-With-Category.ps1`)
+### Step 11 — Protection Policy (`Create-Protection-Policy-With-Category.ps1`)
 
 ```powershell
 .\Create-Protection-Policy-With-Category.ps1 -ConfigFile .\Configs\my-cluster.json
@@ -745,7 +749,7 @@ Creates production VLANs in Prism Central from the `production_vlans` array in t
 
 ---
 
-### Step 12 â€” Recovery Plan (`Create-Recovery-Plan-With-Category.ps1`)
+### Step 12 — Recovery Plan (`Create-Recovery-Plan-With-Category.ps1`)
 
 ```powershell
 .\Create-Recovery-Plan-With-Category.ps1 -ConfigFile .\Configs\my-cluster.json
@@ -753,31 +757,36 @@ Creates production VLANs in Prism Central from the `production_vlans` array in t
 
 ---
 
-### Step 13 â€” AHV Bond Mode (`Set-AHV-BondMode.ps1`)
-Checks and changes OVS bond mode on all AHV hosts from LACP balance-tcp to active-backup.
+### Step 13 — Set vSwitch Bond Mode (`Set-Nutanix-VSwitch-Bond-Mode.ps1`)
+Configures the OVS virtual switch bond mode on all AHV hosts in the cluster via Prism Central REST API. The target bond mode is read from `vswitch_mode` in the config (default: `ACTIVE_BACKUP`). Each node is cycled through maintenance mode with a rolling restart — no manual SSH required.
 
 ```powershell
-# Standard â€” reads cluster VIP from config
-.\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\my-cluster.json
+# Standard — reads vswitch_mode and cluster name from config
+.\Set-Nutanix-VSwitch-Bond-Mode.ps1 -ConfigFile .\Configs\my-cluster.json
 
-# Override cluster VIP directly
-.\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\my-cluster.json -ClusterVIP "10.10.10.121"
-
-# Force change regardless of current state, shorter wait between nodes
-.\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\my-cluster.json -ForceChange -WaitSeconds 30
+# Override task timeout (minutes); 0 = auto-compute from node count (10 min × nodes)
+.\Set-Nutanix-VSwitch-Bond-Mode.ps1 -ConfigFile .\Configs\my-cluster.json -TaskTimeoutMinutes 30
 ```
 
 | Parameter | Default | Description |
 |---|---|---|
-| `-ConfigFile` | _(optional)_ | Reads `cluster_vip` if `-ClusterVIP` not given |
-| `-ClusterVIP` | from config | Override Prism Element VIP |
-| `-BondName` | `br0-up` | OVS bond name to manage |
-| `-WaitSeconds` | `60` | Seconds to wait between nodes |
-| `-ForceChange` | `$false` | Apply change even if bond already looks correct |
+| `-ConfigFile` | **required** | Path to cluster JSON config |
+| `-TaskTimeoutMinutes` | `0` (auto) | Override task timeout in minutes; 0 = node count × 10 min |
+
+> **Config key:** `vswitch_mode` — valid values: `ACTIVE_BACKUP` (default), `BALANCE_TCP` (LACP Active-Active), `BALANCE_SLB`.
 
 ---
 
-### Step 14 â€” Change Passwords (`Change-Prism-CVM-AHV-Password.ps1`)
+### Step 14 — Run LCM Inventory (`Run-LCM-Inventory.ps1`)
+Triggers a Life Cycle Manager (LCM) software inventory on the cluster via Prism Central and reports installed vs. available/recommended versions with a colour-coded summary.
+
+```powershell
+.\Run-LCM-Inventory.ps1 -ConfigFile .\Configs\my-cluster.json
+```
+
+---
+
+### Step 15 — Change Passwords (`Change-Prism-CVM-AHV-Password.ps1`)
 Generates new passwords, changes them on PE/CVM/AHV, and exports a CSV in SecureVault format.
 
 ```powershell
@@ -798,8 +807,8 @@ Generates new passwords, changes them on PE/CVM/AHV, and exports a CSV in Secure
 
 ---
 
-### Step 15 â€” Import to CyberArk (`Import-Secrets-to-CyberArk.ps1`)
-Imports the password CSV from Step 14 into CyberArk using the tenant configured in the config.
+### Step 16 — Import to CyberArk (`Import-Secrets-to-CyberArk.ps1`)
+Imports the password CSV from Step 15 into CyberArk using the tenant configured in the config.
 
 ```powershell
 .\Import-Secrets-to-CyberArk.ps1 -ConfigFile .\Configs\my-cluster.json
@@ -807,7 +816,7 @@ Imports the password CSV from Step 14 into CyberArk using the tenant configured 
 
 ---
 
-### Step 16 â€” Add DNS Records (`Add-DNS-Record.ps1`)
+### Step 17 — Add DNS Records (`Add-DNS-Record.ps1`)
 Creates DNS A records for all node hostnames (AHV + iLO) and the cluster VIP. Reads `dns_admin` credentials from the config for delegated DNS RPC operations.
 
 ```powershell
@@ -833,9 +842,9 @@ $cred = Get-Credential "DOMAIN\SVC-NTX-AUTO"
 | `-NetZone` | `company.net` | Forward zone for AHV + VIP records |
 | `-IloZone` | `company.ilo` | Forward zone for iLO records |
 | `-Credential` | from config `dns_admin` | PSCredential for DNS service account |
-| `-Username` | â€” | Convenience â€” prompts for password interactively |
+| `-Username` | — | Convenience — prompts for password interactively |
 
-**Required config section for Step 16:**
+**Required config section for Step 17:**
 ```json
 "dns_admin": {
   "domain":   "CORP",
@@ -845,9 +854,9 @@ $cred = Get-Credential "DOMAIN\SVC-NTX-AUTO"
 ```
 
 Records created per node:
-- `<hostname>` â†’ `hypervisor_ip` in `company.net`
-- `<hostname>i` â†’ `iLO_ip` in `company.ilo`
-- `<clusterName>` â†’ `cluster_vip` in `company.net`
+- `<hostname>` → `hypervisor_ip` in `company.net`
+- `<hostname>i` → `iLO_ip` in `company.ilo`
+- `<clusterName>` → `cluster_vip` in `company.net`
 
 ---
 
@@ -859,9 +868,9 @@ Records created per node:
 
 **Check:**
 1. Confirm DHCP is serving IPs on the AHV/CVM management VLAN.
-2. Log into Foundation Central UI â†’ **Nodes** â€” are nodes visible?
+2. Log into Foundation Central UI → **Nodes** — are nodes visible?
 3. Confirm the DHCP vendor-specific option (option 43) contains the FC IP and API key per the [Nutanix guide](https://portal.nutanix.com/page/documents/details?targetId=Foundation-Central-v1_2:v12-dhcp-vendor-specific-options-for-nodes-c.html).
-4. Confirm switch ports are Access/Native on AHV VLAN (nodes are in Phoenix OS â€” they need untagged traffic).
+4. Confirm switch ports are Access/Native on AHV VLAN (nodes are in Phoenix OS — they need untagged traffic).
 5. Restart FC services if stuck:
    ```bash
    genesis stop foundation_central; genesis start foundation_central
@@ -869,7 +878,7 @@ Records created per node:
 
 ---
 
-### 2. iLO unreachable â€” Step 1 fails
+### 2. iLO unreachable — Step 1 fails
 
 **Cause:** iLO port is not connected/tagged on the iLO VLAN, or IP not assigned.
 
@@ -879,11 +888,11 @@ Test-NetConnection -ComputerName <iLO_IP> -Port 443
 ```
 - Verify iLO IP is correct in config.
 - Confirm iLO VLAN is tagged on the iLO network port at the switch.
-- Check iLO web UI: `https://<iLO_IP>` â€” can you log in from the jump server?
+- Check iLO web UI: `https://<iLO_IP>` — can you log in from the jump server?
 
 ---
 
-### 3. Pre-flight fails with "IP is responding â€” already in use"
+### 3. Pre-flight fails with "IP is responding — already in use"
 
 **Cause:** A previous deployment left cluster VIP, CVM or hypervisor IPs alive, or the nodes are still running. The pre-flight IP check pings each planned IP to confirm it is free.
 
@@ -896,7 +905,7 @@ Test-NetConnection -ComputerName <iLO_IP> -Port 443
 ### 4. Imaging fails or gets stuck (Step 4)
 
 **Check Foundation Central:**
-- Log into FC (`https://<FC_IP>:9440`) â†’ **Tasks** â€” find the imaging job, read the error message.
+- Log into FC (`https://<FC_IP>:9440`) → **Tasks** — find the imaging job, read the error message.
 - Verify AOS package and AHV ISO URLs are reachable from FC (not just the jump server).
 - Common causes: network drop during image download, disk errors on nodes, IPMI timeout.
 
@@ -907,11 +916,11 @@ Test-NetConnection -ComputerName <iLO_IP> -Port 443
 
 ---
 
-### 5. PC registration fails (Step 7) â€” "Multiple clusters named â€¦"
+### 5. PC registration fails (Step 7) — "Multiple clusters named …"
 
 **Cause:** A ghost/stale cluster with the same name exists in PC from a previous deployment (disconnected but not removed).
 
-**Fix:** In PC, go to **Hardware â†’ Clusters**, find and remove the stale disconnected cluster entry, then resume:
+**Fix:** In PC, go to **Hardware → Clusters**, find and remove the stale disconnected cluster entry, then resume:
 ```powershell
 .\Start-Pipeline.ps1 -ConfigFile .\Configs\my-cluster.json -StartAtStep 7
 ```
@@ -932,17 +941,19 @@ Confirm the DNS/NTP servers in the config are reachable from the jump server.
 
 ---
 
-### 7. AHV bond mode fails (Step 13)
+### 7. vSwitch bond mode task times out (Step 13)
 
-**Cause:** SSH access to AHV hosts not yet available, or `Posh-SSH` module missing.
+**Cause:** The Prism Central OVS task is running but is taking longer than expected due to the number of nodes or slow maintenance-mode cycling.
 
-**Check:**
+**What to do:**
+1. Log into Prism Central → **Tasks** and find the vSwitch update task — check if it is still progressing.
+2. If still running: wait for it to complete, then run Step 13 again (it performs an early-exit check if the mode is already correct).
+3. If the task failed: check the error message in PC Tasks for details (e.g. unreachable host, bond name mismatch).
+4. Verify the network switch ports are configured with the expected mode (LACP trunk for `BALANCE_TCP`, standard trunk for `ACTIVE_BACKUP`) **before** running this step.
+
 ```powershell
-# Verify Posh-SSH is available
-Get-Module -ListAvailable Posh-SSH
-
-# Test AHV SSH
-Test-NetConnection -ComputerName <HV_IP> -Port 22
+# Resume from Step 13
+.\Start-Pipeline.ps1 -ConfigFile .\Configs\my-cluster.json -StartAtStep 13
 ```
 
 ---
@@ -953,12 +964,12 @@ All pipeline runs generate timestamped logs in `Logs/`:
 
 | File pattern | Content |
 |---|---|
-| `pipeline-<cluster>-<timestamp>.txt` | Full pipeline stdout â€” step start/end, timings |
+| `pipeline-<cluster>-<timestamp>.txt` | Full pipeline stdout — step start/end, timings |
 | `preflight-gate-<cluster>-<timestamp>.txt` | Pre-flight check detailed results |
 | `deployment-log-<cluster>-<timestamp>.txt` | Step-level deployment log from imaging script |
 | `cluster_create_body_<timestamp>.json` | Raw Foundation Central imaging API request body |
 
-**Retention:** Last 5 files per pattern are kept â€” older files are automatically rotated.
+**Retention:** Last 5 files per pattern are kept — older files are automatically rotated.
 
 ```powershell
 # Watch live pipeline output
@@ -972,218 +983,11 @@ Get-Content .\Logs\cluster_create_body_*.json | ConvertFrom-Json
 
 ## Best Practices
 
-1. **Always dry-run first** â€” runs all pre-flight checks without executing any steps.
-2. **Review the preflight log** before the real run â€” it confirms IPs are free, all services are reachable, and ISO URLs return valid file sizes.
-3. **Use descriptive config file names** â€” `SITE-DC1-CLUSTER-01.json`, not `config.json`.
-4. **Never commit passwords to Git** â€” add `Configs/` to `.gitignore` or use a secrets manager.
+1. **Always dry-run first** — runs all pre-flight checks without executing any steps.
+2. **Review the preflight log** before the real run — it confirms IPs are free, all services are reachable, and ISO URLs return valid file sizes.
+3. **Use descriptive config file names** — `SITE-DC1-CLUSTER-01.json`, not `config.json`.
+4. **Never commit passwords to Git** — add `Configs/` to `.gitignore` or use a secrets manager.
 5. **Use `output_level: "verbose"` for first deployments**, `"normal"` for routine production runs.
-6. **Keep the Foundation Central UI open during Steps 3â€“4** â€” you can monitor imaging task progress and get detailed error messages faster than waiting for the pipeline to time out.
-7. **After any switch reconfiguration, re-validate DHCP** before running the pipeline â€” miss the vendor option and nodes will boot Phoenix but never appear in FC.
+6. **Keep the Foundation Central UI open during Steps 3–4** — you can monitor imaging task progress and get detailed error messages faster than waiting for the pipeline to time out.
+7. **After any switch reconfiguration, re-validate DHCP** before running the pipeline — miss the vendor option and nodes will boot Phoenix but never appear in FC.
 
-
-PowerShell automation for end-to-end Nutanix cluster deployment. A single pipeline script (`Start-Pipeline.ps1`) drives all phases: bare-metal boot, Foundation imaging, cluster creation, and post-deploy configuration.
-
-Triggered from the [Nutanix Cluster Deployment Manager](../deploy-cluster-app/README.md) web app, or run directly from PowerShell.
-
----
-
-## Table of Contents
-
-- [Prerequisites](#prerequisites)
-- [Pipeline Steps](#pipeline-steps)
-- [Quick Start](#quick-start)
-- [Parameters](#parameters)
-- [Configuration File](#configuration-file)
-- [Running Individual Scripts](#running-individual-scripts)
-- [Logs](#logs)
-
----
-
-## Prerequisites
-
-| Requirement | Notes |
-|---|---|
-| **PowerShell 7+** | `pwsh.exe` â€” `#Requires -Version 7.0` enforced |
-| **Posh-SSH module** | Auto-installed if missing. Manual: `Install-Module Posh-SSH -Scope AllUsers` |
-| **iLO / BMC network access** | Required for Phoenix boot phase (Steps 1â€“2) |
-| **Foundation Central** | Reachable from jump server; valid service account |
-| **Prism Central** | Reachable from jump server; valid admin account |
-| **Network access to cluster VIP and CVMs** | Required from Steps 5 onward |
-
----
-
-## Pipeline Steps
-
-`Start-Pipeline.ps1` executes up to 15 sequential steps. A step failure stops the pipeline; use `-StartAtStep` to resume.
-
-| Step | Name | Script | Target |
-|---|---|---|---|
-| 1 | Phoenix Boot | `Phonix-Boot.ps1` | iLO / BMC |
-| 2 | Phoenix Boot Check | `Phoonix-Boot-Check.ps1` | iLO / BMC |
-| 3 | Node Discovery | `Node-Discovery-Check.ps1` | Foundation Central |
-| 4 | Image & Create Cluster | `Image-And-Deploy-Cluster.ps1` | Foundation Central |
-| 5 | Accept EULA | `Accept-EULA.ps1` | Prism Element |
-| 6 | Register to Witness | `Register-NewCluster-To-Witness.ps1` | Prism Element |
-| 7 | Register to Prism Central | `Register-NewCluster-To-PC.ps1` | Prism Element â†’ PC |
-| 8 | Create VLANs | `Create-vLAN.ps1` | Prism Central |
-| 9 | Create Storage Container | `Create-Storage-Container.ps1` | Prism Element |
-| 10 | Backup Policies | `Create-Backup-Policies-With-Categories.ps1` | Prism Central |
-| 11 | Protection Policy | `Create-Protection-Policy-With-Category.ps1` | Prism Central |
-| 12 | Recovery Plan | `Create-Recovery-Plan-With-Category.ps1` | Prism Central |
-| 13 | AHV Bond Mode | `Set-AHV-BondMode.ps1` | AHV host (SSH) |
-| 14 | Change Passwords â†’ CSV | `Change-Prism-CVM-AHV-Password.ps1` | PE / CVM / AHV (SSH) |
-| 15 | Import to CyberArk | `Import-Secrets-to-CyberArk.ps1` | CyberArk |
-| 16 | Add DNS Records | `Add-DNS-Record.ps1` | DNS Servers (RPC/WinRM) |
-
----
-
-## Quick Start
-
-```powershell
-cd <path-to>\Nutanix-ZTI
-
-# Full deployment
-.\Start-Pipeline.ps1 -ConfigFile .\Configs\my-cluster.json
-
-# Dry run (validate config, no changes made for supported steps)
-.\Start-Pipeline.ps1 -ConfigFile .\Configs\my-cluster.json -DryRun
-
-# Resume from step 7 (e.g. after fixing a PC registration issue)
-.\Start-Pipeline.ps1 -ConfigFile .\Configs\my-cluster.json -StartAtStep 7
-
-# Skip pre-flight connectivity check
-.\Start-Pipeline.ps1 -ConfigFile .\Configs\my-cluster.json -SkipPreCheck
-```
-
----
-
-## Parameters
-
-| Parameter | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `-ConfigFile` | `string` | **Yes** | â€” | Path to cluster config JSON (see `Configs/`) |
-| `-DryRun` | `switch` | No | `$false` | Validate without making real changes (where supported by each step) |
-| `-StartAtStep` | `int` 1â€“99 | No | `1` | Resume from this step â€” all earlier steps are skipped |
-| `-SkipSteps` | `string` | No | `''` | Comma-separated step numbers to skip, e.g. `"7,9"` |
-| `-SkipPreCheck` | `switch` | No | `$false` | Bypass pre-flight connectivity check (useful when IPs are known-good) |
-
----
-
-## Configuration File
-
-Each cluster deployment is driven by a JSON configuration file in `Configs/`.
-
-### Minimal example
-
-```json
-{
-  "cluster": {
-    "name": "SITE-1P-CLUSTER-01",
-    "hypervisor": "AHV"
-  },
-  "network": {
-    "prefix": "10.10.10",
-    "subnet_mask": "255.255.255.0",
-    "default_gateway": "10.10.10.1",
-    "subnet_name": "SITE-VM-VLAN100",
-    "cluster_vip": "10.10.10.110",
-    "ip_pool_start": "10.10.10.120",
-    "ip_pool_end": "10.10.10.150"
-  },
-  "nodes": [
-    {
-      "ipmi_ip": "10.10.10.21",
-      "hypervisor_ip": "10.10.10.31",
-      "cvm_ip": "10.10.10.41",
-      "node_serial": "XXXX1234"
-    }
-  ],
-  "foundation_central": {
-    "url": "https://10.10.10.5:8000",
-    "username": "admin",
-    "password": "changeme"
-  },
-  "dns": ["10.0.1.10", "10.0.1.11"],
-  "ntp": ["pool.ntp.org"],
-  "prism_central": {
-    "url": "https://10.0.100.50:9440",
-    "username": "admin",
-    "password": "changeme"
-  },
-  "witness": {
-    "ip": "10.0.200.10",
-    "username": "admin",
-    "password": "changeme"
-  },
-  "aos": {
-    "version": "6.8.1",
-    "package_url": "http://fileserver/aos-6.8.1.tar.gz",
-    "hypervisor_iso_url": "http://fileserver/ahv-6.8.1.iso"
-  }
-}
-```
-
-### Saved config files
-
-| File | Cluster | Purpose |
-|---|---|---|
-| `my-cluster.json` | SITE-1P-CLUSTER-01 | Full 1-node deployment |
-| `| `my-cluster.json` | SITE-1P-CLUSTER-01 | Lab cluster creation |
-| `my-cluster-imageonly.json` | SITE-1P-CLUSTER-01 | Re-image only (steps 1â€“4) |
-| `my-cluster-remove.json` | SITE-1P-CLUSTER-01 | Cluster removal |
-
----
-
-## Running Individual Scripts
-
-Each step script can also be run standalone. All accept `-ConfigFile` as primary input â€” see the [Running Individual Scripts](#running-individual-scripts) section above for full parameter details per script.
-
-```powershell
-# Step 1 â€” Phoenix Boot (all nodes)
-.\Phonix-Boot.ps1 -ConfigFile .\Configs\my-cluster.json
-
-# Step 1 â€” Single node only
-.\Phonix-Boot.ps1 -ConfigFile .\Configs\my-cluster.json -IloHost "10.10.16.120"
-
-# Step 3 â€” Node discovery with custom timeout
-.\Node-Discovery-Check.ps1 -ConfigFile .\Configs\my-cluster.json -TimeoutMinutes 90
-
-# Step 5 â€” Accept EULA
-.\Accept-EULA.ps1 -ConfigFile .\Configs\my-cluster.json
-
-# Step 7 â€” Register to Prism Central
-.\Register-NewCluster-To-PC.ps1 -ConfigFile .\Configs\my-cluster.json
-
-# Step 8 â€” Create production VLANs
-.\Create-vLAN.ps1 -ConfigFile .\Configs\my-cluster.json
-
-# Step 13 â€” Set AHV bond mode (force, shorter wait)
-.\Set-AHV-BondMode.ps1 -ConfigFile .\Configs\my-cluster.json -ForceChange -WaitSeconds 30
-
-# Step 16 â€” Add DNS records
-.\Add-DNS-Record.ps1 -ConfigFile .\Configs\my-cluster.json
-
-# Step 16 â€” Add DNS records with explicit credential
-$cred = Get-Credential "DOMAIN\SVC-NTX-AUTO"
-.\Add-DNS-Record.ps1 -ConfigFile .\Configs\my-cluster.json -Credential $cred
-```
-
-> Run `Get-Help .\<script>.ps1 -Full` for each script's full parameter list.
-
----
-
-## Logs
-
-Pipeline logs are written to `Logs/` in this directory:
-
-| File pattern | Content |
-|---|---|
-| `pipeline-<cluster>-<timestamp>.txt` | Full pipeline stdout for each run |
-| `deployment-log-<cluster>-<timestamp>.txt` | Step-level deployment log |
-| `cluster_create_body_<timestamp>.json` | Raw FC cluster-create request body |
-
----
-
-## Best Practices
-
-1. **Always dry-run first** â€” runs all pre-flight checks

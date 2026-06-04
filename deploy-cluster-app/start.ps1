@@ -1,9 +1,9 @@
-#Requires -RunAsAdministrator
+﻿#Requires -RunAsAdministrator
 #Requires -Version 5.1
 
 <#
 .SYNOPSIS
-    One-shot setup for Nutanix Cluster Deployment Manager.
+    One-shot setup for Nutanix Zero Touch Deployment Manager.
 
 .DESCRIPTION
     Run this once on a fresh Windows server (PowerShell as Administrator).
@@ -93,7 +93,7 @@ if (-not (Test-Path $envFile)) {
     $secret = [Convert]::ToBase64String($bytes)
 
     $envContent  = "# =============================================================================`r`n"
-    $envContent += "# Nutanix ZTI Deployment Manager - Environment Configuration`r`n"
+    $envContent += "# Nutanix ZTD Deployment Manager - Environment Configuration`r`n"
     $envContent += "# =============================================================================`r`n"
     $envContent += "# Edit values below, then restart the service to apply changes.`r`n"
     $envContent += "# See .env.example for full documentation of every field.`r`n"

@@ -1,5 +1,5 @@
 ﻿/* =========================================================
-   app.js — Nutanix Cluster Deployment Manager
+   app.js — Nutanix Zero Touch Deployment Manager
    ========================================================= */
 
 /* ── Tab switching ────────────────────────────────────────── */
@@ -1331,7 +1331,7 @@ document.getElementById('saveConfigBtn').addEventListener('click', async () => {
    ========================================================= */
 function buildConfigObject(formData) {
     const config = {
-        "_comment": "Nutanix ZTI Deployment Configuration",
+        "_comment": "Nutanix ZTD Deployment Configuration",
         "_note": "IPMI netmask and gateway are auto-detected from Foundation Central. You can override by specifying them here.",
         "_output_level_options": "minimal (only headers), normal (headers + important messages), verbose (all details)"
     };

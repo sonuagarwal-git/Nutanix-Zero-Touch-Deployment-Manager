@@ -450,7 +450,7 @@ async function sendWelcomeEmail(user) {
         const mailOptions = {
             from: smtpConfig.from,
             to: userEmail,
-            subject: 'Welcome to Nutanix Cluster Deployment Manager',
+            subject: 'Welcome to Nutanix Zero Touch Deployment Manager',
             html: `
                 <!DOCTYPE html>
                 <html>
@@ -467,7 +467,7 @@ async function sendWelcomeEmail(user) {
                                     <tr>
                                         <td bgcolor="#024da1" style="background-color: #024da1; padding: 40px 30px; text-align: center;">
                                             <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Welcome Onboard!</h1>
-                                            <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; font-weight: 500;">Nutanix Cluster Deployment Manager</p>
+                                            <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; font-weight: 500;">Nutanix Zero Touch Deployment Manager</p>
                                         </td>
                                     </tr>
                                     
@@ -477,12 +477,12 @@ async function sendWelcomeEmail(user) {
                                             <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Dear <strong>${user.displayName || user.username}</strong>,</p>
                                             
                                             <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                                                We're excited to inform you that you have been granted access to the <strong>Nutanix Cluster Deployment Manager</strong> platform!
+                                                We're excited to inform you that you have been granted access to the <strong>Nutanix Zero Touch Deployment Manager</strong> platform!
                                             </p>
                                             
                                             <h2 style="color: #024da1; font-size: 20px; margin: 30px 0 15px 0;">About the Platform</h2>
                                             <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 15px 0;">
-                                                The Nutanix Cluster Deployment Manager is a powerful web-based tool designed to streamline and automate the deployment of Nutanix clusters in our infrastructure. This platform enables you to:
+                                                The Nutanix Zero Touch Deployment Manager is a powerful web-based tool designed to streamline and automate the deployment of Nutanix clusters in our infrastructure. This platform enables you to:
                                             </p>
                                             
                                             <ul style="color: #555555; font-size: 15px; line-height: 1.8; margin: 0 0 25px 0; padding-left: 25px;">
@@ -552,14 +552,14 @@ async function sendWelcomeEmail(user) {
                                                 Best regards,
                                             </p>
                                             <p style="color: #024da1; font-size: 15px; line-height: 1.6; margin: 0; font-weight: 600;">
-                                                Nutanix ZTI Automation Team
+                                                Nutanix ZTD Automation Team
                                             </p>
                                             
                                             <hr style="border: none; border-top: 1px solid #e1e4e8; margin: 25px 0 15px 0;">
                                             
                                             <p style="color: #999999; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
                                                 This is an automated message. Please do not reply to this email.<br>
-                                                © ${new Date().getFullYear()} Nutanix ZTI Deployment Tool. All rights reserved.
+                                                © ${new Date().getFullYear()} Nutanix ZTD. All rights reserved.
                                             </p>
                                         </td>
                                     </tr>
@@ -1121,11 +1121,11 @@ app.post('/api/smtp/test', requireAuth, requireAdmin, async (req, res) => {
         const mailOptions = {
             from: smtpConfig.from,
             to: testEmail,
-            subject: 'SMTP Test - Nutanix Cluster Deployment Manager',
+            subject: 'SMTP Test - Nutanix Zero Touch Deployment Manager',
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <h2 style="color: #024da1;">SMTP Test Email</h2>
-                    <p>This is a test email from the Nutanix Cluster Deployment Manager.</p>
+                    <p>This is a test email from the Nutanix Zero Touch Deployment Manager.</p>
                     <p>If you received this email, your SMTP configuration is working correctly.</p>
                     <hr style="border: 1px solid #ddd; margin: 20px 0;">
                     <p style="color: #666; font-size: 0.9rem;"><strong>Test Details:</strong></p>
@@ -1847,7 +1847,7 @@ function cleanupOldData() {
 
 // Start server
 server.listen(PORT, () => {
-    console.log(`Nutanix ZTI Configuration Server running at https://localhost:${PORT}`);
+    console.log(`Nutanix ZTD Configuration Server running at https://localhost:${PORT}`);
     console.log(`Configuration files: ${configsPath}`);
     console.log(`Deployment script: ${deployScriptPath}`);
     console.log('WebSocket server ready for real-time updates');

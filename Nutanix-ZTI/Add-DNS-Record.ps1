@@ -1,9 +1,9 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Creates DNS A records for Nutanix cluster nodes and VIP from a ZTI config file.
+    Creates DNS A records for Nutanix cluster nodes and VIP from a ZTD config file.
 .DESCRIPTION
-    Reads a ZTI cluster config JSON and creates three sets of DNS A records per DNS server:
+    Reads a ZTD cluster config JSON and creates three sets of DNS A records per DNS server:
 
       1. Node hypervisor records : <hostname>  -> hypervisor_ip   in <domain>.net
       2. Node iLO records        : <hostname>i -> iLO_ip          in <domain>.ilo
@@ -18,7 +18,7 @@
     (works when run interactively as a domain DNS admin).
 
 .PARAMETER ConfigFile
-    Path to a ZTI cluster config JSON.
+    Path to a ZTD cluster config JSON.
 .PARAMETER DnsServers
     One or more DNS server IP addresses. Defaults to dns_servers from the config.
 .PARAMETER NetZone

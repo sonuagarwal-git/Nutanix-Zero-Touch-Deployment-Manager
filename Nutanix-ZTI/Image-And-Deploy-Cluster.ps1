@@ -3,7 +3,7 @@
 .SYNOPSIS
     Deploy a Nutanix cluster (1 to N nodes) with optional witness via Foundation Central
 .DESCRIPTION
-    Main deployment script for Nutanix Zero Touch Installation.
+    Main deployment script for Nutanix Zero Touch Deployment.
     Reads configuration from JSON file and deploys cluster automatically.
 .PARAMETER ConfigFile
     Path to the cluster configuration JSON file. Default: cluster-config.json
@@ -2022,7 +2022,7 @@ try {
 
     Write-Host ""
     Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-    Write-Host "       Nutanix Zero Touch Installation - Cluster Deployment    " -ForegroundColor Cyan
+    Write-Host "       Nutanix Zero Touch Deployment - Cluster Deployment    " -ForegroundColor Cyan
     Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
     Write-Host ""
 

@@ -60,7 +60,7 @@
     Seconds between task status polls. Default: 30.
 
 .PARAMETER ReportFile
-    Optional path for a temporary HTML snippet used by the ZTI pipeline to embed
+    Optional path for a temporary HTML snippet used by the ZTD pipeline to embed
     upgrade recommendations in the result email. The caller (Start-Pipeline.ps1)
     reads and deletes this file immediately after the pipeline finishes.
     Leave empty when running standalone — no file is written.

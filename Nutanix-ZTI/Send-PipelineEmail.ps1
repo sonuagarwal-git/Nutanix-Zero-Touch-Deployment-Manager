@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Send a pipeline result email for a Nutanix ZTI deployment run.
+    Send a pipeline result email for a Nutanix ZTD deployment run.
 
 .DESCRIPTION
     Reads SMTP settings from deploy-cluster-app\.env (SMTP_HOST, SMTP_PORT, SMTP_USER),
@@ -267,7 +267,7 @@ $htmlBody = @"
     <!-- Header bar -->
     <div style="background:$statusColor;padding:20px 24px;color:#fff;">
       <h2 style="margin:0;font-size:20px;font-weight:600;">
-        $statusIcon &nbsp; Nutanix ZTI Pipeline — $statusLabel
+        $statusIcon &nbsp; Nutanix ZTD Pipeline — $statusLabel
       </h2>
       <p style="margin:4px 0 0;font-size:13px;opacity:.88;">$runTimestamp</p>
     </div>
@@ -303,10 +303,10 @@ $stepRowsHtml        </tbody>
     <div style="padding:12px 24px 20px;border-top:1px solid #eee;">
       $logFooter
       <p style="margin:12px 0 4px;">Best regards,<br>
-        <strong>Nutanix ZTI Automation Team</strong>
+        <strong>Nutanix ZTD Automation Team</strong>
       </p>
       <p style="font-size:11px;color:#aaa;margin-top:12px;">
-        Sent automatically by Nutanix ZTI
+        Sent automatically by Nutanix ZTD
       </p>
     </div>
 
@@ -320,9 +320,9 @@ $stepRowsHtml        </tbody>
 #region ── Send email ──────────────────────────────────────────────────────────
 
 $subject = if ($Status -eq 'SUCCESS') {
-    "[ZTI] $ClusterName — Pipeline completed successfully"
+    "[ZTD] $ClusterName — Pipeline completed successfully"
 } else {
-    "[ZTI] $ClusterName — Pipeline FAILED$(if ($FailedStep) { " at: $FailedStep" })"
+    "[ZTD] $ClusterName — Pipeline FAILED$(if ($FailedStep) { " at: $FailedStep" })"
 }
 
 Write-Host ""

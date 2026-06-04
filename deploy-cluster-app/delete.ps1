@@ -1,9 +1,9 @@
-#Requires -RunAsAdministrator
+﻿#Requires -RunAsAdministrator
 #Requires -Version 5.1
 
 <#
 .SYNOPSIS
-    Tear-down script for Nutanix Cluster Deployment Manager.
+    Tear-down script for Nutanix Zero Touch Deployment Manager.
 
 .DESCRIPTION
     Reverses everything start.ps1 did so you can run a clean end-to-end test again.

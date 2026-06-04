@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Orchestrate the full Nutanix ZTI pipeline — image, create cluster, and post-config.
+    Orchestrate the full Nutanix ZTD pipeline — image, create cluster, and post-config.
 .DESCRIPTION
     Runs a sequence of scripts in order. Each step must exit with code 0 (success) before
     the next step is started. If any step fails, the pipeline halts immediately and the
@@ -1024,7 +1024,7 @@ $script:PipelineLogFile = Join-Path $LogsDirectory "run-$clusterName-$ts.log"
 
 $logHeader = @"
 ═══════════════════════════════════════════════════════════════
-  Nutanix ZTI Pipeline Log
+  Nutanix ZTD Pipeline Log
 ═══════════════════════════════════════════════════════════════
   Cluster   : $clusterName
   Config    : $configPath
@@ -1114,7 +1114,7 @@ if ($WhatIfPreference) {
 $pipelineStart = Get-Date
 $results       = [System.Collections.Generic.List[hashtable]]::new()
 
-Write-Banner "Nutanix ZTI Pipeline  ·  $clusterName"
+Write-Banner "Nutanix ZTD Pipeline  ·  $clusterName"
 Write-Host ("  Config     : {0}" -f $configPath)                                    -ForegroundColor Gray
 Write-Host ("  Cluster VIP: {0}" -f $clusterVip)                                    -ForegroundColor Gray
 $skipInfo = if ($skipStepsArr.Count -gt 0) { "  |  skipping: $($skipStepsArr -join ', ')" } else { '' }
