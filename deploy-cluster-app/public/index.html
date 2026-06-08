@@ -26,8 +26,8 @@
                 <div class="help-dropdown">
                     <button class="btn btn-secondary" style="padding:7px 14px;font-size:0.82rem;">❓ Help ▾</button>
                     <div class="help-dropdown-menu">
-                        <a href="/help.html?type=app" class="help-dropdown-item">📖 About Deployment App</a>
-                        <a href="/help.html?type=workflow" class="help-dropdown-item">🔧 About Deployment Workflow</a>
+                        <a href="/help-app.html" class="help-dropdown-item" target="_blank" rel="noopener">📖 About Deployment App</a>
+                        <a href="/help-pipeline.html" class="help-dropdown-item" target="_blank" rel="noopener">🔧 About Deployment Workflow</a>
                     </div>
                 </div>
                 <button onclick="logout()" class="btn btn-secondary" style="padding:7px 14px;font-size:0.82rem;">Logout</button>
@@ -526,7 +526,7 @@
                             <option value="BALANCE_TCP">BALANCE_TCP (Active-Active LACP)</option>
                             <option value="BALANCE_SLB">BALANCE_SLB</option>
                         </select>
-                        <p style="margin:4px 0 0;color:#f59e0b;font-size:0.8rem;">&#9888; Make sure network ports are configured in the correct mode before selecting any specific mode.</p>
+                        <p style="margin:4px 0 0;color:#f59e0b;font-size:0.8rem;">&#9888; Ensure network ports are configured correctly before selecting a specific mode.</p>
                     </div>
                 </div>
 
@@ -548,7 +548,7 @@
                 </div>
                 <div class="form-row-grid" style="margin-top:10px;">
                     <div class="form-group" style="grid-column:1/-1;">
-                        <p style="margin:0;font-weight:700;color:var(--accent);">&#9432; DNS Admin Account (Optional) — used by Step 16 to create DNS A records (ilo, nodes &amp; cluster) under the service account identity. <strong>Step 16 is automatically skipped if these fields are left empty.</strong></p>
+                        <p style="margin:0;font-weight:700;color:var(--accent);">&#9432; DNS Admin Account (Optional) — used by Step 17 to create DNS A records (ilo, nodes &amp; cluster) under the service account identity. <strong>Step 17 is automatically skipped if these fields are left empty.</strong></p>
                     </div>
                     <div class="form-group">
                         <label for="dnsAdminDomain">Domain</label>
@@ -579,9 +579,27 @@
                         <input type="text" id="ntpServer2" name="ntp_servers.1" placeholder="e.g. ntp2.example.com">
                     </div>
                 </div>
-            </section>
 
-            <!-- 2. Subnets — Management (required) + Production VLANs (optional) -->
+                <hr style="border-color:rgba(255,255,255,0.08);margin:24px 0 16px;">
+                <h3 style="margin:0 0 6px;">Post-Deployment Checks <span class="optional-badge">Optional</span></h3>
+                <p style="margin:0 0 16px;font-size:0.83rem;color:rgba(255,255,255,0.55);">Select which optional validation steps run automatically at the end of the pipeline. Both are skipped by default.</p>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <label style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer;background:rgba(255,255,255,0.03);">
+                        <input type="checkbox" id="lcm-inventory-enabled" name="lcm_inventory.enabled" style="width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:var(--accent);cursor:pointer;">
+                        <span>
+                            <strong style="display:block;margin-bottom:3px;">Step 14 — Run LCM Inventory</strong>
+                            <span style="font-size:0.83rem;color:rgba(255,255,255,0.55);">Trigger an LCM inventory scan on completion to identify available firmware, AOS, and software updates for this cluster. Useful for assessing the cluster’s update readiness immediately after deployment.</span>
+                        </span>
+                    </label>
+                    <label style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer;background:rgba(255,255,255,0.03);">
+                        <input type="checkbox" id="ncc-health-check-enabled" name="health_check.enabled" style="width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:var(--accent);cursor:pointer;">
+                        <span>
+                            <strong style="display:block;margin-bottom:3px;">Step 18 — NCC Health Check</strong>
+                            <span style="font-size:0.83rem;color:rgba(255,255,255,0.55);">Run a full Nutanix Cluster Check (NCC) via SSH post-deployment to validate overall cluster health, configuration, and hardware state. Results are displayed in the pipeline log. Uses the new CVM password if Step 15 has already run; otherwise falls back to the factory default.</span>
+                        </span>
+                    </label>
+                </div>
+            </section> — Management (required) + Production VLANs (optional) -->
             <section class="config-section tab-panel" id="tab-network">
                 <h2>Subnets</h2>
 
@@ -1243,9 +1261,10 @@
                         <option value="12">Step 12 — Create Recovery Plan</option>
                         <option value="13">Step 13 — Set vSwitch Bond Mode</option>
                         <option value="14">Step 14 — Run LCM Inventory</option>
-                        <option value="15">Step 15 — Change Passwords &amp; Export CSV</option>
+                        <option value="15">Step 15 — Password Hardening</option>
                         <option value="16">Step 16 — Import Secrets to CyberArk</option>
                         <option value="17">Step 17 — Add DNS Records</option>
+                        <option value="18">Step 18 — NCC Health Check</option>
                     </select>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08);">
@@ -1278,9 +1297,10 @@
                             <label><input type="checkbox" class="skip-step-cb" value="12">12 — Create Recovery Plan</label>
                             <label><input type="checkbox" class="skip-step-cb" value="13">13 — Set vSwitch Bond Mode</label>
                             <label><input type="checkbox" class="skip-step-cb" value="14">14 — Run LCM Inventory</label>
-                            <label><input type="checkbox" class="skip-step-cb" value="15">15 — Change Passwords &amp; Export CSV</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="15">15 — Password Hardening</label>
                             <label><input type="checkbox" class="skip-step-cb" value="16">16 — Import Secrets to CyberArk</label>
                             <label><input type="checkbox" class="skip-step-cb" value="17">17 — Add DNS Records</label>
+                            <label><input type="checkbox" class="skip-step-cb" value="18">18 — NCC Health Check</label>
                         </div>
                     </div>
                 </div>

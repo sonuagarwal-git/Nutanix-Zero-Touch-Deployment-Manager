@@ -107,7 +107,11 @@ param(
 
     # Optional LCM inventory HTML snippet -- extracted from the run log, injected after the step table.
     [Parameter()]
-    [string]$LcmReportHtml = ''
+    [string]$LcmReportHtml = '',
+
+    # Optional NCC health check HTML snippet — injected after the LCM section.
+    [Parameter()]
+    [string]$NccReportHtml = ''
 )
 
 #region ── Resolve SMTP settings from .env ────────────────────────────────────
@@ -298,6 +302,9 @@ $stepRowsHtml        </tbody>
 
     <!-- LCM Inventory Report (if available) -->
     $(if ($LcmReportHtml) { $LcmReportHtml })
+
+    <!-- NCC Health Check Report (if available) -->
+    $(if ($NccReportHtml) { $NccReportHtml })
 
     <!-- Footer -->
     <div style="padding:12px 24px 20px;border-top:1px solid #eee;">

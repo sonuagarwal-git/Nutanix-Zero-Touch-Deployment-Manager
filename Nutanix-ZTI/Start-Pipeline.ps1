@@ -12,21 +12,24 @@
     timer shows the remaining wait time so the operator always knows what is happening.
 
     Pipeline steps (edit the $Pipeline array below to customise):
-      1. Phonix-Boot.ps1                            — Mount Phoenix ISO via iLO and reboot nodes
-      2. Phoonix-Boot-Check.ps1                     — Wait until all nodes have booted into Phoenix OS
-      3. Node-Discover-Check.ps1                    — Poll Foundation Central until all nodes are discovered
-      4. Image-And-Deploy-Cluster.ps1              — Image nodes and create cluster via Foundation Central
-      5. Accept-NutanixEULA.ps1                     — Accept EULA on Prism Element
-      6. Register-to-Witness.ps1                    — Register cluster to Witness VM
-      7. Register-to-PC.ps1                         — Register cluster to Prism Central
-      8. Create-Nutanix-vLAN.ps1                    — Create production VLANs
-      9. Create-Nutanix-Storage-Container.ps1       — Create storage container
-     10. Manage-PC-Backup-Policies-WithCategories   — Create/update PC backup policies
-     11. Manage-Protection-Policy-With-Category     — Create/update failover protection policy
-     12. Manage-Recovery-Plan-With-Category         — Create/update failover recovery plan
-     13. Set-Nutanix-VSwitch-Bond-Mode.ps1             — Configure OVS bond mode on all AHV nodes
-     14. Change-Prism-CVM-AHV-Password-ToCSV.ps1   — Rotate all passwords and export to CSV
-     15. Import-Secrets-to-CyberArk.ps1             — Import new passwords into CyberArk SecureVault
+      1. Phonix-Boot.ps1                           — Mount Phoenix ISO via iLO and reboot nodes
+      2. Phoonix-Boot-Check.ps1                    — Wait until all nodes have booted into Phoenix OS
+      3. Node-Discover-Check.ps1                   — Poll Foundation Central until all nodes are discovered
+      4. Image-And-Deploy-Cluster.ps1             — Image nodes and create cluster via Foundation Central
+      5. Accept-NutanixEULA.ps1                    — Accept EULA on Prism Element
+      6. Register-to-Witness.ps1                   — Register cluster to Witness VM
+      7. Register-to-PC.ps1                        — Register cluster to Prism Central
+      8. Create-Nutanix-vLAN.ps1                   — Create production VLANs
+      9. Create-Nutanix-Storage-Container.ps1      — Create storage container
+     10. Manage-PC-Backup-Policies-WithCategories  — Create/update PC backup policies
+     11. Manage-Protection-Policy-With-Category    — Create/update failover protection policy
+     12. Manage-Recovery-Plan-With-Category        — Create/update failover recovery plan
+     13. Set-Nutanix-VSwitch-Bond-Mode.ps1         — Configure OVS vSwitch bond mode on all AHV nodes
+     14. Run-LCM-Inventory.ps1                     — Run LCM inventory to detect available updates (optional — auto-skipped if lcm_inventory.enabled is false)
+     15. Password-Hardening.ps1          — Password Hardening (rotate passwords, export CSV)
+     16. Import-Secrets-to-CyberArk.ps1            — Import new passwords into CyberArk SecureVault
+     17. Add-DNS-Record.ps1                        — Create DNS A records for nodes, iLO and cluster VIP
+     18. Run-SystemHealthCheck.ps1                 — Run NCC health checks via SSH (optional — auto-skipped if health_check.enabled is false)
 
 .PARAMETER ConfigFile
     Path to the deployment JSON config (same file used by Deploy-Imaging and CreateCluster).
@@ -976,11 +979,13 @@ $Pipeline = @(
             ConfigFile = $configPath
         }
         DelaySeconds   = 5
+        Skip           = (-not ($cfg.PSObject.Properties['lcm_inventory'] -and $cfg.lcm_inventory.enabled -eq $true))
+        SkipReason     = 'LCM Inventory not enabled in config (set lcm_inventory.enabled: true to run)'
     },
 
     @{
-        Name           = 'Change Passwords and Export to CSV'
-        Script         = Join-Path $PSScriptRoot 'Change-Prism-CVM-AHV-Password.ps1'
+        Name           = 'Password Hardening'
+        Script         = Join-Path $PSScriptRoot 'Password-Hardening.ps1'
         SupportsDryRun = $false
         Arguments      = @{
             ConfigFile = $configPath
@@ -1010,7 +1015,19 @@ $Pipeline = @(
         Arguments      = @{
             ConfigFile = $configPath
         }
-        DelaySeconds   = 0
+        DelaySeconds   = 15
+    },
+
+    @{
+        Name           = 'NCC Health Check'
+        Script         = Join-Path $PSScriptRoot 'Run-SystemHealthCheck.ps1'
+        SupportsDryRun = $false
+        Arguments      = @{
+            ConfigFile = $configPath
+        }
+        DelaySeconds   = 15
+        Skip           = (-not ($cfg.PSObject.Properties['health_check'] -and $cfg.health_check.enabled -eq $true))
+        SkipReason     = 'NCC Health Check not enabled in config (set health_check.enabled: true to run)'
     }
 )
 
@@ -1348,6 +1365,68 @@ if (Test-Path $emailScript) {
         NodeCount      = @($cfg.network.nodes).Count
         LcmReportHtml  = $lcmHtmlReport
     }
+
+    # Build NCC health check HTML report from pipeline log (similar to LCM above)
+    $nccHtmlReport = ''
+    $nccStepResult = $results | Where-Object { $_.Name -eq 'NCC Health Check' } | Select-Object -First 1
+    if ($nccStepResult -and $nccStepResult.Status -notlike 'SKIPPED*' -and
+        $script:PipelineLogFile -and (Test-Path $script:PipelineLogFile)) {
+        try {
+            $logLines     = [System.IO.File]::ReadAllLines($script:PipelineLogFile, [System.Text.Encoding]::UTF8)
+            $nccRows      = ''
+            $nccTotal     = 0; $nccPass = 0; $nccWarn = 0; $nccFail = 0; $nccErr = 0; $nccInfo = 0
+            $hasSummary   = $false
+            $inNcc        = $false
+            foreach ($line in $logLines) {
+                if ($line -match '\[INFO\]\s+STEP.*NCC Health Check') { $inNcc = $true; continue }
+                if ($inNcc -and $line -match '^\[20\d\d-.*\]\s+\[(SUCCESS|FAILED)\]')   { break }
+                if (-not $inNcc) { continue }
+                if ($line -match '^\[NCC-SUMMARY\] TOTAL=(\d+) PASS=(\d+) INFO=(\d+) WARN=(\d+) FAIL=(\d+) ERR=(\d+)') {
+                    $nccTotal = [int]$Matches[1]; $nccPass = [int]$Matches[2]; $nccInfo = [int]$Matches[3]
+                    $nccWarn  = [int]$Matches[4]; $nccFail = [int]$Matches[5]; $nccErr  = [int]$Matches[6]
+                    $hasSummary = $true
+                }
+                if ($line -match '^\[NCC-CHECK\] (\w+)\|(.+?)\|(.+?)?\|(\d*)$') {
+                    $cStatus = $Matches[1]
+                    $cName   = ($Matches[2] -split '/')[-1] -replace '&','&amp;' -replace '<','&lt;' -replace '>','&gt;'
+                    $cDetail = $Matches[3].Trim() -replace '&','&amp;' -replace '<','&lt;' -replace '>','&gt;'
+                    $cKb     = $Matches[4].Trim()
+                    $sColor  = switch ($cStatus) { 'FAIL'{'#c0392b'} 'ERR'{'#8e44ad'} 'WARN'{'#e67e22'} default{'#7f8c8d'} }
+                    $kbLink  = if ($cKb) { " <a href='http://portal.nutanix.com/kb/$cKb' style='font-size:11px;color:#1a73e8;'>KB$cKb</a>" } else { '' }
+                    $nccRows += "<tr>" +
+                        "<td style='padding:5px 10px;border-bottom:1px solid #f0e0f0;white-space:nowrap;'>" +
+                        "<span style='color:$sColor;font-weight:700;font-size:12px;'>$cStatus</span></td>" +
+                        "<td style='padding:5px 10px;border-bottom:1px solid #f0e0f0;font-size:12px;'>$cName$kbLink</td>" +
+                        "<td style='padding:5px 10px;border-bottom:1px solid #f0e0f0;font-size:11px;color:#666;'>$cDetail</td></tr>"
+                }
+            }
+            $nonPassCt = $nccWarn + $nccFail + $nccErr
+            if ($hasSummary) {
+                $nccHeaderColor = if ($nccFail -gt 0 -or $nccErr -gt 0) { '#c0392b' } elseif ($nccWarn -gt 0) { '#e67e22' } else { '#27ae60' }
+                $nccHeaderIcon  = if ($nccFail -gt 0 -or $nccErr -gt 0) { '&#10060;' } elseif ($nccWarn -gt 0) { '&#9888;' } else { '&#9989;' }
+                $nccTitle       = if ($nonPassCt -gt 0) { "NCC Health Check &mdash; $nonPassCt check(s) require attention" } else { 'NCC Health Check &mdash; All checks passed' }
+                $nccBody        = if ($nccRows) {
+                    "<table style='border-collapse:collapse;font-size:13px;width:100%;margin-top:10px;'>" +
+                    "<thead><tr style='background:#f5eaf8;'>" +
+                    "<th style='padding:5px 10px;text-align:left;color:#555;font-weight:600;width:55px;'>Status</th>" +
+                    "<th style='padding:5px 10px;text-align:left;color:#555;font-weight:600;'>Check</th>" +
+                    "<th style='padding:5px 10px;text-align:left;color:#555;font-weight:600;'>Detail</th>" +
+                    "</tr></thead><tbody>$nccRows</tbody></table>"
+                } else { '' }
+                $nccHtmlReport =
+                    "<div style='margin:0 0 20px;border-left:4px solid $nccHeaderColor;background:#fdf6ff;padding:14px 16px;border-radius:0 4px 4px 0;font-family:sans-serif;'>" +
+                    "<p style='margin:0 0 6px;font-size:14px;font-weight:600;color:$nccHeaderColor;'>$nccHeaderIcon&nbsp; $nccTitle</p>" +
+                    "<p style='margin:0 0 4px;font-size:12px;color:#888;'>Total: $nccTotal &nbsp;|&nbsp; " +
+                    "Pass: <span style='color:#27ae60;'>$nccPass</span> &nbsp;|&nbsp; " +
+                    "Warn: <span style='color:#e67e22;'>$nccWarn</span> &nbsp;|&nbsp; " +
+                    "Fail: <span style='color:#c0392b;'>$nccFail</span> &nbsp;|&nbsp; " +
+                    "Err: <span style='color:#8e44ad;'>$nccErr</span> &nbsp;|&nbsp; " +
+                    "Info: <span style='color:#2980b9;'>$nccInfo</span></p>" +
+                    $nccBody + "</div>"
+            }
+        } catch {}
+    }
+    if ($nccHtmlReport) { $emailArgs['NccReportHtml'] = $nccHtmlReport }
     if ($failedStepName) { $emailArgs['FailedStep'] = $failedStepName }
     if ($TriggeredBy)    { $emailArgs['To'] = $TriggeredBy }
     if ($Cc)             { $emailArgs['Cc'] = $Cc }

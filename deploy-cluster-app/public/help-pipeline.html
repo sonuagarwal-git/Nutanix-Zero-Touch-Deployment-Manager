@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZTD — Pipeline Workflow Guide</title>
+<style>
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--card:#1c2128;
+  --border:#30363d;--text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --blue:#58a6ff;--blue-dk:#024da1;--green:#3fb950;--purple:#a371f7;
+  --orange:#f0883e;--red:#f85149;--amber:#e3b341;
+  --p1:#1565c0;--p2:#2e7d32;--p3:#6a1b9a;--p4:#e65100;--p5:#b71c1c;
+}
+[data-theme="light"]{
+  --bg:#f6f8fa;--bg2:#ffffff;--bg3:#f0f3f6;--card:#ffffff;
+  --border:#d0d7de;--text:#1f2328;--text2:#636c76;--text3:#9198a1;
+  --blue:#0969da;--green:#1a7f37;--purple:#7c3aed;--orange:#c4620e;--red:#cf222e;--amber:#9a6700;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;}
+
+/* ── NAV ── */
+.top-nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;gap:12px;}
+.nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-brand img{height:32px;width:auto;}
+.nav-brand-text{font-weight:700;font-size:.95rem;color:var(--text);}
+.nav-badge{font-size:.73rem;font-weight:600;background:#1565c0;color:#fff;padding:2px 9px;border-radius:12px;letter-spacing:.5px;}
+.nav-actions{display:flex;gap:8px;align-items:center;}
+.nav-btn{padding:5px 14px;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text);text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.nav-btn:hover{background:var(--border);}
+
+/* ── LAYOUT ── */
+.layout{display:grid;grid-template-columns:var(--sw,248px) 6px 1fr;min-height:calc(100vh - 56px);}
+.resizer{background:var(--border);cursor:col-resize;transition:background .15s;position:relative;z-index:10;}
+.resizer:hover,.resizer.dragging{background:var(--blue);}
+.resizer::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);height:32px;width:2px;border-radius:2px;background:currentColor;opacity:.4;}
+.sidebar{border-right:1px solid var(--border);padding:20px 0;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;}
+.sb-section{font-size:.69rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);padding:16px 20px 5px;}
+.sb-section:first-child{padding-top:5px;}
+.sb-link{display:block;padding:6px 20px;font-size:.84rem;color:var(--text2);text-decoration:none;border-left:2px solid transparent;}
+.sb-link:hover{color:var(--text);background:var(--bg3);}
+.sb-link.active{color:var(--blue);border-left-color:var(--blue);background:var(--bg3);}
+
+.content{padding:36px 52px 80px;max-width:880px;min-width:0;}
+
+/* ── HERO ── */
+.content-hero{margin-bottom:36px;}
+.content-hero h1{font-size:1.9rem;font-weight:800;line-height:1.2;margin-bottom:10px;letter-spacing:-.5px;}
+.content-hero .sub{font-size:1rem;color:var(--text2);line-height:1.7;max-width:680px;}
+.content-hero .meta-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+.meta-tag{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:.78rem;color:var(--text2);}
+
+/* ── SECTION ── */
+.doc-section{margin-bottom:52px;scroll-margin-top:72px;}
+.doc-section h2{font-size:1.35rem;font-weight:700;margin-bottom:4px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.doc-section p{color:var(--text2);line-height:1.75;margin:10px 0;}
+.doc-section h3{font-size:1.02rem;font-weight:700;margin:22px 0 8px;color:var(--text);}
+.doc-section ul,
+.doc-section ol{padding-left:22px;color:var(--text2);line-height:1.85;}
+.doc-section li{margin:3px 0;}
+.doc-section strong{color:var(--text);font-weight:600;}
+code{background:var(--bg3);border:1px solid var(--border);padding:1px 6px;border-radius:4px;font-family:'Cascadia Code','Consolas',monospace;font-size:.82em;color:var(--blue);word-break:break-all;}
+pre{background:#010409;border:1px solid var(--border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:14px 0;font-size:.82rem;line-height:1.6;}
+pre code{background:none;border:none;padding:0;color:#79c0ff;word-break:normal;font-size:inherit;}
+
+/* ── CALLOUT BOXES ── */
+.callout{border-radius:8px;padding:14px 18px;margin:16px 0;font-size:.87rem;line-height:1.7;border-left:4px solid;}
+.callout-note{background:rgba(88,166,255,.07);border-color:var(--blue);color:var(--text2);}
+.callout-warn{background:rgba(210,153,34,.08);border-color:var(--amber);color:var(--text2);}
+.callout-danger{background:rgba(248,81,73,.07);border-color:var(--red);color:var(--text2);}
+.callout-success{background:rgba(63,185,80,.07);border-color:var(--green);color:var(--text2);}
+.callout strong{color:var(--text);}
+
+/* ── EXTERNAL LINK BOX ── */
+.ext-link{display:flex;align-items:flex-start;gap:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:12px 0;text-decoration:none;color:inherit;}
+.ext-link:hover{border-color:var(--blue);}
+.ext-link .el-icon{font-size:1.4rem;flex-shrink:0;margin-top:2px;}
+.ext-link .el-body{}
+.ext-link .el-title{font-size:.88rem;font-weight:600;color:var(--blue);display:flex;align-items:center;gap:5px;}
+.ext-link .el-title::after{content:"↗";font-size:.75rem;}
+.ext-link .el-desc{font-size:.79rem;color:var(--text3);margin-top:2px;}
+
+/* ── SVG DIAGRAM ── */
+.diagram-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;margin:20px 0;overflow-x:auto;}
+.diagram-caption{font-size:.79rem;color:var(--text3);text-align:center;margin-top:10px;font-style:italic;}
+
+/* ── PIPELINE STEPS TABLE ── */
+.steps-table{width:100%;border-collapse:collapse;font-size:.84rem;margin:16px 0;}
+.steps-table thead th{background:var(--bg3);border:1px solid var(--border);padding:9px 14px;font-weight:600;color:var(--text);text-align:left;white-space:nowrap;}
+.steps-table tbody td{border:1px solid var(--border);padding:9px 14px;vertical-align:top;}
+.steps-table tbody tr:hover td{background:var(--bg3);}
+.phase-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;flex-shrink:0;}
+.step-name{font-weight:600;color:var(--text);}
+.step-target{font-size:.77rem;color:var(--text3);}
+.dry-yes{color:var(--green);font-weight:600;font-size:.78rem;}
+.dry-no{color:var(--text3);font-size:.78rem;}
+.opt-badge{font-size:.68rem;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:1px 6px;color:var(--text3);margin-left:4px;white-space:nowrap;}
+
+/* ── CONFIG TABLE ── */
+.cfg-table{width:100%;border-collapse:collapse;font-size:.83rem;margin:14px 0;}
+.cfg-table thead th{background:var(--bg3);border:1px solid var(--border);padding:8px 12px;font-weight:600;color:var(--text);text-align:left;}
+.cfg-table tbody td{border:1px solid var(--border);padding:8px 12px;color:var(--text2);vertical-align:top;}
+.cfg-table code{word-break:normal;}
+.req-y{color:var(--green);font-weight:700;}
+.req-n{color:var(--text3);}
+
+/* ── NUMBERED STEPS (Quick Start) ── */
+.qs-list{margin:0;padding:0;list-style:none;}
+.qs-item{display:flex;gap:18px;padding:20px 0;border-bottom:1px solid var(--border);align-items:flex-start;}
+.qs-item:last-child{border-bottom:none;}
+.qs-num{width:34px;height:34px;border-radius:50%;background:var(--blue-dk);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0;margin-top:3px;}
+.qs-body{min-width:0;flex:1;}
+.qs-body h4{font-size:.97rem;font-weight:700;color:var(--text);margin-bottom:5px;}
+.qs-body p{font-size:.85rem;color:var(--text2);line-height:1.7;margin-bottom:8px;}
+.qs-body pre{margin:8px 0 0;}
+
+/* ── TROUBLESHOOTING ── */
+.ts-item{border:1px solid var(--border);border-radius:8px;margin-bottom:12px;overflow:hidden;}
+.ts-head{background:var(--bg3);padding:12px 16px;}
+.ts-head .ts-prob{font-weight:700;color:var(--red);font-size:.9rem;}
+.ts-head .ts-step{font-size:.77rem;color:var(--text3);margin-top:2px;}
+.ts-body{padding:12px 16px;}
+.ts-body p{font-size:.85rem;color:var(--text2);line-height:1.7;margin-bottom:6px;}
+.ts-body p:last-child{margin-bottom:0;}
+
+/* ── NETWORK TABLE ── */
+.net-table{width:100%;border-collapse:collapse;font-size:.84rem;margin:14px 0;}
+.net-table thead th{background:var(--bg3);border:1px solid var(--border);padding:8px 12px;font-weight:600;color:var(--text);white-space:nowrap;}
+.net-table tbody td{border:1px solid var(--border);padding:8px 12px;color:var(--text2);vertical-align:top;}
+.port-badge{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-family:'Cascadia Code',Consolas,monospace;font-size:.77rem;color:var(--orange);white-space:nowrap;}
+
+.page-footer{padding:28px 52px;font-size:.77rem;color:var(--text3);border-top:1px solid var(--border);}
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <a class="nav-brand" href="/">
+    <img src="/images/logo.png" alt="Logo"
+         onerror="this.style.display='none';document.getElementById('nb').style.display='inline-block'">
+    <span id="nb" style="display:none;font-weight:800;color:#024da1;">ZTD</span>
+    <span class="nav-brand-text">Deployment Pipeline Guide</span>
+  </a>
+  <div class="nav-actions">
+    <a href="/help-app.html" class="nav-btn">App Guide</a>
+    <button class="nav-btn" onclick="toggleTheme()" id="themeBtn">☀ Light</button>
+    <button class="nav-btn" onclick="history.back()">← Back</button>
+  </div>
+</nav>
+
+<div class="layout" id="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-section">Pipeline</div>
+    <a href="#overview"        class="sb-link">Overview</a>
+    <a href="#architecture"    class="sb-link">Architecture</a>
+    <a href="#network"         class="sb-link">Network Requirements</a>
+    <div class="sb-section">Reference</div>
+    <a href="#prerequisites"   class="sb-link">Prerequisites</a>
+    <a href="#steps"           class="sb-link">18-Step Pipeline</a>
+    <a href="#config"          class="sb-link">Configuration Fields</a>
+    <div class="sb-section">Getting Started</div>
+    <a href="#quickstart"      class="sb-link">Quick Start</a>
+    <a href="#examples"        class="sb-link">Examples</a>
+    <div class="sb-section">Support</div>
+    <a href="#troubleshooting" class="sb-link">Troubleshooting</a>
+  </aside>
+  <div class="resizer" id="resizer"></div>
+  <!-- MAIN CONTENT -->
+  <main class="content">
+
+    <div class="content-hero">
+      <h1>ZTD Deployment Pipeline</h1>
+      <p class="sub">Full end-to-end automation for Nutanix cluster deployments — from bare-metal iLO boot through Phoenix OS imaging, cluster creation, post-deployment configuration, and NCC health validation. A single JSON config file drives the entire pipeline.</p>
+      <div class="meta-tags">
+        <span class="meta-tag">PowerShell 7 required</span>
+        <span class="meta-tag">Sequential multi-phase pipeline</span>
+        <span class="meta-tag">Resume from any step</span>
+        <span class="meta-tag">Dry-run mode</span>
+        <span class="meta-tag">Real-time WebSocket streaming</span>
+      </div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section id="overview" class="doc-section">
+      <h2>Overview</h2>
+      <p><code>Start-Pipeline.ps1</code> orchestrates the full deployment lifecycle. It accepts a single JSON configuration file and runs up to 18 sequential steps. A step failure immediately halts the pipeline — use <code>-StartAtStep N</code> to resume from the failure point without re-running completed steps.</p>
+      <p>The pipeline is designed to be triggered from the <strong>ZTD Deployment Manager</strong> web app, but can also be run directly from a PowerShell 7 session on the jump server.</p>
+      <h3>Key capabilities</h3>
+      <ul>
+        <li><strong>Pre-flight validation</strong> — checks iLO access, PC credentials, IP availability, URL accessibility, and DNS reachability before any destructive action</li>
+        <li><strong>Dry-run mode</strong> (<code>-DryRun</code>) — runs only pre-flight checks, no steps execute</li>
+        <li><strong>What-if preview</strong> (<code>-WhatIf</code>) — prints each step with arguments, nothing executes</li>
+        <li><strong>Resume &amp; skip</strong> — <code>-StartAtStep N</code> skips earlier steps; <code>-SkipSteps "7,9"</code> skips individual steps</li>
+        <li><strong>Optional steps</strong> — Steps 14 (LCM Inventory) and 18 (NCC Health Check) auto-skip unless enabled in config</li>
+        <li><strong>Pipeline result email</strong> — HTML email with step timings, NCC health summary, and LCM report on completion</li>
+      </ul>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <section id="architecture" class="doc-section">
+      <h2>Architecture</h2>
+      <p>The diagram below shows how components relate across the jump server, HUB site, remote site, and corporate infrastructure. The jump server orchestrates everything; Foundation Central and Prism Central do the heavy lifting for imaging and configuration.</p>
+      <div class="diagram-wrap">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 380" width="100%" style="min-width:640px;display:block;">
+          <defs>
+            <marker id="a1" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#58a6ff"/></marker>
+            <marker id="a2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#3fb950"/></marker>
+            <marker id="a3" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#a371f7"/></marker>
+            <marker id="a4" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#f0883e"/></marker>
+            <marker id="a5" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#f85149"/></marker>
+            <filter id="ds"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".3"/></filter>
+          </defs>
+
+          <!-- JUMP SERVER -->
+          <rect x="12" y="10" width="200" height="310" rx="8" fill="#0d2040" stroke="#1565c0" stroke-width="1.5" filter="url(#ds)"/>
+          <text x="112" y="33" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10.5" font-weight="700" fill="#58a6ff">Jump Server</text>
+          <text x="112" y="48" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#6e7681">Start-Pipeline.ps1</text>
+          <line x1="24" y1="55" x2="200" y2="55" stroke="#1565c0" stroke-width="0.8"/>
+          <!-- Step blocks -->
+          <rect x="22" y="62" width="180" height="18" rx="3" fill="#0d47a1"/>
+          <text x="112" y="75" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#90caf9">1–2 · iLO Boot (Redfish TCP 443)</text>
+          <rect x="22" y="85" width="180" height="18" rx="3" fill="#1b3a10"/>
+          <text x="112" y="98" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#81c784">3–4 · FC Imaging (trigger via 9440)</text>
+          <rect x="22" y="108" width="180" height="18" rx="3" fill="#1e0d3a"/>
+          <text x="112" y="121" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#ce93d8">5–12 · Prism Config (REST 9440)</text>
+          <rect x="22" y="131" width="180" height="18" rx="3" fill="#2d1500"/>
+          <text x="112" y="144" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#ffb74d">13–14 · Hardening (OVS + LCM)</text>
+          <rect x="22" y="154" width="180" height="18" rx="3" fill="#2d1500"/>
+          <text x="112" y="167" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#ffb74d">15 · Password Hardening (SSH 22)</text>
+          <rect x="22" y="177" width="180" height="18" rx="3" fill="#2d0010"/>
+          <text x="112" y="190" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#ef9a9a">16 · CyberArk  17 · DNS Records</text>
+          <rect x="22" y="200" width="180" height="18" rx="3" fill="#2d0010"/>
+          <text x="112" y="213" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#ef9a9a">18 · NCC Health Check (SSH 22)</text>
+          <rect x="22" y="228" width="180" height="16" rx="3" fill="#0d2b12"/>
+          <text x="112" y="240" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#3fb950" font-weight="600">→ Result Email · Save history</text>
+          <rect x="22" y="288" width="180" height="14" rx="3" fill="#1c2128"/>
+          <text x="112" y="298" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="7.5" fill="#6e7681">Single JSON config per cluster</text>
+
+          <!-- iLO -->
+          <rect x="265" y="10" width="155" height="44" rx="7" fill="#0d2040" stroke="#1565c0" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="343" y="30" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#58a6ff">iLO / BMC</text>
+          <text x="343" y="46" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">Redfish API · Steps 1–2</text>
+          <line x1="212" y1="71" x2="263" y2="32" stroke="#1565c0" stroke-width="1.3" marker-end="url(#a1)"/>
+
+          <!-- Foundation Central -->
+          <rect x="265" y="75" width="155" height="44" rx="7" fill="#1b3a10" stroke="#2e7d32" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="343" y="95" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3fb950">Foundation Central</text>
+          <text x="343" y="110" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">Node imaging · Steps 3–4</text>
+          <line x1="212" y1="94" x2="263" y2="97" stroke="#2e7d32" stroke-width="1.3" marker-end="url(#a2)"/>
+
+          <!-- Prism Central + PE -->
+          <rect x="265" y="140" width="155" height="44" rx="7" fill="#1e0d3a" stroke="#6a1b9a" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="343" y="160" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#a371f7">Prism Central + PE</text>
+          <text x="343" y="176" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">Post-config · Steps 5–15</text>
+          <line x1="212" y1="140" x2="263" y2="162" stroke="#6a1b9a" stroke-width="1.3" marker-end="url(#a3)"/>
+
+          <!-- CVM SSH -->
+          <rect x="265" y="205" width="155" height="44" rx="7" fill="#2d1500" stroke="#e65100" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="343" y="225" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#f0883e">CVM (SSH)</text>
+          <text x="343" y="241" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">Steps 15 &amp; 18 · TCP 22</text>
+          <line x1="212" y1="163" x2="263" y2="227" stroke="#e65100" stroke-width="1.3" marker-end="url(#a4)"/>
+
+          <!-- CyberArk -->
+          <rect x="490" y="10" width="155" height="44" rx="7" fill="#2d0010" stroke="#b71c1c" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="568" y="30" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#f85149">CyberArk</text>
+          <text x="568" y="46" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">PAM Vault · Step 16</text>
+          <line x1="420" y1="186" x2="488" y2="32" stroke="#b71c1c" stroke-width="1.3" marker-end="url(#a5)"/>
+
+          <!-- DNS -->
+          <rect x="490" y="75" width="155" height="44" rx="7" fill="#2d1500" stroke="#e65100" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="568" y="95" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#f0883e">DNS Servers</text>
+          <text x="568" y="110" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">dnscmd RPC · Step 17</text>
+          <line x1="420" y1="190" x2="488" y2="97" stroke="#e65100" stroke-width="1.3" marker-end="url(#a4)"/>
+
+          <!-- Azure Blob -->
+          <rect x="490" y="140" width="155" height="44" rx="7" fill="#1e0d3a" stroke="#a371f7" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="568" y="160" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#a371f7">Azure Blob Storage</text>
+          <text x="568" y="176" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">ISO · AOS · AHV images</text>
+          <!-- FC pulls from Azure -->
+          <line x1="420" y1="97" x2="488" y2="162" stroke="#a371f7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a3)"/>
+          <text x="458" y="133" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="7.5" fill="#a371f7">FC pulls images</text>
+          <!-- iLO mounts ISO -->
+          <line x1="420" y1="32" x2="488" y2="162" stroke="#a371f7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a3)"/>
+          <text x="470" y="90" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="7.5" fill="#a371f7">iLO mounts ISO</text>
+
+          <!-- Result Email -->
+          <rect x="490" y="205" width="155" height="44" rx="7" fill="#0d2b12" stroke="#2e7d32" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="568" y="225" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3fb950">Result Email (ZTD)</text>
+          <text x="568" y="241" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">SMTP · timings + NCC report</text>
+          <line x1="212" y1="234" x2="488" y2="227" stroke="#2e7d32" stroke-width="1.3" marker-end="url(#a2)"/>
+
+          <!-- Witness (bottom) -->
+          <rect x="265" y="270" width="155" height="40" rx="7" fill="#2d1a00" stroke="#f0883e" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="343" y="288" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#f0883e">Witness VM</text>
+          <text x="343" y="303" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">Metro Availability · Step 6</text>
+          <line x1="112" y1="320" x2="263" y2="290" stroke="#f0883e" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a4)"/>
+
+          <!-- Legend -->
+          <rect x="710" y="10" width="242" height="340" rx="8" fill="#161b22" stroke="#30363d"/>
+          <text x="831" y="32" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#e6edf3">Phase Legend</text>
+          <line x1="720" y1="40" x2="944" y2="40" stroke="#30363d"/>
+          <rect x="720" y="50" width="8" height="8" rx="2" fill="#1565c0"/>
+          <text x="736" y="61" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 1 — iLO Boot (Steps 1–2)</text>
+          <rect x="720" y="70" width="8" height="8" rx="2" fill="#2e7d32"/>
+          <text x="736" y="81" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 2 — FC Imaging (Steps 3–4)</text>
+          <rect x="720" y="90" width="8" height="8" rx="2" fill="#6a1b9a"/>
+          <text x="736" y="101" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 3 — Prism Config (Steps 5–12)</text>
+          <rect x="720" y="110" width="8" height="8" rx="2" fill="#e65100"/>
+          <text x="736" y="121" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 4 — Hardening (Steps 13–15)</text>
+          <rect x="720" y="130" width="8" height="8" rx="2" fill="#b71c1c"/>
+          <text x="736" y="141" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 5 — Security &amp; Validation (16–18)</text>
+          <line x1="720" y1="152" x2="944" y2="152" stroke="#30363d"/>
+          <text x="831" y="171" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#e6edf3">Network Ports Required</text>
+          <text x="720" y="190" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → iLO</text>
+          <text x="840" y="190" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 443  ·  S1–2</text>
+          <text x="720" y="207" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → FC</text>
+          <text x="840" y="207" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 9440  ·  S3–4</text>
+          <text x="720" y="224" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → PC/PE VIP</text>
+          <text x="840" y="224" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 9440  ·  S5–15</text>
+          <text x="720" y="241" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → CVM IPs</text>
+          <text x="840" y="241" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 22  ·  S15,18</text>
+          <text x="720" y="258" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → DNS</text>
+          <text x="840" y="258" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP/UDP 53  ·  S17</text>
+          <text x="720" y="275" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → Witness</text>
+          <text x="840" y="275" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 2009  ·  S6</text>
+          <text x="720" y="292" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">FC → AHV VLAN (remote)</text>
+          <text x="840" y="292" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP/UDP  ·  S3–4</text>
+          <text x="720" y="309" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">iLO / FC → Azure Blob</text>
+          <text x="840" y="309" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 443  ·  S1,4</text>
+          <rect x="720" y="322" width="222" height="22" rx="4" fill="#0d2b12" stroke="#2e7d32"/>
+          <text x="831" y="337" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#3fb950">Steps 14 &amp; 18 optional — skip if not enabled in config</text>
+        </svg>
+        <p class="diagram-caption">Jump server orchestrates all 18 steps. Foundation Central and Prism Central run on the HUB site but reach the remote site over the WAN.</p>
+      </div>
+
+      <div class="callout callout-warn">
+        <strong>⚠ FC and PC must reach the remote site.</strong> From the Foundation Central VM and Prism Central VM (running on the HUB cluster), the iLO VLAN and AHV/CVM Management VLAN at the remote site must be routable and accessible before starting the pipeline. Engage the network team to verify inter-site routing before deployment.
+      </div>
+    </section>
+
+    <!-- NETWORK REQUIREMENTS -->
+    <section id="network" class="doc-section">
+      <h2>Network Requirements</h2>
+      <p>All paths in the table below must be open before starting the pipeline. The pre-flight check tests most of these automatically, but inter-site routing between HUB and remote site must be verified manually.</p>
+      <table class="net-table">
+        <thead><tr><th>From</th><th>To</th><th>Port</th><th>Used in</th></tr></thead>
+        <tbody>
+          <tr><td>Jump server</td><td>iLO IPs (remote site)</td><td><span class="port-badge">TCP 443</span></td><td>Step 1–2 — Phoenix ISO mount via iLO Redfish</td></tr>
+          <tr><td>Jump server</td><td>FC VM (HUB)</td><td><span class="port-badge">TCP 9440</span></td><td>Steps 3–4 — imaging trigger &amp; poll</td></tr>
+          <tr><td>Jump server</td><td>PC VM (HUB)</td><td><span class="port-badge">TCP 9440</span></td><td>Steps 5–15 — post-configuration REST</td></tr>
+          <tr><td>Jump server</td><td>Cluster VIP (remote)</td><td><span class="port-badge">TCP 9440</span></td><td>Steps 5–15 — Prism Element REST</td></tr>
+          <tr><td>Jump server</td><td>CVM IPs (remote)</td><td><span class="port-badge">TCP 22</span></td><td>Steps 15, 18 — SSH (password change + NCC health check)</td></tr>
+          <tr><td>Jump server</td><td>Witness VM</td><td><span class="port-badge">TCP 2009</span></td><td>Step 6 — witness registration</td></tr>
+          <tr><td>Jump server</td><td>DNS Servers</td><td><span class="port-badge">TCP/UDP 53</span></td><td>Step 17 — DNS A record creation via dnscmd RPC</td></tr>
+          <tr><td>Foundation Central</td><td>AHV VLAN (remote)</td><td><span class="port-badge">TCP/UDP</span></td><td>Steps 3–4 — node discovery + imaging</td></tr>
+          <tr><td>Foundation Central</td><td>iLO VLAN (remote)</td><td><span class="port-badge">TCP 443</span></td><td>Step 4 — imaging control</td></tr>
+          <tr><td>iLO / Foundation Central</td><td>Azure Blob Storage</td><td><span class="port-badge">TCP 443</span></td><td>Steps 1, 4 — ISO and AOS/AHV download</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- PREREQUISITES -->
+    <section id="prerequisites" class="doc-section">
+      <h2>Prerequisites</h2>
+      <p>The following must be in place <strong>before</strong> running the pipeline. The pipeline does not install or configure infrastructure-level components.</p>
+
+      <h3>Jump server environment</h3>
+      <table class="net-table">
+        <thead><tr><th>Requirement</th><th>Minimum</th><th>How to verify</th></tr></thead>
+        <tbody>
+          <tr><td>PowerShell</td><td>7.0+</td><td><code>$PSVersionTable.PSVersion</code></td></tr>
+          <tr><td>Posh-SSH module</td><td>Any</td><td>Auto-installed if missing. Manual: <code>Install-Module Posh-SSH -Scope CurrentUser</code></td></tr>
+          <tr><td>DNS RSAT (for Step 17)</td><td>—</td><td><code>Add-WindowsFeature -Name RSAT-DNS-Server</code> or via Optional Features</td></tr>
+          <tr><td>Network to iLO IPs</td><td>TCP 443</td><td><code>Test-NetConnection &lt;iLO_IP&gt; -Port 443</code></td></tr>
+          <tr><td>Network to FC</td><td>TCP 9440</td><td><code>Test-NetConnection &lt;FC_IP&gt; -Port 9440</code></td></tr>
+          <tr><td>Network to PC</td><td>TCP 9440</td><td><code>Test-NetConnection &lt;PC_IP&gt; -Port 9440</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3>Network infrastructure (configured by network team)</h3>
+      <ul>
+        <li>AHV/CVM Management VLAN must be <strong>Access/Native</strong> on server-facing switch ports</li>
+        <li>All production VLANs must be <strong>Tagged</strong> on the same switch ports</li>
+        <li>Switch ports must use <strong>LACP no-suspend</strong> — uplinks stay active before AHV bonding is configured</li>
+        <li>iLO/BMC ports must be connected and tagged on the iLO VLAN, reachable from the jump server before pipeline starts</li>
+      </ul>
+
+      <h3>DHCP and Foundation Central API key</h3>
+      <p>Foundation Central auto-discovers nodes only when the <strong>FC API key is embedded in DHCP vendor-specific options</strong> (option 43, vendor class <code>NutanixNode</code>) on the AHV management VLAN. Without this, nodes boot Phoenix but never appear in Foundation Central.</p>
+      <a class="ext-link" href="https://portal.nutanix.com/page/documents/details?targetId=Foundation-Central-v1_2:v12-dhcp-vendor-specific-options-for-nodes-c.html" target="_blank" rel="noopener">
+        <span class="el-icon">📖</span>
+        <div class="el-body">
+          <div class="el-title">Foundation Central — DHCP Vendor-Specific Options for Nodes</div>
+          <div class="el-desc">portal.nutanix.com — Official guide for configuring option 43 so nodes are auto-discovered by FC</div>
+        </div>
+      </a>
+
+      <h3>Custom Phoenix image — per region requirement</h3>
+      <p>Phoenix ISO images must be generated from your HUB site's Foundation Central API key. A generic upstream Phoenix ISO will not carry the correct FC API key — nodes boot Phoenix but are never discovered by FC.</p>
+      <ol>
+        <li>In Foundation Central → <strong>Settings → API Keys</strong> — create or copy the region API key</li>
+        <li>Generate the custom Phoenix ISO using the HUB cluster CVM (see official guide below)</li>
+        <li>Upload the ISO to Azure Blob Storage and use that direct URL as <code>phoenix_iso_url</code> in the config</li>
+      </ol>
+      <div class="callout callout-warn">
+        <strong>⚠ One Phoenix ISO per region.</strong> A Phoenix image generated for one region's HUB will <em>not</em> work for a different region's sites. Each region requires its own image.
+      </div>
+      <a class="ext-link" href="https://portal.nutanix.com/page/documents/details?targetId=Foundation-Central-v1_10:v1-generating-iso-url-t.html" target="_blank" rel="noopener">
+        <span class="el-icon">📖</span>
+        <div class="el-body">
+          <div class="el-title">Foundation Central v1.10 — Generating the Custom ISO URL</div>
+          <div class="el-desc">portal.nutanix.com — Step-by-step guide for generating a site-specific Phoenix ISO from the HUB CVM</div>
+        </div>
+      </a>
+
+      <h3>Prism Central (must already be running)</h3>
+      <ul>
+        <li>PC must be deployed and accessible at the IP in the config (<code>prism_central.ip</code>)</li>
+        <li>All production VLANs must already be configured as networks in PC</li>
+        <li>Foundation Central VM must be deployed and reachable from PC and from the jump server (port 9440)</li>
+        <li>Protection/recovery policies and categories referenced in the config must already exist in PC</li>
+      </ul>
+
+      <h3>DNS service account (Step 17)</h3>
+      <p>Step 17 creates DNS A records for all node hostnames and the cluster VIP using <code>dnscmd.exe</code> with credential delegation. Requirements:</p>
+      <ul>
+        <li>A domain service account (e.g. <code>CORP\SVC-NTX-AUTO</code>) with <strong>Create/Delete DNS records</strong> permission on the <code>company.net</code> and <code>company.ilo</code> zones</li>
+        <li><code>dnscmd.exe</code> installed on the jump server (part of DNS RSAT tools)</li>
+        <li>Service account credentials set under <code>dns_admin</code> in the config</li>
+      </ul>
+      <div class="callout callout-note">Step 17 is <strong>automatically skipped</strong> if <code>dns_admin.username</code> or <code>dns_admin.password</code> are absent from the config — no error is raised.</div>
+    </section>
+
+    <!-- PIPELINE STEPS -->
+    <section id="steps" class="doc-section">
+      <h2>The 18-Step Pipeline</h2>
+      <p>Steps run sequentially. A failure at any step halts the pipeline immediately. Steps 14 and 18 are optional and auto-skipped unless enabled in config.</p>
+      <table class="steps-table">
+        <thead>
+          <tr><th>#</th><th>Name</th><th>Script</th><th>Target</th><th>DryRun</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td><span class="step-name"><span class="phase-dot" style="background:#1565c0;"></span>Phoenix Boot</span></td><td><code>Phonix-Boot.ps1</code></td><td class="step-target">iLO / Redfish</td><td class="dry-yes">✓</td></tr>
+          <tr><td>2</td><td><span class="step-name"><span class="phase-dot" style="background:#1565c0;"></span>Phoenix Boot Check</span></td><td><code>Phoonix-Boot-Check.ps1</code></td><td class="step-target">iLO / Redfish</td><td class="dry-yes">✓</td></tr>
+          <tr><td>3</td><td><span class="step-name"><span class="phase-dot" style="background:#2e7d32;"></span>Node Discovery</span></td><td><code>Node-Discovery-Check.ps1</code></td><td class="step-target">Foundation Central</td><td class="dry-yes">✓</td></tr>
+          <tr><td>4</td><td><span class="step-name"><span class="phase-dot" style="background:#2e7d32;"></span>Image &amp; Create Cluster</span></td><td><code>Image-And-Deploy-Cluster.ps1</code></td><td class="step-target">Foundation Central</td><td class="dry-yes">✓</td></tr>
+          <tr><td>5</td><td><span class="step-name"><span class="phase-dot" style="background:#6a1b9a;"></span>Accept EULA</span></td><td><code>Accept-EULA.ps1</code></td><td class="step-target">Prism Element</td><td class="dry-no">✗</td></tr>
+          <tr><td>6</td><td><span class="step-name"><span class="phase-dot" style="background:#6a1b9a;"></span>Register to Witness</span></td><td><code>Register-NewCluster-To-Witness.ps1</code></td><td class="step-target">PE → Witness VM</td><td class="dry-no">✗</td></tr>
+          <tr><td>7</td><td><span class="step-name"><span class="phase-dot" style="background:#6a1b9a;"></span>Register to Prism Central</span></td><td><code>Register-NewCluster-To-PC.ps1</code></td><td class="step-target">PE → PC</td><td class="dry-no">✗</td></tr>
+          <tr><td>8</td><td><span class="step-name"><span class="phase-dot" style="background:#6a1b9a;"></span>Create VLANs</span></td><td><code>Create-vLAN.ps1</code></td><td class="step-target">Prism Central</td><td class="dry-no">✗</td></tr>
+          <tr><td>9</td><td><span class="step-name"><span class="phase-dot" style="background:#6a1b9a;"></span>Create Storage Container</span></td><td><code>Create-Storage-Container.ps1</code></td><td class="step-target">Prism Element</td><td class="dry-no">✗</td></tr>
+          <tr><td>10</td><td><span class="step-name"><span class="phase-dot" style="background:#6a1b9a;"></span>Backup Policies</span></td><td><code>Create-Backup-Policies-With-Categories.ps1</code></td><td class="step-target">Prism Central</td><td class="dry-no">✗</td></tr>
+          <tr><td>11</td><td><span class="step-name"><span class="phase-dot" style="background:#6a1b9a;"></span>Protection Policy</span></td><td><code>Create-Protection-Policy-With-Category.ps1</code></td><td class="step-target">Prism Central</td><td class="dry-no">✗</td></tr>
+          <tr><td>12</td><td><span class="step-name"><span class="phase-dot" style="background:#6a1b9a;"></span>Recovery Plan</span></td><td><code>Create-Recovery-Plan-With-Category.ps1</code></td><td class="step-target">Prism Central</td><td class="dry-no">✗</td></tr>
+          <tr><td>13</td><td><span class="step-name"><span class="phase-dot" style="background:#e65100;"></span>Set vSwitch Bond Mode</span></td><td><code>Set-Nutanix-VSwitch-Bond-Mode.ps1</code></td><td class="step-target">PC (OVS)</td><td class="dry-no">✗</td></tr>
+          <tr><td>14</td><td><span class="step-name"><span class="phase-dot" style="background:#e65100;"></span>LCM Inventory <span class="opt-badge">optional</span></span></td><td><code>Run-LCM-Inventory.ps1</code></td><td class="step-target">Prism Central</td><td class="dry-no">✗</td></tr>
+          <tr><td>15</td><td><span class="step-name"><span class="phase-dot" style="background:#e65100;"></span>Password Hardening</span></td><td><code>Change-Prism-CVM-AHV-Password.ps1</code></td><td class="step-target">PE / CVM / AHV (SSH)</td><td class="dry-no">✗</td></tr>
+          <tr><td>16</td><td><span class="step-name"><span class="phase-dot" style="background:#b71c1c;"></span>Import to CyberArk</span></td><td><code>Import-Secrets-to-CyberArk.ps1</code></td><td class="step-target">CyberArk REST</td><td class="dry-no">✗</td></tr>
+          <tr><td>17</td><td><span class="step-name"><span class="phase-dot" style="background:#b71c1c;"></span>Add DNS Records</span></td><td><code>Add-DNS-Record.ps1</code></td><td class="step-target">DNS (RPC/WinRM)</td><td class="dry-no">✗</td></tr>
+          <tr><td>18</td><td><span class="step-name"><span class="phase-dot" style="background:#b71c1c;"></span>NCC Health Check <span class="opt-badge">optional</span></span></td><td><code>Run-SystemHealthCheck.ps1</code></td><td class="step-target">CVM (SSH)</td><td class="dry-no">✗</td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-note">
+        <strong>Steps 1–4</strong> are gated by the pre-flight check. <strong>Step 14</strong> runs only when <code>lcm_inventory.enabled: true</code>. <strong>Step 16</strong> is auto-skipped if the <code>cyberark</code> section is absent. <strong>Step 17</strong> is auto-skipped if <code>dns_admin</code> credentials are absent. <strong>Step 18</strong> runs only when <code>health_check.enabled: true</code>.
+      </div>
+    </section>
+
+    <!-- CONFIG -->
+    <section id="config" class="doc-section">
+      <h2>Configuration Fields</h2>
+      <p>All config files live in <code>Configs/</code>. The same JSON file is passed to every pipeline step — each step reads only the fields it needs. Copy <code>example_template.json</code> as a starting point.</p>
+      <table class="cfg-table">
+        <thead><tr><th>Field</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>clusterName</code></td><td class="req-y">✅</td><td>Cluster display name — used in PC, logs, and file names</td></tr>
+          <tr><td><code>hypervisor</code></td><td class="req-y">✅</td><td><code>AHV</code></td></tr>
+          <tr><td><code>storage_container_name</code></td><td class="req-y">✅</td><td>Created in Step 9</td></tr>
+          <tr><td><code>timezone</code></td><td class="req-y">✅</td><td>e.g. <code>Europe/Copenhagen</code></td></tr>
+          <tr><td><code>vswitch_mode</code></td><td class="req-n">No</td><td><code>ACTIVE_BACKUP</code> (default), <code>BALANCE_TCP</code> (LACP), <code>BALANCE_SLB</code></td></tr>
+          <tr><td><code>output_level</code></td><td class="req-n">No</td><td><code>minimal</code> / <code>normal</code> / <code>verbose</code></td></tr>
+          <tr><td><code>network.cluster_vip</code></td><td class="req-y">✅</td><td>Prism Element virtual IP — must be free (pre-flight checks this)</td></tr>
+          <tr><td><code>network.nodes[].iLO_ip</code></td><td class="req-y">✅</td><td>iLO/BMC management IP per node (Steps 1–2)</td></tr>
+          <tr><td><code>network.nodes[].cvm_ip</code></td><td class="req-y">✅</td><td>CVM static IP assigned after imaging — used in Steps 15 &amp; 18</td></tr>
+          <tr><td><code>network.nodes[].hypervisor_ip</code></td><td class="req-y">✅</td><td>AHV host IP assigned after imaging</td></tr>
+          <tr><td><code>phoenix_iso_url</code></td><td class="req-y">✅</td><td>Direct HTTPS URL to Phoenix ISO (region-specific — see Prerequisites)</td></tr>
+          <tr><td><code>aos_package_url</code></td><td class="req-y">✅</td><td>Direct HTTPS URL to AOS tar.gz package</td></tr>
+          <tr><td><code>hypervisor_iso_url</code></td><td class="req-y">✅</td><td>Direct HTTPS URL to AHV DVD ISO</td></tr>
+          <tr><td><code>prism_central.*</code></td><td class="req-y">✅</td><td>PC IP, URL, username, password (Steps 7–15)</td></tr>
+          <tr><td><code>witness.*</code></td><td class="req-y">✅</td><td>Witness VM IP, name, credentials (Step 6)</td></tr>
+          <tr><td><code>dns_admin.*</code></td><td class="req-n">No</td><td>DNS service account — Step 17 auto-skipped if absent</td></tr>
+          <tr><td><code>cyberark.*</code></td><td class="req-n">No</td><td>CyberArk tenant details — Step 16 auto-skipped if absent</td></tr>
+          <tr><td><code>notify.to</code></td><td class="req-n">No</td><td>Result email recipient — omit or leave empty to skip email</td></tr>
+          <tr><td><code>notify.cc</code></td><td class="req-n">No</td><td>Comma-separated CC list</td></tr>
+          <tr><td><code>lcm_inventory.enabled</code></td><td class="req-n">No</td><td>Set <code>true</code> to run Step 14 (LCM Inventory)</td></tr>
+          <tr><td><code>health_check.enabled</code></td><td class="req-n">No</td><td>Set <code>true</code> to run Step 18 (NCC Health Check via SSH)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- QUICK START -->
+    <section id="quickstart" class="doc-section">
+      <h2>Quick Start</h2>
+      <ol class="qs-list">
+        <li class="qs-item">
+          <span class="qs-num">1</span>
+          <div class="qs-body">
+            <h4>Create a configuration file</h4>
+            <p>Copy the example template and edit it with your cluster's IPs, credentials, image URLs, and VLAN settings.</p>
+            <pre><code>Copy-Item .\Configs\example_template.json .\Configs\MY-CLUSTER-01.json
+notepad .\Configs\MY-CLUSTER-01.json</code></pre>
+          </div>
+        </li>
+        <li class="qs-item">
+          <span class="qs-num">2</span>
+          <div class="qs-body">
+            <h4>Validate with dry-run</h4>
+            <p>Runs all pre-flight checks — iLO access, PC credentials, IP availability, URL accessibility. No pipeline steps execute. Safe to run anytime.</p>
+            <pre><code>.\Start-Pipeline.ps1 -ConfigFile .\Configs\MY-CLUSTER-01.json -DryRun</code></pre>
+          </div>
+        </li>
+        <li class="qs-item">
+          <span class="qs-num">3</span>
+          <div class="qs-body">
+            <h4>Preview the plan</h4>
+            <p>Prints each step with its script path and arguments. Nothing executes.</p>
+            <pre><code>.\Start-Pipeline.ps1 -ConfigFile .\Configs\MY-CLUSTER-01.json -WhatIf</code></pre>
+          </div>
+        </li>
+        <li class="qs-item">
+          <span class="qs-num">4</span>
+          <div class="qs-body">
+            <h4>Run the full pipeline</h4>
+            <p>Starts pre-flight checks, then executes all 18 steps in sequence.</p>
+            <pre><code>.\Start-Pipeline.ps1 -ConfigFile .\Configs\MY-CLUSTER-01.json</code></pre>
+          </div>
+        </li>
+        <li class="qs-item">
+          <span class="qs-num">5</span>
+          <div class="qs-body">
+            <h4>Resume after a failure</h4>
+            <p>Use <code>-StartAtStep</code> to skip already-completed steps. Combine with <code>-SkipSteps</code> to skip individual steps.</p>
+            <pre><code># Resume from step 7 (steps 1–6 already completed)
+.\Start-Pipeline.ps1 -ConfigFile .\Configs\MY-CLUSTER-01.json -StartAtStep 7
+
+# Skip step 9 (already exists), resume from step 8
+.\Start-Pipeline.ps1 -ConfigFile .\Configs\MY-CLUSTER-01.json -StartAtStep 8 -SkipSteps "9"
+
+# Resume but skip pre-flight (IPs known-good)
+.\Start-Pipeline.ps1 -ConfigFile .\Configs\MY-CLUSTER-01.json -StartAtStep 5 -SkipPreCheck</code></pre>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- EXAMPLES -->
+    <section id="examples" class="doc-section">
+      <h2>Common Examples</h2>
+
+      <h3>Run a dry-run with verbose output</h3>
+      <pre><code>.\Start-Pipeline.ps1 -ConfigFile .\Configs\MY-CLUSTER-01.json -DryRun</code></pre>
+
+      <h3>Run with a notification email</h3>
+      <p>The notification recipient is normally read from <code>notify.to</code> in the config. You can override it using <code>-TriggeredBy</code>:</p>
+      <pre><code>.\Start-Pipeline.ps1 -ConfigFile .\Configs\MY-CLUSTER-01.json `
+    -TriggeredBy "engineer@company.com" -Cc "manager@company.com"</code></pre>
+
+      <h3>Run NCC health check only</h3>
+      <p>Run Step 18 standalone against an existing cluster without running the full pipeline:</p>
+      <pre><code>.\Run-SystemHealthCheck.ps1 -ConfigFile .\Configs\MY-CLUSTER-01.json</code></pre>
+
+      <h3>Run password hardening only</h3>
+      <pre><code>.\Change-Prism-CVM-AHV-Password.ps1 -ConfigFile .\Configs\MY-CLUSTER-01.json</code></pre>
+    </section>
+
+    <!-- TROUBLESHOOTING -->
+    <section id="troubleshooting" class="doc-section">
+      <h2>Troubleshooting</h2>
+
+      <div class="ts-item">
+        <div class="ts-head">
+          <div class="ts-prob">Step 3 hangs — nodes not appearing in Foundation Central</div>
+          <div class="ts-step">Cause: DHCP vendor option (option 43) missing or misconfigured</div>
+        </div>
+        <div class="ts-body">
+          <p>Log into Foundation Central → <strong>Nodes</strong>. If nodes are not visible after ~5 minutes of Phoenix boot, the issue is the DHCP vendor option. Verify DHCP is serving IPs on the AHV VLAN. Check that option 43 is present with the correct FC IP and API key. Switch ports must be Access/Native on the AHV VLAN (not tagged) so Phoenix OS gets an untagged DHCP response.</p>
+          <p>Reference: <a href="https://portal.nutanix.com/page/documents/details?targetId=Foundation-Central-v1_2:v12-dhcp-vendor-specific-options-for-nodes-c.html" target="_blank" rel="noopener" style="color:var(--blue);">Foundation Central — DHCP Vendor-Specific Options</a></p>
+        </div>
+      </div>
+
+      <div class="ts-item">
+        <div class="ts-head">
+          <div class="ts-prob">Step 1 fails — iLO unreachable (TCP 443 timeout)</div>
+          <div class="ts-step">Cause: iLO port not connected, wrong VLAN, or IP not assigned</div>
+        </div>
+        <div class="ts-body">
+          <p>Run <code>Test-NetConnection &lt;iLO_IP&gt; -Port 443</code> from the jump server. Verify the iLO IP in the config matches the actual iLO IP. Confirm the iLO switch port is on the correct iLO VLAN. Try logging into the iLO web UI (<code>https://&lt;iLO_IP&gt;</code>) from a browser on the jump server.</p>
+        </div>
+      </div>
+
+      <div class="ts-item">
+        <div class="ts-head">
+          <div class="ts-prob">Pre-flight fails — "IP is responding — already in use"</div>
+          <div class="ts-step">Cause: Cluster VIP or node IPs still respond from a previous (failed) deployment</div>
+        </div>
+        <div class="ts-body">
+          <p>The pre-flight check pings all planned IPs to ensure they are free. If they respond, it means a previous deployment left them in place. If you are confident the IPs are stale (e.g. the cluster was already destroyed), use <code>-SkipPreCheck</code> to bypass the gate. Otherwise wait for ARP to expire (~15 min) and re-run.</p>
+        </div>
+      </div>
+
+      <div class="ts-item">
+        <div class="ts-head">
+          <div class="ts-prob">Step 7 fails — PC registration timeout or unreachable</div>
+          <div class="ts-step">Cause: Inter-site routing not in place between HUB and remote site</div>
+        </div>
+        <div class="ts-body">
+          <p>From the jump server, run <code>Test-NetConnection &lt;ClusterVIP&gt; -Port 9440</code>. If that passes but Step 7 still fails, the issue may be that <strong>Prism Central</strong> itself cannot reach the new cluster over the inter-site WAN link. Verify routing between the HUB site (where PC runs) and the remote site management VLAN.</p>
+        </div>
+      </div>
+
+      <div class="ts-item">
+        <div class="ts-head">
+          <div class="ts-prob">Step 18 fails — SSH connection refused or wrong password</div>
+          <div class="ts-step">Cause: TCP 22 blocked, or CVM password changed by Step 15</div>
+        </div>
+        <div class="ts-body">
+          <p>Run <code>Test-NetConnection &lt;CVM_IP&gt; -Port 22</code>. Check the Step 18 startup banner — it shows which password source was resolved (CSV file from Step 15, config field, or factory default). If Step 15 ran and changed the password, the new password CSV file is used automatically when present in the pipeline scripts directory.</p>
+        </div>
+      </div>
+
+      <div class="ts-item">
+        <div class="ts-head">
+          <div class="ts-prob">Step 17 fails — dnscmd not found</div>
+          <div class="ts-step">Cause: DNS RSAT tools not installed on the jump server</div>
+        </div>
+        <div class="ts-body">
+          <p>Install DNS RSAT on a Windows Server: <code>Add-WindowsFeature -Name RSAT-DNS-Server</code>. On a workstation: <code>Get-WindowsCapability -Name Rsat.Dns.Tools* -Online | Add-WindowsCapability -Online</code>. After installation, verify with <code>Get-Command dnscmd</code>.</p>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+<div class="page-footer">ZTD Pipeline Workflow Guide — Nutanix Zero Touch Deployment</div>
+
+<script>
+(async function(){
+  try{const r=await fetch('/api/current-user');if(!r.ok){window.location.href='/login.html';return;}}
+  catch(_){window.location.href='/login.html';}
+})();
+
+(async function(){
+  try{const r=await fetch('/api/branding');const{companyName}=await r.json();
+    if(companyName){document.title=companyName+' — Pipeline Guide';
+      const nb=document.getElementById('nb');if(nb)nb.textContent=companyName;}
+  }catch(_){}
+})();
+
+function toggleTheme(){
+  const r=document.documentElement,b=document.getElementById('themeBtn');
+  if(r.dataset.theme==='light'){delete r.dataset.theme;b.textContent='☀ Light';}
+  else{r.dataset.theme='light';b.textContent='🌙 Dark';}
+}
+
+// Sidebar active link on scroll
+const links=document.querySelectorAll('.sb-link[href^="#"]');
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){
+    links.forEach(l=>l.classList.remove('active'));
+    const a=document.querySelector('.sb-link[href="#'+e.target.id+'"]');
+    if(a)a.classList.add('active');
+  }});
+},{rootMargin:'-56px 0px -60% 0px',threshold:0});
+document.querySelectorAll('.doc-section[id]').forEach(s=>observer.observe(s));
+
+// Resizable sidebar
+(function(){
+  const layout=document.getElementById('layout');
+  const resizer=document.getElementById('resizer');
+  const KEY='ztd-sb-width';
+  const saved=localStorage.getItem(KEY);
+  if(saved)layout.style.setProperty('--sw',saved+'px');
+  let startX,startW;
+  resizer.addEventListener('mousedown',e=>{
+    startX=e.clientX;
+    startW=document.getElementById('sidebar').offsetWidth;
+    resizer.classList.add('dragging');
+    document.body.style.cursor='col-resize';
+    document.body.style.userSelect='none';
+    document.addEventListener('mousemove',onDrag);
+    document.addEventListener('mouseup',stopDrag);
+    e.preventDefault();
+  });
+  function onDrag(e){
+    const w=Math.max(140,Math.min(520,startW+(e.clientX-startX)));
+    layout.style.setProperty('--sw',w+'px');
+  }
+  function stopDrag(){
+    const w=document.getElementById('sidebar').offsetWidth;
+    localStorage.setItem(KEY,w);
+    resizer.classList.remove('dragging');
+    document.body.style.cursor='';
+    document.body.style.userSelect='';
+    document.removeEventListener('mousemove',onDrag);
+    document.removeEventListener('mouseup',stopDrag);
+  }
+})();
+</script>
+</body>
+</html>

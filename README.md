@@ -51,7 +51,7 @@ A secure, HTTPS web portal that serves as the operator interface for the solutio
 - Admin panel for user management, SMTP configuration, and AD settings
 - Self-signed SSL certificate generation included — no external CA required
 
-→ [Setup guide, configuration reference, and API documentation](deploy-cluster-app/README.md)
+→ [Setup guide, configuration reference, and API documentation](deploy-cluster-app/public/help-app.html)
 
 ---
 
@@ -67,7 +67,7 @@ A PowerShell pipeline (`Start-Pipeline.ps1`) that executes all deployment operat
 - Structured JSON configuration file — one file defines the entire deployment
 - Pipeline logs retained per run for troubleshooting
 
-→ [Pipeline reference, parameters, configuration schema, and troubleshooting](Nutanix-ZTI/README.md)
+→ [Pipeline reference, parameters, configuration schema, and troubleshooting](deploy-cluster-app/public/help-pipeline.html)
 
 ---
 

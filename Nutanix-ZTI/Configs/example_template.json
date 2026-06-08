@@ -177,5 +177,16 @@
   "notify": {
     "to": "engineer@company.com",
     "cc": "manager@company.com, team@company.com"
+  },
+
+  "lcm_inventory": {
+    "_note": "Step 14 — set enabled:true to run an LCM inventory scan at the end of the pipeline.",
+    "enabled": false
+  },
+
+  "health_check": {
+    "_note": "Step 18 — set enabled:true to run NCC health checks via SSH after deployment completes.",
+    "enabled": false,
+    "cvm_password": ""
   }
 }

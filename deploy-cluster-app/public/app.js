@@ -288,9 +288,10 @@ let deploymentSteps = [
     { id: 'step12', title: 'Create Recovery Plan',            status: 'pending' },
     { id: 'step13', title: 'Set vSwitch Bond Mode',            status: 'pending' },
     { id: 'step14', title: 'Run LCM Inventory',               status: 'pending' },
-    { id: 'step15', title: 'Change Passwords & Export CSV',   status: 'pending' },
+    { id: 'step15', title: 'Password Hardening',                status: 'pending' },
     { id: 'step16', title: 'Import Secrets to CyberArk',      status: 'pending' },
-    { id: 'step17', title: 'Add DNS Records',                  status: 'pending' }
+    { id: 'step17', title: 'Add DNS Records',                  status: 'pending' },
+    { id: 'step18', title: 'NCC Health Check',                 status: 'pending' }
 ];
 
 /* =========================================================
@@ -1458,6 +1459,14 @@ function buildConfigObject(formData) {
     if (scDeleteEl) config.storage_container.delete_default_container  = scDeleteEl.checked;
     if (scRfEl)     config.storage_container.replication_factor        = scRfEl.value;  // '' = node-count default
 
+    // Optional post-deployment checks: LCM Inventory (Step 14) and NCC Health Check (Step 18).
+    // Both default to disabled. Unchecked checkboxes are absent from FormData so write explicitly.
+    const lcmEnabledEl = document.getElementById('lcm-inventory-enabled');
+    config.lcm_inventory = { enabled: !!(lcmEnabledEl && lcmEnabledEl.checked) };
+    const nccEnabledEl = document.getElementById('ncc-health-check-enabled');
+    if (!config.health_check) config.health_check = {};
+    config.health_check.enabled = !!(nccEnabledEl && nccEnabledEl.checked);
+
     // Reorder top-level keys to match template structure:
     // _comments → clusterName → hypervisor → storage_container → timezone → output_level → rest
     const KEY_ORDER = [
@@ -1467,7 +1476,8 @@ function buildConfigObject(formData) {
         'aos_version', 'aos_package_url', 'hypervisor_iso_url', 'phoenix_iso_url',
         'production_vlans',
         'backup_policy', 'protection_policy', 'recovery_plan',
-        'prism_central', 'eula', 'cyberark', 'notify'
+        'prism_central', 'eula', 'cyberark', 'notify',
+        'lcm_inventory', 'health_check'
     ];
     const ordered = {};
     for (const k of KEY_ORDER) {

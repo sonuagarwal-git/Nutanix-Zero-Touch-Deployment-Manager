@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZTD — Deployment Manager Guide</title>
+<style>
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--card:#1c2128;
+  --border:#30363d;--text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --blue:#58a6ff;--blue-dk:#024da1;--green:#3fb950;--purple:#a371f7;
+  --orange:#f0883e;--red:#f85149;--amber:#e3b341;
+}
+[data-theme="light"]{
+  --bg:#f6f8fa;--bg2:#ffffff;--bg3:#f0f3f6;--card:#ffffff;
+  --border:#d0d7de;--text:#1f2328;--text2:#636c76;--text3:#9198a1;
+  --blue:#0969da;--green:#1a7f37;--purple:#7c3aed;--orange:#c4620e;--red:#cf222e;--amber:#9a6700;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;}
+
+.top-nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;gap:12px;}
+.nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-brand img{height:32px;width:auto;}
+.nav-brand-text{font-weight:700;font-size:.95rem;color:var(--text);}
+.nav-actions{display:flex;gap:8px;align-items:center;}
+.nav-btn{padding:5px 14px;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text);text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.nav-btn:hover{background:var(--border);}
+
+.layout{display:grid;grid-template-columns:var(--sw,248px) 6px 1fr;min-height:calc(100vh - 56px);}
+.resizer{background:var(--border);cursor:col-resize;transition:background .15s;position:relative;z-index:10;}
+.resizer:hover,.resizer.dragging{background:var(--blue);}
+.resizer::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);height:32px;width:2px;border-radius:2px;background:currentColor;opacity:.4;}
+.sidebar{border-right:1px solid var(--border);padding:20px 0;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;}
+.sb-section{font-size:.69rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);padding:16px 20px 5px;}
+.sb-section:first-child{padding-top:5px;}
+.sb-link{display:block;padding:6px 20px;font-size:.84rem;color:var(--text2);text-decoration:none;border-left:2px solid transparent;}
+.sb-link:hover{color:var(--text);background:var(--bg3);}
+.sb-link.active{color:var(--blue);border-left-color:var(--blue);background:var(--bg3);}
+
+.content{padding:36px 52px 80px;max-width:880px;min-width:0;}
+
+.content-hero{margin-bottom:36px;}
+.content-hero h1{font-size:1.9rem;font-weight:800;line-height:1.2;margin-bottom:10px;letter-spacing:-.5px;}
+.content-hero .sub{font-size:1rem;color:var(--text2);line-height:1.7;max-width:680px;}
+.content-hero .meta-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+.meta-tag{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:.78rem;color:var(--text2);}
+
+.doc-section{margin-bottom:52px;scroll-margin-top:72px;}
+.doc-section h2{font-size:1.35rem;font-weight:700;margin-bottom:4px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.doc-section p{color:var(--text2);line-height:1.75;margin:10px 0;}
+.doc-section h3{font-size:1.02rem;font-weight:700;margin:22px 0 8px;color:var(--text);}
+.doc-section ul,.doc-section ol{padding-left:22px;color:var(--text2);line-height:1.85;}
+.doc-section li{margin:3px 0;}
+.doc-section strong{color:var(--text);font-weight:600;}
+code{background:var(--bg3);border:1px solid var(--border);padding:1px 6px;border-radius:4px;font-family:'Cascadia Code','Consolas',monospace;font-size:.82em;color:var(--blue);word-break:break-all;}
+pre{background:#010409;border:1px solid var(--border);border-radius:8px;padding:16px 18px;overflow-x:auto;margin:14px 0;font-size:.82rem;line-height:1.6;}
+pre code{background:none;border:none;padding:0;color:#79c0ff;word-break:normal;font-size:inherit;}
+
+.callout{border-radius:8px;padding:14px 18px;margin:16px 0;font-size:.87rem;line-height:1.7;border-left:4px solid;}
+.callout-note{background:rgba(88,166,255,.07);border-color:var(--blue);color:var(--text2);}
+.callout-warn{background:rgba(210,153,34,.08);border-color:var(--amber);color:var(--text2);}
+.callout-danger{background:rgba(248,81,73,.07);border-color:var(--red);color:var(--text2);}
+.callout-success{background:rgba(63,185,80,.07);border-color:var(--green);color:var(--text2);}
+.callout strong{color:var(--text);}
+
+.diagram-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;margin:20px 0;overflow-x:auto;}
+.diagram-caption{font-size:.79rem;color:var(--text3);text-align:center;margin-top:10px;font-style:italic;}
+
+/* Numbered setup steps — document style, not tiles */
+.setup-list{list-style:none;padding:0;margin:0;}
+.setup-item{display:flex;gap:20px;padding:24px 0;border-bottom:1px solid var(--border);align-items:flex-start;}
+.setup-item:last-child{border-bottom:none;}
+.setup-num{width:36px;height:36px;border-radius:50%;background:var(--blue-dk);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0;margin-top:2px;}
+.setup-body{min-width:0;flex:1;}
+.setup-body h4{font-size:.97rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.setup-body p{font-size:.86rem;color:var(--text2);line-height:1.7;margin-bottom:8px;}
+.setup-body p:last-of-type{margin-bottom:0;}
+.setup-body pre{margin-top:10px;}
+.setup-body .sub-note{font-size:.79rem;color:var(--text3);margin-top:6px;font-style:italic;}
+
+/* Feature list — inline paragraphs, not tiles */
+.feature-list{display:flex;flex-direction:column;gap:0;}
+.feature-item{padding:16px 0;border-bottom:1px solid var(--border);display:flex;gap:14px;}
+.feature-item:last-child{border-bottom:none;}
+.feature-icon{font-size:1.3rem;flex-shrink:0;margin-top:2px;width:28px;text-align:center;}
+.feature-body{}
+.feature-body strong{font-size:.95rem;color:var(--text);display:block;margin-bottom:3px;}
+.feature-body span{font-size:.84rem;color:var(--text2);line-height:1.65;}
+
+/* API table */
+.api-table{width:100%;border-collapse:collapse;font-size:.84rem;margin:14px 0;}
+.api-table thead th{background:var(--bg3);border:1px solid var(--border);padding:8px 12px;font-weight:600;color:var(--text);text-align:left;white-space:nowrap;}
+.api-table tbody td{border:1px solid var(--border);padding:8px 12px;color:var(--text2);vertical-align:top;}
+.api-table code{word-break:normal;}
+.m-get{background:rgba(63,185,80,.15);color:var(--green);border-radius:4px;padding:1px 7px;font-size:.73rem;font-weight:700;font-family:'Cascadia Code',Consolas,monospace;border:1px solid rgba(63,185,80,.3);}
+.m-post{background:rgba(240,136,62,.15);color:var(--orange);border-radius:4px;padding:1px 7px;font-size:.73rem;font-weight:700;font-family:'Cascadia Code',Consolas,monospace;border:1px solid rgba(240,136,62,.3);}
+.m-del{background:rgba(248,81,73,.15);color:var(--red);border-radius:4px;padding:1px 7px;font-size:.73rem;font-weight:700;font-family:'Cascadia Code',Consolas,monospace;border:1px solid rgba(248,81,73,.3);}
+
+/* Two column layout for usage sections */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:16px 0;}
+@media(max-width:720px){.two-col{grid-template-columns:1fr;}}
+.col-block h4{font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.col-block ul{padding-left:18px;color:var(--text2);font-size:.85rem;line-height:1.85;}
+
+/* Security table */
+.sec-table{width:100%;border-collapse:collapse;font-size:.84rem;margin:14px 0;}
+.sec-table thead th{background:var(--bg3);border:1px solid var(--border);padding:8px 12px;font-weight:600;color:var(--text);text-align:left;}
+.sec-table tbody td{border:1px solid var(--border);padding:10px 12px;color:var(--text2);vertical-align:top;line-height:1.65;}
+.sec-table td:first-child{font-weight:600;color:var(--text);white-space:nowrap;}
+
+.page-footer{padding:28px 52px;font-size:.77rem;color:var(--text3);border-top:1px solid var(--border);}
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <a class="nav-brand" href="/">
+    <img src="/images/logo.png" alt="Logo"
+         onerror="this.style.display='none';document.getElementById('nb').style.display='inline-block'">
+    <span id="nb" style="display:none;font-weight:800;color:#024da1;">ZTD</span>
+    <span class="nav-brand-text">Deployment Manager Guide</span>
+  </a>
+  <div class="nav-actions">
+    <a href="/help-pipeline.html" class="nav-btn">🔧 Pipeline Guide</a>
+    <button class="nav-btn" onclick="toggleTheme()" id="themeBtn">☀ Light</button>
+    <button class="nav-btn" onclick="history.back()">← Back</button>
+  </div>
+</nav>
+
+<div class="layout" id="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-section">Overview</div>
+    <a href="#overview"    class="sb-link">What is ZTD Manager</a>
+    <a href="#features"    class="sb-link">Features</a>
+    <a href="#architecture" class="sb-link">Architecture</a>
+    <div class="sb-section">Setup</div>
+    <a href="#setup"       class="sb-link">First-Time Setup</a>
+    <a href="#branding"    class="sb-link">Branding &amp; SMTP</a>
+    <div class="sb-section">Usage</div>
+    <a href="#deploy"      class="sb-link">Starting a Deployment</a>
+    <a href="#dashboard"   class="sb-link">Dashboard &amp; Audit</a>
+    <a href="#admin"       class="sb-link">Admin Panel</a>
+    <div class="sb-section">Reference</div>
+    <a href="#service"     class="sb-link">Windows Service</a>
+    <a href="#api"         class="sb-link">API Endpoints</a>
+    <a href="#security"    class="sb-link">Security</a>
+  </aside>
+  <div class="resizer" id="resizer"></div>
+
+  <main class="content">
+
+    <div class="content-hero">
+      <h1>ZTD Deployment Manager</h1>
+      <p class="sub">A secure, web-based portal for deploying and managing Nutanix clusters. The app manages authentication, configuration files, and live deployment streaming — PowerShell 7 does the actual work via the automation pipeline.</p>
+      <div class="meta-tags">
+        <span class="meta-tag">Node.js · Express</span>
+        <span class="meta-tag">HTTPS port 3443</span>
+        <span class="meta-tag">AD / LDAP + local auth</span>
+        <span class="meta-tag">WebSocket live streaming</span>
+        <span class="meta-tag">Windows Service</span>
+      </div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section id="overview" class="doc-section">
+      <h2>What is ZTD Manager</h2>
+      <p>The ZTD Deployment Manager is the web-based front end for the Nutanix Zero Touch Deployment pipeline. It provides a secure browser interface where engineers can build cluster configuration files, trigger deployments, and watch live output — without needing direct access to the jump server or PowerShell.</p>
+      <p>The app runs as a <strong>Windows Service</strong> on the jump server. When a deployment is started, it spawns <code>pwsh.exe</code> with <code>Start-Pipeline.ps1</code> and streams every line of output back to the browser in real time via WebSocket. On completion, the deployment record is saved and a result email is sent.</p>
+      <div class="callout callout-note">
+        <strong>One tool, one config.</strong> The same JSON file that the web UI builds is passed directly to <code>Start-Pipeline.ps1</code>. Every step in the pipeline reads from it — no translation or manual parameter mapping required.
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features" class="doc-section">
+      <h2>Features</h2>
+      <div class="feature-list">
+        <div class="feature-item"><span class="feature-icon">🔐</span><div class="feature-body"><strong>Secure by default — HTTPS only</strong><span>All traffic is encrypted. The server refuses HTTP connections. Role-based access control with <code>admin</code> and <code>user</code> roles. Bcrypt-hashed local passwords (cost factor 12). Session tokens are server-side and regenerated on each login.</span></div></div>
+        <div class="feature-item"><span class="feature-icon">📡</span><div class="feature-body"><strong>Real-time deployment streaming</strong><span>Every output line from the PowerShell pipeline streams to the browser live via WebSocket. Step status updates are colour-coded as they happen. The log is retained in full after deployment completes.</span></div></div>
+        <div class="feature-item"><span class="feature-icon">⚡</span><div class="feature-body"><strong>18-step automated pipeline</strong><span>From Phoenix boot through NCC health validation. The web UI exposes advanced options: Start At Step (resume from any step), Skip Steps (skip individual steps by number), Dry Run (pre-flight only), and Skip Pre-Check.</span></div></div>
+        <div class="feature-item"><span class="feature-icon">💾</span><div class="feature-body"><strong>Configuration file management</strong><span>Save and load named JSON cluster configs. The form builds the complete config — no manual JSON editing required. Configs are stored in <code>Nutanix-ZTI/Configs/</code> and are visible to all authenticated users.</span></div></div>
+        <div class="feature-item"><span class="feature-icon">🔑</span><div class="feature-body"><strong>Active Directory / LDAP SSO</strong><span>Configure LDAP or LDAPS in the Admin panel. AD users are auto-provisioned on first login and receive a welcome email. All AD users get the <code>user</code> role; promote to <code>admin</code> via Admin → User Management.</span></div></div>
+        <div class="feature-item"><span class="feature-icon">📊</span><div class="feature-body"><strong>Dashboard and audit log</strong><span>Full deployment history with per-step timing averages, success rates, and searchable audit logs. Every login, config change, deployment start/stop, and admin action is logged with timestamp, username, and IP.</span></div></div>
+        <div class="feature-item"><span class="feature-icon">📧</span><div class="feature-body"><strong>Email notifications</strong><span>Pipeline result emails with step timings, NCC health check summary table, and LCM report are sent on completion. Welcome emails are sent when AD users are imported. Both channels use separate SMTP configs.</span></div></div>
+        <div class="feature-item"><span class="feature-icon">🪟</span><div class="feature-body"><strong>Windows Service with auto-restart</strong><span>Runs as a Windows service via WinSW wrapper. Starts automatically on boot and restarts on crash. Managed via <code>services.msc</code>, PowerShell, or the provided npm scripts.</span></div></div>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <section id="architecture" class="doc-section">
+      <h2>Architecture</h2>
+      <p>The diagram below shows the full request lifecycle — from the engineer's browser through Node.js to PowerShell and out to the target infrastructure.</p>
+      <div class="diagram-wrap">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 310" width="100%" style="min-width:680px;display:block;">
+          <defs>
+            <marker id="a1" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#1565c0"/></marker>
+            <marker id="a2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#2e7d32"/></marker>
+            <marker id="a3" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#888"/></marker>
+            <filter id="sd"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".15"/></filter>
+          </defs>
+          <rect x="8" y="70" width="130" height="152" rx="9" fill="#e3f2fd" stroke="#90caf9" stroke-width="1.5" filter="url(#sd)"/>
+          <text x="73" y="100" text-anchor="middle" font-size="20" font-family="Segoe UI,sans-serif">🖥️</text>
+          <text x="73" y="122" text-anchor="middle" font-size="11" font-weight="700" fill="#0d47a1" font-family="-apple-system,Segoe UI,sans-serif">Engineer</text>
+          <text x="73" y="138" text-anchor="middle" font-size="9.5" fill="#555" font-family="-apple-system,Segoe UI,sans-serif">Browser (Chrome)</text>
+          <rect x="20" y="152" width="106" height="15" rx="3" fill="#bbdefb"/>
+          <text x="73" y="163" text-anchor="middle" font-size="8" fill="#0d47a1" font-weight="600" font-family="Consolas,monospace">https://server:3443</text>
+          <rect x="20" y="172" width="106" height="15" rx="3" fill="#e1f5fe"/>
+          <text x="73" y="183" text-anchor="middle" font-size="8" fill="#01579b" font-family="-apple-system,Segoe UI,sans-serif">Config form + Deploy</text>
+          <line x1="140" y1="133" x2="210" y2="133" stroke="#1565c0" stroke-width="1.8" marker-end="url(#a1)"/>
+          <text x="175" y="124" text-anchor="middle" font-size="8.5" fill="#1565c0" font-weight="600" font-family="-apple-system,Segoe UI,sans-serif">HTTPS REST</text>
+          <line x1="210" y1="150" x2="140" y2="150" stroke="#2e7d32" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#a2)"/>
+          <text x="175" y="168" text-anchor="middle" font-size="8" fill="#2e7d32" font-weight="600" font-family="-apple-system,Segoe UI,sans-serif">WebSocket</text>
+          <text x="175" y="179" text-anchor="middle" font-size="7.5" fill="#2e7d32" font-family="-apple-system,Segoe UI,sans-serif">(live log stream)</text>
+          <rect x="212" y="30" width="196" height="232" rx="9" fill="#fff3e0" stroke="#ffcc80" stroke-width="1.5" filter="url(#sd)"/>
+          <text x="310" y="54" text-anchor="middle" font-size="10.5" font-weight="700" fill="#e65100" font-family="-apple-system,Segoe UI,sans-serif">NODE.JS SERVER</text>
+          <text x="310" y="69" text-anchor="middle" font-size="8.5" fill="#888" font-family="-apple-system,Segoe UI,sans-serif">server.js · Jump Server</text>
+          <line x1="228" y1="76" x2="392" y2="76" stroke="#ffcc80"/>
+          <rect x="224" y="83" width="176" height="20" rx="3" fill="#fff8f0" stroke="#ffcc80"/><text x="312" y="97" text-anchor="middle" font-size="9" fill="#555" font-family="-apple-system,Segoe UI,sans-serif">🔐 Auth · Session · AD LDAP</text>
+          <rect x="224" y="108" width="176" height="20" rx="3" fill="#fff8f0" stroke="#ffcc80"/><text x="312" y="122" text-anchor="middle" font-size="9" fill="#555" font-family="-apple-system,Segoe UI,sans-serif">🌐 Express — routes &amp; static files</text>
+          <rect x="224" y="133" width="176" height="20" rx="3" fill="#fff8f0" stroke="#ffcc80"/><text x="312" y="147" text-anchor="middle" font-size="9" fill="#555" font-family="-apple-system,Segoe UI,sans-serif">📡 WebSocket — live log streaming</text>
+          <rect x="224" y="158" width="176" height="20" rx="3" fill="#fff8f0" stroke="#ffcc80"/><text x="312" y="172" text-anchor="middle" font-size="9" fill="#555" font-family="-apple-system,Segoe UI,sans-serif">📁 JSON files (users, logs, history)</text>
+          <rect x="224" y="183" width="176" height="20" rx="3" fill="#ffe0b2" stroke="#ffb74d"/><text x="312" y="197" text-anchor="middle" font-size="9" fill="#e65100" font-weight="600" font-family="-apple-system,Segoe UI,sans-serif">⚡ spawn(pwsh.exe)</text>
+          <rect x="224" y="208" width="176" height="16" rx="3" fill="#fff8f0" stroke="#ffcc80"/><text x="312" y="220" text-anchor="middle" font-size="8" fill="#888" font-family="-apple-system,Segoe UI,sans-serif">🪟 Windows Service (WinSW)</text>
+          <line x1="410" y1="146" x2="470" y2="146" stroke="#1565c0" stroke-width="1.8" marker-end="url(#a1)"/>
+          <text x="440" y="136" text-anchor="middle" font-size="8" fill="#1565c0" font-weight="600" font-family="-apple-system,Segoe UI,sans-serif">spawn()</text>
+          <line x1="470" y1="162" x2="410" y2="162" stroke="#2e7d32" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#a2)"/>
+          <text x="440" y="178" text-anchor="middle" font-size="8" fill="#2e7d32" font-family="-apple-system,Segoe UI,sans-serif">stdout lines</text>
+          <rect x="472" y="30" width="210" height="258" rx="9" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="1.5" filter="url(#sd)"/>
+          <text x="577" y="54" text-anchor="middle" font-size="10.5" font-weight="700" fill="#2e7d32" font-family="-apple-system,Segoe UI,sans-serif">POWERSHELL 7</text>
+          <text x="577" y="69" text-anchor="middle" font-size="8.5" fill="#888" font-family="-apple-system,Segoe UI,sans-serif">Start-Pipeline.ps1</text>
+          <line x1="488" y1="76" x2="666" y2="76" stroke="#a5d6a7"/>
+          <rect x="484" y="83" width="96" height="18" rx="3" fill="#c8e6c9" stroke="#a5d6a7"/><text x="532" y="96" text-anchor="middle" font-size="8.5" fill="#1b5e20" font-family="-apple-system,Segoe UI,sans-serif">1–2 · iLO Boot</text>
+          <rect x="586" y="83" width="96" height="18" rx="3" fill="#c8e6c9" stroke="#a5d6a7"/><text x="634" y="96" text-anchor="middle" font-size="8.5" fill="#1b5e20" font-family="-apple-system,Segoe UI,sans-serif">3–4 · FC Imaging</text>
+          <rect x="484" y="107" width="96" height="18" rx="3" fill="#c8e6c9" stroke="#a5d6a7"/><text x="532" y="120" text-anchor="middle" font-size="8.5" fill="#1b5e20" font-family="-apple-system,Segoe UI,sans-serif">5–7 · Register</text>
+          <rect x="586" y="107" width="96" height="18" rx="3" fill="#c8e6c9" stroke="#a5d6a7"/><text x="634" y="120" text-anchor="middle" font-size="8.5" fill="#1b5e20" font-family="-apple-system,Segoe UI,sans-serif">8–9 · Network</text>
+          <rect x="484" y="131" width="96" height="18" rx="3" fill="#c8e6c9" stroke="#a5d6a7"/><text x="532" y="144" text-anchor="middle" font-size="8.5" fill="#1b5e20" font-family="-apple-system,Segoe UI,sans-serif">10–12 · Policies</text>
+          <rect x="586" y="131" width="96" height="18" rx="3" fill="#c8e6c9" stroke="#a5d6a7"/><text x="634" y="144" text-anchor="middle" font-size="8.5" fill="#1b5e20" font-family="-apple-system,Segoe UI,sans-serif">13–14 · Config</text>
+          <rect x="484" y="155" width="96" height="18" rx="3" fill="#c8e6c9" stroke="#a5d6a7"/><text x="532" y="168" text-anchor="middle" font-size="8.5" fill="#1b5e20" font-family="-apple-system,Segoe UI,sans-serif">15–16 · Security</text>
+          <rect x="586" y="155" width="96" height="18" rx="3" fill="#c8e6c9" stroke="#a5d6a7"/><text x="634" y="168" text-anchor="middle" font-size="8.5" fill="#1b5e20" font-family="-apple-system,Segoe UI,sans-serif">17 · DNS Records</text>
+          <rect x="484" y="179" width="198" height="18" rx="3" fill="#c8e6c9" stroke="#a5d6a7"/><text x="583" y="192" text-anchor="middle" font-size="8.5" fill="#1b5e20" font-family="-apple-system,Segoe UI,sans-serif">18 · NCC Health Check</text>
+          <rect x="484" y="203" width="198" height="18" rx="3" fill="#a5d6a7" stroke="#81c784"/><text x="583" y="216" text-anchor="middle" font-size="8.5" fill="#1b5e20" font-weight="600" font-family="-apple-system,Segoe UI,sans-serif">→ Result email · Save history</text>
+          <rect x="484" y="229" width="198" height="15" rx="3" fill="#dcedc8" stroke="#aed581"/><text x="583" y="240" text-anchor="middle" font-size="7.5" fill="#33691e" font-family="-apple-system,Segoe UI,sans-serif">Single JSON config file per cluster</text>
+          <line x1="684" y1="90" x2="740" y2="44" stroke="#888" stroke-width="1.4" marker-end="url(#a3)"/>
+          <line x1="684" y1="103" x2="740" y2="92" stroke="#888" stroke-width="1.4" marker-end="url(#a3)"/>
+          <line x1="684" y1="133" x2="740" y2="135" stroke="#888" stroke-width="1.4" marker-end="url(#a3)"/>
+          <line x1="684" y1="163" x2="740" y2="188" stroke="#888" stroke-width="1.4" marker-end="url(#a3)"/>
+          <line x1="684" y1="212" x2="740" y2="234" stroke="#888" stroke-width="1.4" marker-end="url(#a3)"/>
+          <text x="836" y="16" text-anchor="middle" font-size="8.5" fill="#888" font-style="italic" font-family="-apple-system,Segoe UI,sans-serif">Target Infrastructure</text>
+          <rect x="742" y="22" width="168" height="40" rx="7" fill="#e3f2fd" stroke="#90caf9" stroke-width="1.2" filter="url(#sd)"/>
+          <text x="826" y="39" text-anchor="middle" font-size="9.5" font-weight="700" fill="#0d47a1" font-family="-apple-system,Segoe UI,sans-serif">iLO / BMC (Redfish)</text>
+          <text x="826" y="54" text-anchor="middle" font-size="8" fill="#555" font-family="-apple-system,Segoe UI,sans-serif">Steps 1–2</text>
+          <rect x="742" y="70" width="168" height="40" rx="7" fill="#e8f5e9" stroke="#a5d6a7" stroke-width="1.2" filter="url(#sd)"/>
+          <text x="826" y="87" text-anchor="middle" font-size="9.5" font-weight="700" fill="#2e7d32" font-family="-apple-system,Segoe UI,sans-serif">Foundation Central</text>
+          <text x="826" y="102" text-anchor="middle" font-size="8" fill="#555" font-family="-apple-system,Segoe UI,sans-serif">Steps 3–4 · Imaging</text>
+          <rect x="742" y="118" width="168" height="40" rx="7" fill="#f3e5f5" stroke="#ce93d8" stroke-width="1.2" filter="url(#sd)"/>
+          <text x="826" y="135" text-anchor="middle" font-size="9.5" font-weight="700" fill="#6a1b9a" font-family="-apple-system,Segoe UI,sans-serif">Prism Central + PE</text>
+          <text x="826" y="150" text-anchor="middle" font-size="8" fill="#555" font-family="-apple-system,Segoe UI,sans-serif">Steps 5–14 · Post-config</text>
+          <rect x="742" y="166" width="168" height="40" rx="7" fill="#fce4ec" stroke="#ef9a9a" stroke-width="1.2" filter="url(#sd)"/>
+          <text x="826" y="183" text-anchor="middle" font-size="9.5" font-weight="700" fill="#b71c1c" font-family="-apple-system,Segoe UI,sans-serif">CyberArk + DNS + NCC</text>
+          <text x="826" y="198" text-anchor="middle" font-size="8" fill="#555" font-family="-apple-system,Segoe UI,sans-serif">Steps 15–18</text>
+          <rect x="742" y="214" width="168" height="30" rx="7" fill="#fff9c4" stroke="#f9a825" stroke-width="1.2"/>
+          <text x="826" y="233" text-anchor="middle" font-size="9" fill="#f57f17" font-weight="700" font-family="-apple-system,Segoe UI,sans-serif">📧 Result Email (ZTD)</text>
+        </svg>
+        <p class="diagram-caption">Node.js spawns PowerShell and streams every stdout line back to the browser via WebSocket. All 18 pipeline steps run on the jump server via <code>pwsh.exe</code>.</p>
+      </div>
+    </section>
+
+    <!-- FIRST-TIME SETUP -->
+    <section id="setup" class="doc-section">
+      <h2>First-Time Setup</h2>
+      <div class="callout callout-success">
+        <strong>💡 Automated setup available.</strong> Run <code>.\start.ps1</code> from PowerShell as Administrator from the <code>deploy-cluster-app\</code> directory. It installs Node.js, PowerShell 7, npm packages, the SSL certificate, Posh-SSH, and registers the Windows service automatically. The manual steps below are for reference or if you need to set up individual components.
+      </div>
+
+      <ol class="setup-list">
+        <li class="setup-item">
+          <span class="setup-num">1</span>
+          <div class="setup-body">
+            <h4>Install Node.js (v18 LTS or later)</h4>
+            <p>Open PowerShell as Administrator.</p>
+            <pre><code>winget install OpenJS.NodeJS.LTS</code></pre>
+            <p class="sub-note">Close and reopen PowerShell after installation. Verify: <code>node --version</code></p>
+          </div>
+        </li>
+        <li class="setup-item">
+          <span class="setup-num">2</span>
+          <div class="setup-body">
+            <h4>Install PowerShell 7</h4>
+            <p>The pipeline scripts require <code>pwsh.exe</code> (PowerShell 7.x). Close and reopen PowerShell after installation.</p>
+            <pre><code>winget install Microsoft.PowerShell</code></pre>
+            <p class="sub-note">Verify: <code>pwsh --version</code></p>
+          </div>
+        </li>
+        <li class="setup-item">
+          <span class="setup-num">3</span>
+          <div class="setup-body">
+            <h4>Install application dependencies</h4>
+            <pre><code>cd &lt;path-to&gt;\deploy-cluster-app
+npm install</code></pre>
+          </div>
+        </li>
+        <li class="setup-item">
+          <span class="setup-num">4</span>
+          <div class="setup-body">
+            <h4>Create and configure .env</h4>
+            <p>Copy the example file and edit it. At minimum, set <code>COMPANY_NAME</code>, <code>SESSION_SECRET</code>, and <code>SERVER_URL</code>.</p>
+            <pre><code>Copy-Item .env.example .env</code></pre>
+            <p>Generate a secure session secret:</p>
+            <pre><code>$b = New-Object byte[] 32
+[System.Security.Cryptography.RNGCryptoServiceProvider]::new().GetBytes($b)
+[Convert]::ToBase64String($b)</code></pre>
+            <p class="sub-note">Paste the output as the value for <code>SESSION_SECRET</code> in <code>.env</code>.</p>
+          </div>
+        </li>
+        <li class="setup-item">
+          <span class="setup-num">5</span>
+          <div class="setup-body">
+            <h4>Generate the SSL certificate</h4>
+            <p>Creates <code>certs\server.key</code> and <code>certs\server.crt</code> using built-in Windows tools — no OpenSSL required.</p>
+            <pre><code>.\generate-cert.ps1</code></pre>
+          </div>
+        </li>
+        <li class="setup-item">
+          <span class="setup-num">6</span>
+          <div class="setup-body">
+            <h4>Install Posh-SSH (required for pipeline)</h4>
+            <p>Steps 15 and 18 of the pipeline use Posh-SSH for SSH connections to CVMs. The pipeline auto-installs it on first run, but installing it explicitly ensures it's available immediately.</p>
+            <pre><code>pwsh -Command "Install-Module Posh-SSH -Scope CurrentUser -Force"</code></pre>
+          </div>
+        </li>
+        <li class="setup-item">
+          <span class="setup-num">7</span>
+          <div class="setup-body">
+            <h4>Register as a Windows Service</h4>
+            <p>This registers the portal as a Windows service so it starts on boot and restarts on crash.</p>
+            <pre><code>node install-service.js
+Start-Service 'Nutanix Cluster Deployment Web'
+Get-Service  'Nutanix Cluster Deployment Web'</code></pre>
+            <p class="sub-note">Status should show <code>Running</code>. The service name is <em>Nutanix Cluster Deployment Web</em>.</p>
+          </div>
+        </li>
+        <li class="setup-item">
+          <span class="setup-num">8</span>
+          <div class="setup-body">
+            <h4>First login and credential change</h4>
+            <p>Browse to <code>https://localhost:3443</code>. Accept the browser warning for the self-signed certificate. Log in with the default admin credentials, then change the password immediately via <strong>Admin → User Management</strong>.</p>
+            <pre><code>Username: admin
+Password: Changeme</code></pre>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- BRANDING & SMTP -->
+    <section id="branding" class="doc-section">
+      <h2>Branding &amp; Email Configuration</h2>
+
+      <h3>Company branding</h3>
+      <p>Set <code>COMPANY_NAME</code> in <code>.env</code> — this appears in the nav bar and page title. No server restart is needed after changing <code>COMPANY_NAME</code> (the API reads it dynamically).</p>
+      <p>To add a logo and login background, create the <code>public\images\</code> folder and place the files there:</p>
+      <table class="api-table">
+        <thead><tr><th>File</th><th>Purpose</th><th>Recommended size</th></tr></thead>
+        <tbody>
+          <tr><td><code>logo.png</code></td><td>Company logo in the nav bar</td><td>Max 220 × 80 px, transparent PNG</td></tr>
+          <tr><td><code>login-bg.png</code></td><td>Full-screen login page background</td><td>1920 × 1080 px</td></tr>
+        </tbody>
+      </table>
+
+      <h3>SMTP / Email configuration</h3>
+      <p>There are two separate SMTP configurations — they can both point to the same relay:</p>
+      <ul>
+        <li><strong>Pipeline result emails</strong> (<code>Send-PipelineEmail.ps1</code>): SMTP settings are in <code>.env</code> (<code>SMTP_HOST</code>, <code>SMTP_PORT</code>, <code>SMTP_USER</code>, <code>SMTP_PASS</code>). The recipient is set per-cluster in the JSON config under <code>notify.to</code>.</li>
+        <li><strong>Welcome emails</strong> (new AD users): SMTP settings configured in <strong>Admin → SMTP Settings</strong>, stored in <code>smtp-config.json</code>. This is managed through the web UI without editing files.</li>
+      </ul>
+    </section>
+
+    <!-- DEPLOYING -->
+    <section id="deploy" class="doc-section">
+      <h2>Starting a Deployment</h2>
+      <p>On the main page (<code>/</code>), the configuration form builds the JSON file that the pipeline reads. You can either fill it in from scratch or load a previously saved config.</p>
+
+      <h3>Workflow</h3>
+      <ol>
+        <li>Fill in the <strong>configuration form</strong> — cluster name, node IPs, image URLs, VLAN settings, credentials</li>
+        <li>Optionally click <strong>Save Configuration</strong> to save it as a named file for reuse</li>
+        <li>Expand <strong>Advanced Options</strong> if you need to set Start At Step, Skip Steps, or Skip Pre-Check</li>
+        <li>Click <strong>Start Deployment</strong> to run the full 18-step pipeline, or <strong>Dry Run</strong> to run pre-flight checks only</li>
+        <li>Watch live output in the log panel — each pipeline step is prefixed with a colour-coded status indicator</li>
+      </ol>
+      <div class="callout callout-note">Only one deployment can run at a time. A new deployment request is rejected with HTTP 400 while one is active. Stop the active deployment from the UI before starting a new one.</div>
+
+      <h3>Advanced options explained</h3>
+      <div class="two-col">
+        <div class="col-block">
+          <h4>Start At Step</h4>
+          <ul>
+            <li>Skip steps 1 through N-1 — use when steps are already completed</li>
+            <li>Pre-flight check is also skipped when <em>Start At Step ≥ 5</em></li>
+            <li>Example: resume from step 7 after a failed PC registration</li>
+          </ul>
+        </div>
+        <div class="col-block">
+          <h4>Skip Steps</h4>
+          <ul>
+            <li>Comma-separated list of step numbers to skip</li>
+            <li>Useful when a specific step is known to already be complete</li>
+            <li>Example: <code>9</code> skips "Create Storage Container" if it already exists</li>
+          </ul>
+        </div>
+        <div class="col-block">
+          <h4>Skip Pre-Check</h4>
+          <ul>
+            <li>Bypasses the IP availability ping test</li>
+            <li>Use when IPs respond but are confirmed-stale from a previous run</li>
+          </ul>
+        </div>
+        <div class="col-block">
+          <h4>Dry Run</h4>
+          <ul>
+            <li>Runs only pre-flight checks — no pipeline steps execute</li>
+            <li>Tests iLO access, PC credentials, URL accessibility, IP availability</li>
+            <li>Safe to run anytime, even against a live cluster</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="doc-section">
+      <h2>Dashboard &amp; Audit Log</h2>
+      <p>Available at <code>/dashboard.html</code> for all authenticated users.</p>
+
+      <h3>Deployment history</h3>
+      <p>The dashboard shows all deployments from the last 30 days with start time, duration, exit code, cluster name, and triggered-by user. Click any row to view the full deployment log. Step-by-step timing averages are shown for completed multi-step runs.</p>
+
+      <h3>Statistics</h3>
+      <p>Summary cards at the top of the dashboard show: total deployments (last 30 days), successful count, failed count, and average deployment duration. These update automatically as deployments complete.</p>
+
+      <h3>Audit log</h3>
+      <p>The audit log records every security-relevant action:</p>
+      <ul>
+        <li>Login attempts (successful and failed) with username and source IP</li>
+        <li>Config saves and deletes</li>
+        <li>Deployment starts, stops, and completions</li>
+        <li>Admin actions (user creation, role changes, AD config changes)</li>
+      </ul>
+      <p>Records older than 30 days are automatically purged daily. The log is filterable by date range, username, and action type in the UI.</p>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="admin" class="doc-section">
+      <h2>Admin Panel</h2>
+      <p>Available at <code>/admin.html</code> for <code>admin</code> role only.</p>
+
+      <div class="two-col">
+        <div class="col-block">
+          <h4>User Management</h4>
+          <ul>
+            <li>Create, edit, and delete local accounts</li>
+            <li>Set roles: <code>admin</code> or <code>user</code></li>
+            <li>Reset passwords for local accounts</li>
+            <li>Promote AD users imported from LDAP</li>
+          </ul>
+        </div>
+        <div class="col-block">
+          <h4>AD / LDAP Settings</h4>
+          <ul>
+            <li>Configure LDAP or LDAPS server address and port</li>
+            <li>Set bind user, base DN, and user filter</li>
+            <li>Test AD connectivity before saving</li>
+            <li>Disable AD to revert to local-only auth</li>
+          </ul>
+        </div>
+        <div class="col-block">
+          <h4>SMTP Settings</h4>
+          <ul>
+            <li>Set SMTP relay for welcome emails</li>
+            <li>Configure sender name and address</li>
+            <li>Send a test email to verify the configuration</li>
+          </ul>
+        </div>
+        <div class="col-block">
+          <h4>Branding</h4>
+          <ul>
+            <li>Update <code>COMPANY_NAME</code> without editing <code>.env</code></li>
+            <li>View the server URL and current configuration</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SERVICE MANAGEMENT -->
+    <section id="service" class="doc-section">
+      <h2>Windows Service Management</h2>
+      <p>The service name is <strong>Nutanix Cluster Deployment Web</strong>. It is managed via PowerShell, <code>services.msc</code>, or the WinSW wrapper.</p>
+
+      <h3>Day-to-day commands</h3>
+      <pre><code># Start / Stop / Restart
+Start-Service   'Nutanix Cluster Deployment Web'
+Stop-Service    'Nutanix Cluster Deployment Web'
+Restart-Service 'Nutanix Cluster Deployment Web'
+
+# Check status
+Get-Service 'Nutanix Cluster Deployment Web'</code></pre>
+
+      <h3>Viewing service logs</h3>
+      <pre><code># Server stdout (deployment output, startup messages)
+Get-Content '.\daemon\nutanixclusterdeploymentweb.out.log' -Tail 100 -Wait
+
+# Server stderr (errors and exceptions)
+Get-Content '.\daemon\nutanixclusterdeploymentweb.err.log' -Tail 50
+
+# WinSW wrapper (crash/restart events)
+Get-Content '.\daemon\nutanixclusterdeploymentweb.wrapper.log' -Tail 30</code></pre>
+
+      <h3>Uninstall</h3>
+      <pre><code>cd &lt;path-to&gt;\deploy-cluster-app
+node uninstall-service.js</code></pre>
+
+      <h3>Full teardown (lab environments only)</h3>
+      <p><code>delete.ps1</code> is the reverse of <code>start.ps1</code>. It removes the service, <code>node_modules</code>, Posh-SSH, Node.js, PowerShell 7, <code>.env</code>, and the SSL certs. It prompts before uninstalling system-level components and does <strong>not</strong> delete <code>users.json</code> or any cluster configs in <code>Configs/</code>.</p>
+      <pre><code>.\delete.ps1</code></pre>
+      <div class="callout callout-danger"><strong>⚠ Use <code>delete.ps1</code> in test/lab environments only.</strong> It uninstalls Node.js and PowerShell 7 from the system — these may be used by other tools on the same server.</div>
+    </section>
+
+    <!-- API REFERENCE -->
+    <section id="api" class="doc-section">
+      <h2>API Endpoints</h2>
+      <p>All endpoints require authentication (valid session cookie) unless noted. Admin-only endpoints additionally require the <code>admin</code> role.</p>
+      <table class="api-table">
+        <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><span class="m-post">POST</span></td><td><code>/api/login</code></td><td>None</td><td>Authenticate — body: <code>{username, password}</code></td></tr>
+          <tr><td><span class="m-post">POST</span></td><td><code>/api/logout</code></td><td>User</td><td>Invalidate current session</td></tr>
+          <tr><td><span class="m-get">GET</span></td><td><code>/api/current-user</code></td><td>User</td><td>Returns current user info — 401 if not authenticated</td></tr>
+          <tr><td><span class="m-get">GET</span></td><td><code>/api/branding</code></td><td>None</td><td>Returns <code>{companyName}</code> for UI display</td></tr>
+          <tr><td><span class="m-post">POST</span></td><td><code>/api/deploy</code></td><td>User</td><td>Start deployment — body: cluster config JSON. Returns 400 if one is already running.</td></tr>
+          <tr><td><span class="m-post">POST</span></td><td><code>/api/stop</code></td><td>Admin</td><td>Kill the active deployment process</td></tr>
+          <tr><td><span class="m-get">GET</span></td><td><code>/api/deployments</code></td><td>User</td><td>List all deployment records (last 30 days)</td></tr>
+          <tr><td><span class="m-get">GET</span></td><td><code>/api/configs</code></td><td>User</td><td>List saved cluster config filenames</td></tr>
+          <tr><td><span class="m-get">GET</span></td><td><code>/api/configs/:name</code></td><td>User</td><td>Retrieve a saved config JSON by name</td></tr>
+          <tr><td><span class="m-post">POST</span></td><td><code>/api/configs/save</code></td><td>User</td><td>Save a named cluster config — body: <code>{name, config}</code></td></tr>
+          <tr><td><span class="m-del">DEL</span></td><td><code>/api/configs/:name</code></td><td>Admin</td><td>Delete a saved config file</td></tr>
+          <tr><td><span class="m-get">GET</span></td><td><code>/api/audit-logs</code></td><td>Admin</td><td>Retrieve audit log entries</td></tr>
+          <tr><td><span class="m-get">GET</span></td><td><code>/api/users</code></td><td>Admin</td><td>List all local user accounts</td></tr>
+          <tr><td><span class="m-post">POST</span></td><td><code>/api/users</code></td><td>Admin</td><td>Create a local user account</td></tr>
+          <tr><td><span class="m-del">DEL</span></td><td><code>/api/users/:username</code></td><td>Admin</td><td>Delete a user account</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- SECURITY -->
+    <section id="security" class="doc-section">
+      <h2>Security</h2>
+      <table class="sec-table">
+        <thead><tr><th>Control</th><th>Implementation</th></tr></thead>
+        <tbody>
+          <tr><td>Transport</td><td>HTTPS only — all HTTP connections are refused. Uses a self-signed certificate by default; replace with a CA-signed cert for production use. Certificate path is configured in <code>.env</code>.</td></tr>
+          <tr><td>Sessions</td><td>Server-side sessions with a cryptographically random <code>SESSION_SECRET</code>. Sessions are regenerated on login and invalidated on logout. Session cookie is <code>httpOnly</code> and <code>secure</code>.</td></tr>
+          <tr><td>Passwords</td><td>Local account passwords are hashed with bcrypt (cost factor 12). Plaintext passwords are never stored in files, logs, or memory beyond the authentication check.</td></tr>
+          <tr><td>Role enforcement</td><td>Admin-only endpoints check the user role server-side on every request — there is no client-side bypass. The <code>user</code> role can start deployments and view the dashboard. Only <code>admin</code> can manage users, delete configs, and change system settings.</td></tr>
+          <tr><td>Audit logging</td><td>All authentication events, config changes, deployments, and admin actions are written to <code>audit-logs.json</code> with timestamp, username, source IP, and outcome. Records older than 30 days are purged daily.</td></tr>
+          <tr><td>AD / LDAP</td><td>LDAP bind uses a service account whose credentials are stored in <code>idp-config.json</code> (only readable by the service process). LDAPS is supported for encrypted directory queries. AD credentials are never logged.</td></tr>
+          <tr><td>Input handling</td><td>Config JSON submitted via the API is parsed and passed directly to <code>Start-Pipeline.ps1</code> as a file path — the config is written to disk before execution. No shell interpolation of user input occurs in the spawn call.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+
+<div class="page-footer">ZTD Deployment Manager Guide — Nutanix Zero Touch Deployment</div>
+
+<script>
+(async function(){
+  try{const r=await fetch('/api/current-user');if(!r.ok){window.location.href='/login.html';return;}}
+  catch(_){window.location.href='/login.html';}
+})();
+
+(async function(){
+  try{const r=await fetch('/api/branding');const{companyName}=await r.json();
+    if(companyName){document.title=companyName+' — App Guide';
+      const nb=document.getElementById('nb');if(nb)nb.textContent=companyName;}
+  }catch(_){}
+})();
+
+function toggleTheme(){
+  const r=document.documentElement,b=document.getElementById('themeBtn');
+  if(r.dataset.theme==='light'){delete r.dataset.theme;b.textContent='☀ Light';}
+  else{r.dataset.theme='light';b.textContent='🌙 Dark';}
+}
+
+const links=document.querySelectorAll('.sb-link[href^="#"]');
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){
+    links.forEach(l=>l.classList.remove('active'));
+    const a=document.querySelector('.sb-link[href="#'+e.target.id+'"]');
+    if(a)a.classList.add('active');
+  }});
+},{rootMargin:'-56px 0px -60% 0px',threshold:0});
+document.querySelectorAll('.doc-section[id]').forEach(s=>observer.observe(s));
+
+// Resizable sidebar
+(function(){
+  const layout=document.getElementById('layout');
+  const resizer=document.getElementById('resizer');
+  const KEY='ztd-sb-width';
+  const saved=localStorage.getItem(KEY);
+  if(saved)layout.style.setProperty('--sw',saved+'px');
+  let startX,startW;
+  resizer.addEventListener('mousedown',e=>{
+    startX=e.clientX;
+    startW=document.getElementById('sidebar').offsetWidth;
+    resizer.classList.add('dragging');
+    document.body.style.cursor='col-resize';
+    document.body.style.userSelect='none';
+    document.addEventListener('mousemove',onDrag);
+    document.addEventListener('mouseup',stopDrag);
+    e.preventDefault();
+  });
+  function onDrag(e){
+    const w=Math.max(140,Math.min(520,startW+(e.clientX-startX)));
+    layout.style.setProperty('--sw',w+'px');
+  }
+  function stopDrag(){
+    const w=document.getElementById('sidebar').offsetWidth;
+    localStorage.setItem(KEY,w);
+    resizer.classList.remove('dragging');
+    document.body.style.cursor='';
+    document.body.style.userSelect='';
+    document.removeEventListener('mousemove',onDrag);
+    document.removeEventListener('mouseup',stopDrag);
+  }
+})();
+</script>
+</body>
+</html>
