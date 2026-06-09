@@ -616,6 +616,63 @@ h2 {
     font-size: 0.8125rem;
 }
 
+/* Inline tooltip icon (used on form labels) */
+.tip-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #f59e0b;
+    color: #000;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: help;
+    position: relative;
+    vertical-align: middle;
+    margin-left: 5px;
+    line-height: 1;
+    flex-shrink: 0;
+    user-select: none;
+}
+.tip-icon .tip-bubble {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    bottom: calc(100% + 7px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 230px;
+    background: #1e1e2e;
+    color: #f59e0b;
+    border: 1px solid #f59e0b44;
+    border-radius: 7px;
+    padding: 8px 11px;
+    font-size: 0.78rem;
+    font-weight: 400;
+    line-height: 1.5;
+    pointer-events: none;
+    transition: opacity .15s, visibility .15s;
+    white-space: normal;
+    z-index: 999;
+    box-shadow: 0 4px 14px rgba(0,0,0,.5);
+}
+.tip-icon .tip-bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #f59e0b44;
+}
+.tip-icon:hover .tip-bubble,
+.tip-icon.active .tip-bubble {
+    visibility: visible;
+    opacity: 1;
+}
+
 .form-group input[type="text"],
 .form-group input[type="number"],
 .form-group input[type="password"],

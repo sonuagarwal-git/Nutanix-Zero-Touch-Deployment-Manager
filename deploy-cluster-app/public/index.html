@@ -520,13 +520,16 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="vswitchMode">vSwitch Mode</label>
+                        <label for="vswitchMode">vSwitch Mode
+                            <span class="tip-icon" role="button" tabindex="0" aria-label="Warning" onclick="this.classList.toggle('active')" onblur="this.classList.remove('active')">!
+                                <span class="tip-bubble">&#9888; Ensure network ports are configured correctly before selecting a specific bond mode.</span>
+                            </span>
+                        </label>
                         <select id="vswitchMode" name="vswitch_mode">
                             <option value="ACTIVE_BACKUP" selected>ACTIVE_BACKUP (default)</option>
                             <option value="BALANCE_TCP">BALANCE_TCP (Active-Active LACP)</option>
                             <option value="BALANCE_SLB">BALANCE_SLB</option>
                         </select>
-                        <p style="margin:4px 0 0;color:#f59e0b;font-size:0.8rem;">&#9888; Ensure network ports are configured correctly before selecting a specific mode.</p>
                     </div>
                 </div>
 

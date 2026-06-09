@@ -145,7 +145,6 @@ pre code{background:none;border:none;padding:0;color:#79c0ff;word-break:normal;f
   <div class="nav-actions">
     <a href="/help-app.html" class="nav-btn">App Guide</a>
     <button class="nav-btn" onclick="toggleTheme()" id="themeBtn">☀ Light</button>
-    <button class="nav-btn" onclick="history.back()">← Back</button>
   </div>
 </nav>
 
@@ -205,112 +204,155 @@ pre code{background:none;border:none;padding:0;color:#79c0ff;word-break:normal;f
       <div class="diagram-wrap">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 380" width="100%" style="min-width:640px;display:block;">
           <defs>
+            <!-- Phase 1: Blue — iLO -->
             <marker id="a1" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#58a6ff"/></marker>
+            <!-- Phase 2: Green — FC / Result Email -->
             <marker id="a2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#3fb950"/></marker>
+            <!-- Phase 3: Purple — Prism -->
             <marker id="a3" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#a371f7"/></marker>
+            <!-- Phase 4: Orange — CVM SSH / OVS / Witness -->
             <marker id="a4" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#f0883e"/></marker>
+            <!-- Phase 5: Red — CyberArk / DNS / NCC -->
             <marker id="a5" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#f85149"/></marker>
             <filter id="ds"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".3"/></filter>
           </defs>
 
-          <!-- JUMP SERVER -->
+          <!-- ══ JUMP SERVER (left column) ══ -->
           <rect x="12" y="10" width="200" height="310" rx="8" fill="#0d2040" stroke="#1565c0" stroke-width="1.5" filter="url(#ds)"/>
           <text x="112" y="33" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10.5" font-weight="700" fill="#58a6ff">Jump Server</text>
           <text x="112" y="48" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#6e7681">Start-Pipeline.ps1</text>
           <line x1="24" y1="55" x2="200" y2="55" stroke="#1565c0" stroke-width="0.8"/>
-          <!-- Step blocks -->
+          <!-- Phase 1 -->
           <rect x="22" y="62" width="180" height="18" rx="3" fill="#0d47a1"/>
           <text x="112" y="75" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#90caf9">1–2 · iLO Boot (Redfish TCP 443)</text>
+          <!-- Phase 2 -->
           <rect x="22" y="85" width="180" height="18" rx="3" fill="#1b3a10"/>
           <text x="112" y="98" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#81c784">3–4 · FC Imaging (trigger via 9440)</text>
+          <!-- Phase 3 -->
           <rect x="22" y="108" width="180" height="18" rx="3" fill="#1e0d3a"/>
           <text x="112" y="121" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#ce93d8">5–12 · Prism Config (REST 9440)</text>
+          <!-- Phase 4 -->
           <rect x="22" y="131" width="180" height="18" rx="3" fill="#2d1500"/>
           <text x="112" y="144" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#ffb74d">13–14 · Hardening (OVS + LCM)</text>
           <rect x="22" y="154" width="180" height="18" rx="3" fill="#2d1500"/>
           <text x="112" y="167" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#ffb74d">15 · Password Hardening (SSH 22)</text>
+          <!-- Phase 5 -->
           <rect x="22" y="177" width="180" height="18" rx="3" fill="#2d0010"/>
           <text x="112" y="190" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#ef9a9a">16 · CyberArk  17 · DNS Records</text>
           <rect x="22" y="200" width="180" height="18" rx="3" fill="#2d0010"/>
           <text x="112" y="213" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#ef9a9a">18 · NCC Health Check (SSH 22)</text>
+          <!-- Result -->
           <rect x="22" y="228" width="180" height="16" rx="3" fill="#0d2b12"/>
           <text x="112" y="240" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#3fb950" font-weight="600">→ Result Email · Save history</text>
           <rect x="22" y="288" width="180" height="14" rx="3" fill="#1c2128"/>
           <text x="112" y="298" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="7.5" fill="#6e7681">Single JSON config per cluster</text>
 
-          <!-- iLO -->
+          <!-- ══ MIDDLE COLUMN BOXES ══ -->
+
+          <!-- iLO / BMC — Phase 1 Blue -->
           <rect x="265" y="10" width="155" height="44" rx="7" fill="#0d2040" stroke="#1565c0" stroke-width="1.2" filter="url(#ds)"/>
           <text x="343" y="30" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#58a6ff">iLO / BMC</text>
           <text x="343" y="46" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">Redfish API · Steps 1–2</text>
-          <line x1="212" y1="71" x2="263" y2="32" stroke="#1565c0" stroke-width="1.3" marker-end="url(#a1)"/>
 
-          <!-- Foundation Central -->
+          <!-- Foundation Central — Phase 2 Green -->
           <rect x="265" y="75" width="155" height="44" rx="7" fill="#1b3a10" stroke="#2e7d32" stroke-width="1.2" filter="url(#ds)"/>
           <text x="343" y="95" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3fb950">Foundation Central</text>
           <text x="343" y="110" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">Node imaging · Steps 3–4</text>
-          <line x1="212" y1="94" x2="263" y2="97" stroke="#2e7d32" stroke-width="1.3" marker-end="url(#a2)"/>
 
-          <!-- Prism Central + PE -->
+          <!-- Prism Central + PE — Phase 3 Purple (Steps 5-14 via REST API) -->
           <rect x="265" y="140" width="155" height="44" rx="7" fill="#1e0d3a" stroke="#6a1b9a" stroke-width="1.2" filter="url(#ds)"/>
           <text x="343" y="160" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#a371f7">Prism Central + PE</text>
-          <text x="343" y="176" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">Post-config · Steps 5–15</text>
-          <line x1="212" y1="140" x2="263" y2="162" stroke="#6a1b9a" stroke-width="1.3" marker-end="url(#a3)"/>
+          <text x="343" y="176" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">REST API · Steps 5–14</text>
 
-          <!-- CVM SSH -->
+          <!-- CVM SSH — Phase 4/5 Orange border (Steps 15 & 18 via SSH) -->
           <rect x="265" y="205" width="155" height="44" rx="7" fill="#2d1500" stroke="#e65100" stroke-width="1.2" filter="url(#ds)"/>
           <text x="343" y="225" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#f0883e">CVM (SSH)</text>
           <text x="343" y="241" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">Steps 15 &amp; 18 · TCP 22</text>
-          <line x1="212" y1="163" x2="263" y2="227" stroke="#e65100" stroke-width="1.3" marker-end="url(#a4)"/>
 
-          <!-- CyberArk -->
-          <rect x="490" y="10" width="155" height="44" rx="7" fill="#2d0010" stroke="#b71c1c" stroke-width="1.2" filter="url(#ds)"/>
-          <text x="568" y="30" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#f85149">CyberArk</text>
-          <text x="568" y="46" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">PAM Vault · Step 16</text>
-          <line x1="420" y1="186" x2="488" y2="32" stroke="#b71c1c" stroke-width="1.3" marker-end="url(#a5)"/>
-
-          <!-- DNS -->
-          <rect x="490" y="75" width="155" height="44" rx="7" fill="#2d1500" stroke="#e65100" stroke-width="1.2" filter="url(#ds)"/>
-          <text x="568" y="95" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#f0883e">DNS Servers</text>
-          <text x="568" y="110" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">dnscmd RPC · Step 17</text>
-          <line x1="420" y1="190" x2="488" y2="97" stroke="#e65100" stroke-width="1.3" marker-end="url(#a4)"/>
-
-          <!-- Azure Blob -->
-          <rect x="490" y="140" width="155" height="44" rx="7" fill="#1e0d3a" stroke="#a371f7" stroke-width="1.2" filter="url(#ds)"/>
-          <text x="568" y="160" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#a371f7">Azure Blob Storage</text>
-          <text x="568" y="176" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">ISO · AOS · AHV images</text>
-          <!-- FC pulls from Azure -->
-          <line x1="420" y1="97" x2="488" y2="162" stroke="#a371f7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a3)"/>
-          <text x="458" y="133" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="7.5" fill="#a371f7">FC pulls images</text>
-          <!-- iLO mounts ISO -->
-          <line x1="420" y1="32" x2="488" y2="162" stroke="#a371f7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a3)"/>
-          <text x="470" y="90" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="7.5" fill="#a371f7">iLO mounts ISO</text>
-
-          <!-- Result Email -->
-          <rect x="490" y="205" width="155" height="44" rx="7" fill="#0d2b12" stroke="#2e7d32" stroke-width="1.2" filter="url(#ds)"/>
-          <text x="568" y="225" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3fb950">Result Email (ZTD)</text>
-          <text x="568" y="241" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">SMTP · timings + NCC report</text>
-          <line x1="212" y1="234" x2="488" y2="227" stroke="#2e7d32" stroke-width="1.3" marker-end="url(#a2)"/>
-
-          <!-- Witness (bottom) -->
+          <!-- Witness VM — Phase 4 Orange (optional Step 6) -->
           <rect x="265" y="270" width="155" height="40" rx="7" fill="#2d1a00" stroke="#f0883e" stroke-width="1.2" filter="url(#ds)"/>
           <text x="343" y="288" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#f0883e">Witness VM</text>
           <text x="343" y="303" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">Metro Availability · Step 6</text>
-          <line x1="112" y1="320" x2="263" y2="290" stroke="#f0883e" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a4)"/>
 
-          <!-- Legend -->
+          <!-- ══ RIGHT COLUMN BOXES ══ -->
+
+          <!-- CyberArk — Phase 5 Red -->
+          <rect x="490" y="10" width="155" height="44" rx="7" fill="#2d0010" stroke="#b71c1c" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="568" y="30" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#f85149">CyberArk</text>
+          <text x="568" y="46" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">PAM Vault · Step 16</text>
+
+          <!-- DNS Servers — Phase 5 Red (Step 17) -->
+          <rect x="490" y="75" width="155" height="44" rx="7" fill="#2d0010" stroke="#b71c1c" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="568" y="95" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#f85149">DNS Servers</text>
+          <text x="568" y="110" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">dnscmd RPC · Step 17</text>
+
+          <!-- Azure Blob Storage — Purple (referenced by iLO + FC) -->
+          <rect x="490" y="140" width="155" height="44" rx="7" fill="#1e0d3a" stroke="#a371f7" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="568" y="160" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#a371f7">Azure Blob Storage</text>
+          <text x="568" y="176" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">ISO · AOS · AHV images</text>
+
+          <!-- Result Email — Green -->
+          <rect x="490" y="205" width="155" height="44" rx="7" fill="#0d2b12" stroke="#2e7d32" stroke-width="1.2" filter="url(#ds)"/>
+          <text x="568" y="225" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#3fb950">Result Email (ZTD)</text>
+          <text x="568" y="241" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#6e7681">SMTP · timings + NCC report</text>
+
+          <!-- ══ ARROWS: JUMP SERVER → MIDDLE COLUMN ══ -->
+
+          <!-- Phase 1 BLUE: Steps 1-2 → iLO (step block center y=71 → iLO center y=32) -->
+          <line x1="212" y1="71" x2="263" y2="32" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#a1)"/>
+
+          <!-- Phase 2 GREEN: Steps 3-4 → Foundation Central (nearly horizontal) -->
+          <line x1="212" y1="94" x2="263" y2="97" stroke="#3fb950" stroke-width="1.5" marker-end="url(#a2)"/>
+
+          <!-- Phase 3 PURPLE: Steps 5-12 → Prism Central (REST 9440) -->
+          <line x1="212" y1="117" x2="263" y2="152" stroke="#a371f7" stroke-width="1.5" marker-end="url(#a3)"/>
+
+          <!-- Phase 4 ORANGE: Steps 13-14 → Prism Central (OVS via REST + LCM via REST) -->
+          <line x1="212" y1="140" x2="263" y2="166" stroke="#f0883e" stroke-width="1.3" marker-end="url(#a4)"/>
+
+          <!-- Phase 4 ORANGE: Step 15 → CVM (Password Hardening via SSH) -->
+          <line x1="212" y1="163" x2="263" y2="212" stroke="#f0883e" stroke-width="1.5" marker-end="url(#a4)"/>
+
+          <!-- Phase 5 RED dashed: Step 18 → CVM (NCC Health Check via SSH — optional) -->
+          <line x1="212" y1="209" x2="263" y2="223" stroke="#f85149" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#a5)"/>
+
+          <!-- ══ ARROWS: JUMP SERVER → RIGHT COLUMN ══
+               Route: horizontal through gap between Prism (bottom y=184) and CVM (top y=205),
+               then vertical in the column gap (x=448-453), then horizontal to target box.       -->
+
+          <!-- Phase 5 RED: Step 16 → CyberArk
+               Gap route at y=193 (9px below Prism bottom, 12px above CVM top) -->
+          <polyline points="212,186 448,186 448,193 448,32 488,32" stroke="#f85149" stroke-width="1.3" fill="none" marker-end="url(#a5)"/>
+
+          <!-- Phase 5 RED: Step 17 → DNS
+               Gap route at y=197, vertical column at x=453 to avoid overlap with CyberArk line -->
+          <polyline points="212,190 453,190 453,97 488,97" stroke="#f85149" stroke-width="1.3" fill="none" marker-end="url(#a5)"/>
+
+          <!-- ══ DASHED SECONDARY CONNECTIONS ══ -->
+
+          <!-- BLUE dashed: iLO → Azure Blob (iLO Redfish mounts Phoenix ISO from URL) -->
+          <line x1="420" y1="30" x2="488" y2="148" stroke="#58a6ff" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a1)"/>
+          <text x="472" y="76" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="7.5" fill="#58a6ff">iLO mounts ISO</text>
+
+          <!-- GREEN dashed: Foundation Central → Azure Blob (FC downloads AOS/AHV packages) -->
+          <line x1="420" y1="105" x2="488" y2="156" stroke="#3fb950" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a2)"/>
+          <text x="468" y="138" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="7.5" fill="#3fb950">FC pulls images</text>
+
+          <!-- GREEN: Jump Server → Result Email (pipeline completion) -->
+          <line x1="212" y1="234" x2="488" y2="227" stroke="#3fb950" stroke-width="1.3" marker-end="url(#a2)"/>
+
+          <!-- ORANGE dashed: Jump Server → Witness VM (Step 6, optional Metro Availability) -->
+          <line x1="112" y1="320" x2="263" y2="292" stroke="#f0883e" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a4)"/>
+
+          <!-- ══ LEGEND ══ -->
           <rect x="710" y="10" width="242" height="340" rx="8" fill="#161b22" stroke="#30363d"/>
           <text x="831" y="32" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#e6edf3">Phase Legend</text>
           <line x1="720" y1="40" x2="944" y2="40" stroke="#30363d"/>
-          <rect x="720" y="50" width="8" height="8" rx="2" fill="#1565c0"/>
-          <text x="736" y="61" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 1 — iLO Boot (Steps 1–2)</text>
-          <rect x="720" y="70" width="8" height="8" rx="2" fill="#2e7d32"/>
-          <text x="736" y="81" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 2 — FC Imaging (Steps 3–4)</text>
-          <rect x="720" y="90" width="8" height="8" rx="2" fill="#6a1b9a"/>
-          <text x="736" y="101" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 3 — Prism Config (Steps 5–12)</text>
-          <rect x="720" y="110" width="8" height="8" rx="2" fill="#e65100"/>
-          <text x="736" y="121" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 4 — Hardening (Steps 13–15)</text>
-          <rect x="720" y="130" width="8" height="8" rx="2" fill="#b71c1c"/>
-          <text x="736" y="141" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 5 — Security &amp; Validation (16–18)</text>
+          <rect x="720" y="50" width="8" height="8" rx="2" fill="#1565c0"/><text x="736" y="61" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 1 — iLO Boot (Steps 1–2)</text>
+          <rect x="720" y="70" width="8" height="8" rx="2" fill="#2e7d32"/><text x="736" y="81" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 2 — FC Imaging (Steps 3–4)</text>
+          <rect x="720" y="90" width="8" height="8" rx="2" fill="#6a1b9a"/><text x="736" y="101" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 3 — Prism Config (Steps 5–12)</text>
+          <rect x="720" y="110" width="8" height="8" rx="2" fill="#e65100"/><text x="736" y="121" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 4 — Hardening (Steps 13–15)</text>
+          <rect x="720" y="130" width="8" height="8" rx="2" fill="#b71c1c"/><text x="736" y="141" font-family="-apple-system,Segoe UI,sans-serif" font-size="8.5" fill="#8b949e">Phase 5 — Security &amp; Validation (16–18)</text>
           <line x1="720" y1="152" x2="944" y2="152" stroke="#30363d"/>
           <text x="831" y="171" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#e6edf3">Network Ports Required</text>
           <text x="720" y="190" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → iLO</text>
@@ -318,17 +360,17 @@ pre code{background:none;border:none;padding:0;color:#79c0ff;word-break:normal;f
           <text x="720" y="207" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → FC</text>
           <text x="840" y="207" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 9440  ·  S3–4</text>
           <text x="720" y="224" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → PC/PE VIP</text>
-          <text x="840" y="224" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 9440  ·  S5–15</text>
+          <text x="840" y="224" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 9440  ·  S5–14</text>
           <text x="720" y="241" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → CVM IPs</text>
-          <text x="840" y="241" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 22  ·  S15,18</text>
-          <text x="720" y="258" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → DNS</text>
-          <text x="840" y="258" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP/UDP 53  ·  S17</text>
+          <text x="840" y="241" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 22  ·  S15, 18</text>
+          <text x="720" y="258" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → CyberArk / DNS</text>
+          <text x="840" y="258" font-family="Consolas,monospace" font-size="8" fill="#f0883e">API · TCP 53  ·  S16–17</text>
           <text x="720" y="275" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">Jump Server → Witness</text>
           <text x="840" y="275" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 2009  ·  S6</text>
           <text x="720" y="292" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">FC → AHV VLAN (remote)</text>
           <text x="840" y="292" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP/UDP  ·  S3–4</text>
           <text x="720" y="309" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#58a6ff" font-weight="600">iLO / FC → Azure Blob</text>
-          <text x="840" y="309" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 443  ·  S1,4</text>
+          <text x="840" y="309" font-family="Consolas,monospace" font-size="8" fill="#f0883e">TCP 443  ·  S1, 4</text>
           <rect x="720" y="322" width="222" height="22" rx="4" fill="#0d2b12" stroke="#2e7d32"/>
           <text x="831" y="337" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="8" fill="#3fb950">Steps 14 &amp; 18 optional — skip if not enabled in config</text>
         </svg>
