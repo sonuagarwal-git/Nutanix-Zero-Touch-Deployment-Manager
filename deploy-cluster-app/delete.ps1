@@ -33,6 +33,42 @@ function Confirm-YesNo {
     return ($answer -match '^(Y|y)$')
 }
 
+# ── Up-front confirmation ────────────────────────────────────────────────────
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Red
+Write-Host "║         NUTANIX ZERO TOUCH DEPLOYMENT -- FULL TEARDOWN       ║" -ForegroundColor Red
+Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Red
+Write-Host ""
+Write-Host "  This script will perform the following actions:" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  Step 1  Stop and uninstall the 'Nutanix Cluster Deployment Web'" -ForegroundColor White
+Write-Host "          Windows service (and remove the WinSW daemon binary)." -ForegroundColor Gray
+Write-Host "  Step 2  Delete the node_modules\ folder." -ForegroundColor White
+Write-Host "  Step 3  Uninstall Node.js (via winget)." -ForegroundColor White
+Write-Host "  Step 4  Delete the .env file (environment / secrets)." -ForegroundColor White
+Write-Host "  Step 5  Delete the certs\ folder (SSL certificates)." -ForegroundColor White
+Write-Host "  Step 6  Reset deployments.json, audit-logs.json," -ForegroundColor White
+Write-Host "          last-deployment.json and historical-timings.json" -ForegroundColor Gray
+Write-Host "          to empty/default state." -ForegroundColor Gray
+Write-Host "  Step 7  Optionally uninstall Posh-SSH (you will be asked)." -ForegroundColor White
+Write-Host "  Step 8  Optionally uninstall PowerShell 7 (you will be asked)." -ForegroundColor White
+Write-Host ""
+Write-Host "  WARNING: This cannot be undone. Run .\start.ps1 afterwards to" -ForegroundColor Red
+Write-Host "           set everything up from scratch again." -ForegroundColor Red
+Write-Host ""
+
+if (-not (Confirm-YesNo "Are you sure you want to proceed with the full teardown?")) {
+    Write-Host ""
+    Write-Host "  Aborted. No changes were made." -ForegroundColor Green
+    Write-Host ""
+    exit 0
+}
+
+Write-Host ""
+Write-Host "  Proceeding with teardown..." -ForegroundColor Cyan
+Write-Host ""
+# ────────────────────────────────────────────────────────────────────────────
+
 # Step 1 - Stop and uninstall Windows service
 Write-Step "Step 1 -- Stopping and uninstalling Windows service"
 $svc = Get-Service 'Nutanix Cluster Deployment Web' -ErrorAction SilentlyContinue
